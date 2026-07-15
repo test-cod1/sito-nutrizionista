@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calcolatore Dieta</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="print-only" id="print-header">
+    <h1>🥗 Piano alimentare</h1>
+    <p>Paziente: <span id="print-paziente">-</span></p>
+    <p>Data: <span id="print-date">-</span></p>
+  </div>
+
+  <header class="hero no-print">
+    <h1>🥗 Calcolatore Dieta</h1>
+    <p class="hero-sub">Crea, calcola e stampa il piano alimentare del paziente</p>
+  </header>
+
+  <section id="impostazioni" class="card no-print">
+    <h2>📋 Dati dieta</h2>
+    <label for="paziente-input">Nome paziente</label>
+    <input type="text" id="paziente-input" placeholder="Nome e cognome">
+
+    <label for="max-kcal-input">Calorie massime giornaliere</label>
+    <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
+  </section>
+
+  <section id="calcolatore" class="card no-print">
+    <h2>🍽️ Calcolatore alimento</h2>
+
+    <label for="food-input">Alimento</label>
+    <div class="autocomplete-wrapper">
+      <input type="text" id="food-input" placeholder="Inizia a scrivere il nome dell'alimento..." autocomplete="off">
+      <div id="suggestions" class="suggestions hidden"></div>
+    </div>
+    <p id="food-error" class="error hidden">Alimento non trovato. Selezionalo dall'elenco suggerito mentre scrivi.</p>
+
+    <label for="grams-input">Peso (g)</label>
+    <input type="number" id="grams-input" min="0" step="1" placeholder="es. 100">
+
+    <div id="preview" class="preview hidden">
+      <p>Calorie: <strong><span id="preview-kcal"></span> kcal</strong></p>
+      <p>Proteine: <span id="preview-prot"></span> g</p>
+      <p>Grassi: <span id="preview-fat"></span> g</p>
+      <p>Carboidrati: <span id="preview-carb"></span> g</p>
+    </div>
+
+    <div class="conferma-riga">
+      <label for="giorno-select">Giorno</label>
+      <select id="giorno-select">
+        <option>Lunedì</option>
+        <option>Martedì</option>
+        <option>Mercoledì</option>
+        <option>Giovedì</option>
+        <option>Venerdì</option>
+        <option>Sabato</option>
+        <option>Domenica</option>
+      </select>
+
+      <label for="pasto-select">Pasto</label>
+      <select id="pasto-select">
+        <option>Colazione</option>
+        <option>Spuntino mattina</option>
+        <option>Pranzo</option>
+        <option>Merenda</option>
+        <option>Cena</option>
+      </select>
+
+      <button id="add-btn" disabled>✅ Conferma e aggiungi alla dieta</button>
+    </div>
+  </section>
+
+  <section id="dieta" class="card">
+    <div class="dieta-header no-print">
+      <h2>📅 Dieta settimanale</h2>
+      <div>
+        <button id="pdf-btn" class="secondary">📄 Genera PDF</button>
+        <button id="reset-btn" class="danger">🗑️ Svuota dieta</button>
+      </div>
+    </div>
+    <div id="dieta-container"></div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
