@@ -311,6 +311,38 @@ button.danger:hover {
   font-weight: bold;
 }
 
+.duplica-giorno-btn {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  font-size: 0.85rem;
+  padding: 3px 8px;
+  margin: 0 0 0 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.duplica-giorno-btn:hover {
+  background: rgba(255, 255, 255, 0.32);
+  transform: none;
+}
+
+.duplica-pasto-btn {
+  background: none;
+  border: none;
+  color: #2b6f8a;
+  font-size: 0.85rem;
+  padding: 0 4px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.duplica-pasto-btn:hover {
+  color: #184a5e;
+  transform: none;
+}
+
 .giorno-contenuto.collassato {
   display: none;
 }
@@ -386,6 +418,108 @@ table tfoot .riga-totale td {
   border-radius: 8px;
   margin-top: 10px;
   font-weight: 600;
+}
+
+.duplica-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(20, 35, 27, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.duplica-overlay.hidden {
+  display: none;
+}
+
+.duplica-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.duplica-modal h3 {
+  margin: 0 0 6px;
+  color: #2f6d4f;
+}
+
+.duplica-sottotitolo {
+  color: #5c6b62;
+  font-size: 0.9rem;
+  margin: 0 0 14px;
+}
+
+.giorni-preset {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.giorni-preset .preset-btn {
+  margin-top: 0;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background: #eef4f0;
+  color: #2f6d4f;
+  border: 1px solid #cdd9d2;
+}
+
+.giorni-preset .preset-btn:hover {
+  background: #dcece2;
+  transform: none;
+}
+
+.giorni-checkbox-griglia {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  margin: 10px 0 16px;
+}
+
+.duplica-giorni-checkbox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 6px;
+}
+
+.duplica-giorno-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.duplica-giorno-check:hover {
+  background: #f0f6f2;
+}
+
+.duplica-giorno-check input {
+  width: auto;
+}
+
+.duplica-azioni {
+  display: flex;
+  gap: 8px;
+}
+
+.duplica-azioni button {
+  flex: 1;
 }
 
 .print-only {

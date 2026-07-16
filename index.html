@@ -96,16 +96,13 @@
     </div>
 
     <div class="conferma-riga">
-      <label for="giorno-select">Giorno</label>
-      <select id="giorno-select">
-        <option>Lunedì</option>
-        <option>Martedì</option>
-        <option>Mercoledì</option>
-        <option>Giovedì</option>
-        <option>Venerdì</option>
-        <option>Sabato</option>
-        <option>Domenica</option>
-      </select>
+      <label>In quali giorni inserire questo pasto?</label>
+      <div class="giorni-preset">
+        <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="tutti">Tutti i giorni</button>
+        <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
+        <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="nessuno">Nessuno</button>
+      </div>
+      <div id="conferma-giorni-checkbox" class="giorni-checkbox-griglia"></div>
 
       <label for="pasto-select">Pasto</label>
       <select id="pasto-select">
@@ -116,7 +113,7 @@
         <option>Cena</option>
       </select>
 
-      <button id="conferma-pasto-btn" disabled>✅ Conferma pasto e aggiungi alla giornata</button>
+      <button id="conferma-pasto-btn" disabled>✅ Conferma pasto e aggiungi ai giorni selezionati</button>
       <button id="svuota-pasto-btn" class="danger">Svuota pasto in corso</button>
     </div>
   </section>
@@ -133,6 +130,23 @@
     </div>
     <div id="dieta-container"></div>
   </section>
+
+  <div id="duplica-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3 id="duplica-titolo">Duplica</h3>
+      <p id="duplica-sottotitolo" class="duplica-sottotitolo"></p>
+      <div class="giorni-preset">
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="tutti">Tutti</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="nessuno">Nessuno</button>
+      </div>
+      <div id="duplica-giorni-checkbox" class="duplica-giorni-checkbox"></div>
+      <div class="duplica-azioni">
+        <button id="duplica-conferma-btn">✅ Duplica</button>
+        <button id="duplica-annulla-btn" class="danger">Annulla</button>
+      </div>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>
