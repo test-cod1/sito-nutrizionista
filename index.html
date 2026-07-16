@@ -97,12 +97,17 @@
 
     <div class="conferma-riga">
       <label>In quali giorni inserire questo pasto?</label>
-      <div class="giorni-preset">
-        <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="tutti">Tutti i giorni</button>
-        <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
-        <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="nessuno">Nessuno</button>
+      <div class="giorni-dropdown">
+        <button type="button" id="giorni-dropdown-btn" class="giorni-dropdown-btn">Seleziona giorni ▾</button>
+        <div id="giorni-dropdown-panel" class="giorni-dropdown-panel hidden">
+          <div class="giorni-preset">
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="tutti">Tutti i giorni</button>
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="nessuno">Nessuno</button>
+          </div>
+          <div id="conferma-giorni-checkbox" class="giorni-checkbox-griglia"></div>
+        </div>
       </div>
-      <div id="conferma-giorni-checkbox" class="giorni-checkbox-griglia"></div>
 
       <label for="pasto-select">Pasto</label>
       <select id="pasto-select">

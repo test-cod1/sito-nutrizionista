@@ -63,6 +63,8 @@ const addDraftBtn = document.getElementById("add-draft-btn");
 
 const draftContainer = document.getElementById("draft-container");
 const confermaGiorniCheckbox = document.getElementById("conferma-giorni-checkbox");
+const giorniDropdownBtn = document.getElementById("giorni-dropdown-btn");
+const giorniDropdownPanel = document.getElementById("giorni-dropdown-panel");
 const pastoSelect = document.getElementById("pasto-select");
 const confermaPastoBtn = document.getElementById("conferma-pasto-btn");
 const svuotaPastoBtn = document.getElementById("svuota-pasto-btn");
@@ -290,8 +292,18 @@ function giorniSelezionatiConferma() {
   return Array.from(confermaGiorniCheckbox.querySelectorAll("input:checked")).map(cb => cb.value);
 }
 
+function aggiornaTestoDropdownGiorni() {
+  const selezionati = giorniSelezionatiConferma();
+  let testo;
+  if (selezionati.length === 0) testo = "Seleziona giorni";
+  else if (selezionati.length === GIORNI.length) testo = "Tutti i giorni";
+  else testo = selezionati.join(", ");
+  giorniDropdownBtn.textContent = `${testo} ▾`;
+}
+
 function aggiornaStatoConfermaBtn() {
   confermaPastoBtn.disabled = draftPasto.length === 0 || giorniSelezionatiConferma().length === 0;
+  aggiornaTestoDropdownGiorni();
 }
 
 function renderDraft() {
@@ -700,6 +712,18 @@ function inizializza() {
 
   renderGiorniCheckbox(confermaGiorniCheckbox, GIORNI);
   confermaGiorniCheckbox.addEventListener("change", aggiornaStatoConfermaBtn);
+  aggiornaTestoDropdownGiorni();
+
+  giorniDropdownBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    giorniDropdownPanel.classList.toggle("hidden");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".giorni-dropdown")) {
+      giorniDropdownPanel.classList.add("hidden");
+    }
+  });
 
   document.addEventListener("click", (e) => {
     const presetBtn = e.target.closest(".preset-btn");
