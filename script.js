@@ -94,10 +94,20 @@ function round1(n) {
 
 // ---------- Database alimenti (base + personalizzati) ----------
 
+function normalizzaValoriAlimento(a) {
+  return {
+    nome: a.nome,
+    kcal: Math.max(0, a.kcal),
+    proteine: Math.max(0, a.proteine),
+    grassi: Math.max(0, a.grassi),
+    carboidrati: Math.max(0, a.carboidrati)
+  };
+}
+
 function ricostruisciElencoAlimenti() {
   foodMap = new Map();
-  baseAlimenti.forEach(a => foodMap.set(a.nome, a));
-  state.customFoods.forEach(a => foodMap.set(a.nome, a));
+  baseAlimenti.forEach(a => foodMap.set(a.nome, normalizzaValoriAlimento(a)));
+  state.customFoods.forEach(a => foodMap.set(a.nome, normalizzaValoriAlimento(a)));
   foodNames = Array.from(foodMap.keys()).sort((a, b) => a.localeCompare(b, "it"));
 }
 
