@@ -79,10 +79,14 @@ const annullaAlimentoBtn = document.getElementById("annulla-alimento-btn");
 const pazienteInput = document.getElementById("paziente-input");
 const maxKcalInput = document.getElementById("max-kcal-input");
 const dietaContainer = document.getElementById("dieta-container");
-const pdfBtn = document.getElementById("pdf-btn");
+const pdfDietaBtn = document.getElementById("pdf-dieta-btn");
+const pdfSpesaBtn = document.getElementById("pdf-spesa-btn");
+const pdfNutrizionistaBtn = document.getElementById("pdf-nutrizionista-btn");
 const resetBtn = document.getElementById("reset-btn");
+const printTitle = document.getElementById("print-title");
 const printPaziente = document.getElementById("print-paziente");
 const printDate = document.getElementById("print-date");
+const listaSpesaPrint = document.getElementById("lista-spesa-print");
 
 function round1(n) {
   return Math.round(n * 10) / 10;
@@ -358,7 +362,7 @@ function renderDieta() {
     titolo.dataset.giorno = giorno;
     titolo.innerHTML = `
       <span><span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${giorno}</span>
-      <span class="no-print">${superato ? '<span class="totale-warning">⚠ ' : ''}Totale: ${round1(totaleGiorno)} kcal${superato ? '</span>' : ''}</span>
+      <span class="solo-nutrizionista">${superato ? '<span class="totale-warning">⚠ ' : ''}Totale: ${round1(totaleGiorno)} kcal${superato ? '</span>' : ''}</span>
     `;
     blocco.appendChild(titolo);
 
@@ -387,20 +391,20 @@ function renderDieta() {
             <td>${item.alimento}</td>
             <td>${item.grammi} g</td>
             <td>${item.nota || "-"}</td>
-            <td class="no-print">${item.kcal} kcal</td>
-            <td class="no-print">${item.proteine} g</td>
-            <td class="no-print">${item.grassi} g</td>
-            <td class="no-print">${item.carboidrati} g</td>
+            <td class="solo-nutrizionista">${item.kcal} kcal</td>
+            <td class="solo-nutrizionista">${item.proteine} g</td>
+            <td class="solo-nutrizionista">${item.grassi} g</td>
+            <td class="solo-nutrizionista">${item.carboidrati} g</td>
             <td class="no-print"><button class="remove-btn" data-giorno="${giorno}" data-pasto="${pasto}" data-index="${index}" title="Rimuovi">✕</button></td>
           </tr>
         `).join("");
 
         pastoDiv.innerHTML = `
-          <h4>🍴 ${pasto} <span class="no-print">— ${subtotaleKcal} kcal</span></h4>
+          <h4>🍴 ${pasto} <span class="solo-nutrizionista">— ${subtotaleKcal} kcal</span></h4>
           <table>
             <thead>
               <tr>
-                <th>Alimento</th><th>Quantità</th><th>Note</th><th class="no-print">Calorie</th><th class="no-print">Proteine</th><th class="no-print">Grassi</th><th class="no-print">Carboidrati</th><th class="no-print"></th>
+                <th>Alimento</th><th>Quantità</th><th>Note</th><th class="solo-nutrizionista">Calorie</th><th class="solo-nutrizionista">Proteine</th><th class="solo-nutrizionista">Grassi</th><th class="solo-nutrizionista">Carboidrati</th><th class="no-print"></th>
               </tr>
             </thead>
             <tbody>${righe}</tbody>
@@ -429,9 +433,71 @@ function svuotaDieta() {
   renderDieta();
 }
 
-function generaPdf() {
+// ---------- Lista della spesa ----------
+
+function calcolaListaSpesa() {
+  const totali = new Map();
+  GIORNI.forEach(giorno => {
+    PASTI.forEach(pasto => {
+      state.dieta[giorno][pasto].forEach(item => {
+        totali.set(item.alimento, (totali.get(item.alimento) || 0) + item.grammi);
+      });
+    });
+  });
+  return Array.from(totali.entries())
+    .map(([nome, grammi]) => ({ nome, grammi: Math.round(grammi) }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "it"));
+}
+
+function renderListaSpesa() {
+  const lista = calcolaListaSpesa();
+
+  if (lista.length === 0) {
+    listaSpesaPrint.innerHTML = '<p class="vuoto">La dieta è vuota: nessun alimento da acquistare.</p>';
+    return;
+  }
+
+  const righe = lista.map(voce => `
+    <tr><td>${voce.nome}</td><td>${voce.grammi} g</td></tr>
+  `).join("");
+
+  listaSpesaPrint.innerHTML = `
+    <table>
+      <thead><tr><th>Alimento</th><th>Quantità totale settimanale</th></tr></thead>
+      <tbody>${righe}</tbody>
+    </table>
+  `;
+}
+
+// ---------- Generazione PDF (stampa) ----------
+
+function impostaIntestazionePdf(titolo) {
+  printTitle.textContent = titolo;
   printPaziente.textContent = state.paziente || pazienteInput.value || "-";
   printDate.textContent = new Date().toLocaleDateString("it-IT");
+}
+
+function impostaModalitaStampa(modalita) {
+  document.body.classList.remove("stampa-dieta", "stampa-nutrizionista", "stampa-spesa");
+  document.body.classList.add(modalita);
+}
+
+function generaPdfDieta() {
+  impostaModalitaStampa("stampa-dieta");
+  impostaIntestazionePdf("🥗 Piano alimentare");
+  window.print();
+}
+
+function generaPdfNutrizionista() {
+  impostaModalitaStampa("stampa-nutrizionista");
+  impostaIntestazionePdf("📊 Piano alimentare — Scheda nutrizionista");
+  window.print();
+}
+
+function generaPdfSpesa() {
+  renderListaSpesa();
+  impostaModalitaStampa("stampa-spesa");
+  impostaIntestazionePdf("🛒 Lista della spesa settimanale");
   window.print();
 }
 
@@ -535,8 +601,14 @@ function inizializza() {
     }
   });
 
-  pdfBtn.addEventListener("click", generaPdf);
+  pdfDietaBtn.addEventListener("click", generaPdfDieta);
+  pdfSpesaBtn.addEventListener("click", generaPdfSpesa);
+  pdfNutrizionistaBtn.addEventListener("click", generaPdfNutrizionista);
   resetBtn.addEventListener("click", svuotaDieta);
+
+  window.addEventListener("afterprint", () => {
+    document.body.classList.remove("stampa-dieta", "stampa-nutrizionista", "stampa-spesa");
+  });
 
   renderDraft();
   renderDieta();

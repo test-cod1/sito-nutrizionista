@@ -9,10 +9,12 @@
 <body>
 
   <div class="print-only" id="print-header">
-    <h1>🥗 Piano alimentare</h1>
+    <h1 id="print-title">🥗 Piano alimentare</h1>
     <p>Paziente: <span id="print-paziente">-</span></p>
     <p>Data: <span id="print-date">-</span></p>
   </div>
+
+  <div class="lista-spesa-print" id="lista-spesa-print"></div>
 
   <header class="hero no-print">
     <h1>🥗 Calcolatore Dieta</h1>
@@ -122,8 +124,10 @@
   <section id="dieta" class="card">
     <div class="dieta-header no-print">
       <h2>📅 Dieta settimanale</h2>
-      <div>
-        <button id="pdf-btn" class="secondary">📄 Genera PDF</button>
+      <div class="pdf-buttons">
+        <button id="pdf-dieta-btn" class="secondary">📄 PDF Dieta (cliente)</button>
+        <button id="pdf-spesa-btn" class="secondary">🛒 PDF Lista della spesa</button>
+        <button id="pdf-nutrizionista-btn" class="secondary">📊 PDF Scheda nutrizionista</button>
         <button id="reset-btn" class="danger">🗑️ Svuota dieta</button>
       </div>
     </div>

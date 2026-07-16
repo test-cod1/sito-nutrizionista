@@ -268,6 +268,16 @@ button.danger:hover {
   margin-left: 8px;
 }
 
+.pdf-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.pdf-buttons button {
+  margin-left: 8px;
+}
+
 .giorno-block {
   margin-top: 20px;
   border: 1px solid #e2e9e5;
@@ -382,11 +392,35 @@ table tfoot .riga-totale td {
   display: none;
 }
 
+.lista-spesa-print {
+  display: none;
+}
+
+.lista-spesa-print h2 {
+  color: #223229;
+}
+
+.lista-spesa-print .riga-totale td {
+  font-weight: 700;
+}
+
 @media print {
   .no-print {
     display: none !important;
   }
   .print-only {
+    display: block;
+  }
+  .solo-nutrizionista {
+    display: none;
+  }
+  body.stampa-nutrizionista .solo-nutrizionista {
+    display: revert;
+  }
+  body.stampa-spesa #dieta-container {
+    display: none;
+  }
+  body.stampa-spesa .lista-spesa-print {
     display: block;
   }
   body {
