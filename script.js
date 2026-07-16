@@ -344,10 +344,29 @@ function confermaPasto() {
 
 // ---------- Dieta settimanale ----------
 
+function totaliPasto(items) {
+  return items.reduce((acc, item) => {
+    acc.kcal += item.kcal;
+    acc.proteine += item.proteine;
+    acc.grassi += item.grassi;
+    acc.carboidrati += item.carboidrati;
+    return acc;
+  }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
+}
+
+function totaliGiorno(giorno) {
+  return PASTI.reduce((acc, pasto) => {
+    const t = totaliPasto(state.dieta[giorno][pasto]);
+    acc.kcal += t.kcal;
+    acc.proteine += t.proteine;
+    acc.grassi += t.grassi;
+    acc.carboidrati += t.carboidrati;
+    return acc;
+  }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
+}
+
 function totaleGiornoKcal(giorno) {
-  return PASTI.reduce((somma, pasto) => {
-    return somma + state.dieta[giorno][pasto].reduce((s, item) => s + item.kcal, 0);
-  }, 0);
+  return totaliGiorno(giorno).kcal;
 }
 
 function controllaLimite(giorno) {
@@ -356,11 +375,15 @@ function controllaLimite(giorno) {
   return totaleGiornoKcal(giorno) > max;
 }
 
+function formattaTotali(t) {
+  return `${round1(t.kcal)} kcal · ${round1(t.proteine)} g prot · ${round1(t.grassi)} g grassi · ${round1(t.carboidrati)} g carb`;
+}
+
 function renderDieta() {
   dietaContainer.innerHTML = "";
 
   GIORNI.forEach(giorno => {
-    const totaleGiorno = totaleGiornoKcal(giorno);
+    const totaleGiorno = totaliGiorno(giorno);
     const superato = controllaLimite(giorno);
     const collassato = collapsedGiorni.has(giorno);
 
@@ -372,7 +395,7 @@ function renderDieta() {
     titolo.dataset.giorno = giorno;
     titolo.innerHTML = `
       <span><span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${giorno}</span>
-      <span class="solo-nutrizionista">${superato ? '<span class="totale-warning">⚠ ' : ''}Totale: ${round1(totaleGiorno)} kcal${superato ? '</span>' : ''}</span>
+      <span class="solo-nutrizionista">${superato ? '<span class="totale-warning">⚠ ' : ''}Totale: ${formattaTotali(totaleGiorno)}${superato ? '</span>' : ''}</span>
     `;
     blocco.appendChild(titolo);
 
@@ -383,7 +406,7 @@ function renderDieta() {
       const max = parseFloat(state.maxKcal);
       const banner = document.createElement("div");
       banner.className = "alert-banner no-print";
-      banner.textContent = `Attenzione: ${giorno} supera il limite di ${max} kcal impostato (${round1(totaleGiorno)} kcal totali).`;
+      banner.textContent = `Attenzione: ${giorno} supera il limite di ${max} kcal impostato (${round1(totaleGiorno.kcal)} kcal totali).`;
       contenuto.appendChild(banner);
     }
 
@@ -395,7 +418,7 @@ function renderDieta() {
       if (items.length === 0) {
         pastoDiv.innerHTML = `<h4>🍴 ${pasto}</h4><p class="vuoto">Nessun alimento inserito.</p>`;
       } else {
-        const subtotaleKcal = round1(items.reduce((s, i) => s + i.kcal, 0));
+        const totalePasto = totaliPasto(items);
         let righe = items.map((item, index) => `
           <tr>
             <td>${item.alimento}</td>
@@ -410,7 +433,7 @@ function renderDieta() {
         `).join("");
 
         pastoDiv.innerHTML = `
-          <h4>🍴 ${pasto} <span class="solo-nutrizionista">— ${subtotaleKcal} kcal</span></h4>
+          <h4>🍴 ${pasto} <span class="solo-nutrizionista">— ${formattaTotali(totalePasto)}</span></h4>
           <table>
             <thead>
               <tr>
