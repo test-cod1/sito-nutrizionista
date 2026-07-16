@@ -125,6 +125,25 @@ button.danger:hover {
   background: #822d2d;
 }
 
+.riga-alimento {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.riga-alimento .autocomplete-wrapper {
+  flex: 1;
+}
+
+.btn-plus {
+  flex-shrink: 0;
+  width: 44px;
+  padding: 10px 0;
+  margin-top: 0;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
 .autocomplete-wrapper {
   position: relative;
 }
@@ -159,6 +178,49 @@ button.danger:hover {
 .suggestion-item.active {
   background: #eaf5ee;
   color: #24573f;
+}
+
+.tag-custom {
+  display: inline-block;
+  background: #2b6f8a;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.nuovo-alimento-form {
+  background: #f6faf7;
+  border: 1.5px dashed #bcd0c4;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 10px;
+}
+
+.nuovo-alimento-form h3 {
+  margin: 0 0 4px;
+  color: #2f6d4f;
+  font-size: 1.05rem;
+}
+
+.griglia-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .griglia-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.nuovo-alimento-form button {
+  margin-right: 8px;
 }
 
 .preview {
@@ -221,11 +283,26 @@ button.danger:hover {
   justify-content: space-between;
   align-items: center;
   font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.giorno-titolo:hover {
+  filter: brightness(1.08);
+}
+
+.giorno-titolo .freccia {
+  display: inline-block;
+  width: 1em;
 }
 
 .giorno-titolo .totale-warning {
   color: #ffe1d8;
   font-weight: bold;
+}
+
+.giorno-contenuto.collassato {
+  display: none;
 }
 
 .pasto-blocco {
@@ -261,6 +338,14 @@ table th {
 
 table tbody tr:hover {
   background: #f7fbf8;
+}
+
+table tfoot .riga-totale td {
+  font-weight: 700;
+  color: #2f6d4f;
+  border-top: 2px solid #bcd0c4;
+  border-bottom: none;
+  background: #f6faf7;
 }
 
 .remove-btn {
@@ -324,5 +409,8 @@ table tbody tr:hover {
     border: none;
     border-radius: 0;
     page-break-inside: avoid;
+  }
+  .giorno-contenuto.collassato {
+    display: block !important;
   }
 }

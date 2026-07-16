@@ -32,20 +32,65 @@
     <h2>🍽️ Calcolatore alimento</h2>
 
     <label for="food-input">Alimento</label>
-    <div class="autocomplete-wrapper">
-      <input type="text" id="food-input" placeholder="Inizia a scrivere il nome dell'alimento..." autocomplete="off">
-      <div id="suggestions" class="suggestions hidden"></div>
+    <div class="riga-alimento">
+      <div class="autocomplete-wrapper">
+        <input type="text" id="food-input" placeholder="Inizia a scrivere il nome dell'alimento..." autocomplete="off">
+        <div id="suggestions" class="suggestions hidden"></div>
+      </div>
+      <button id="nuovo-alimento-btn" class="secondary btn-plus" title="Aggiungi un nuovo alimento al database">+</button>
     </div>
     <p id="food-error" class="error hidden">Alimento non trovato. Selezionalo dall'elenco suggerito mentre scrivi.</p>
 
+    <div id="nuovo-alimento-form" class="nuovo-alimento-form hidden">
+      <h3>➕ Nuovo alimento</h3>
+      <label for="nuovo-nome">Nome alimento</label>
+      <input type="text" id="nuovo-nome" placeholder="es. PANE INTEGRALE">
+
+      <div class="griglia-4">
+        <div>
+          <label for="nuovo-kcal">Calorie (per 100g)</label>
+          <input type="number" id="nuovo-kcal" min="0" step="0.1">
+        </div>
+        <div>
+          <label for="nuovo-prot">Proteine (per 100g)</label>
+          <input type="number" id="nuovo-prot" min="0" step="0.1">
+        </div>
+        <div>
+          <label for="nuovo-fat">Grassi (per 100g)</label>
+          <input type="number" id="nuovo-fat" min="0" step="0.1">
+        </div>
+        <div>
+          <label for="nuovo-carb">Carboidrati (per 100g)</label>
+          <input type="number" id="nuovo-carb" min="0" step="0.1">
+        </div>
+      </div>
+      <p id="nuovo-alimento-error" class="error hidden">Compila nome e tutti i valori nutrizionali (numeri, anche 0).</p>
+      <div>
+        <button id="salva-alimento-btn">💾 Salva alimento</button>
+        <button id="annulla-alimento-btn" class="danger">Annulla</button>
+      </div>
+    </div>
+
     <label for="grams-input">Peso (g)</label>
     <input type="number" id="grams-input" min="0" step="1" placeholder="es. 100">
+
+    <label for="nota-input">Note (opzionale)</label>
+    <input type="text" id="nota-input" placeholder="es. cotto al vapore, sostituibile con...">
 
     <div id="preview" class="preview hidden">
       <p>Calorie: <strong><span id="preview-kcal"></span> kcal</strong></p>
       <p>Proteine: <span id="preview-prot"></span> g</p>
       <p>Grassi: <span id="preview-fat"></span> g</p>
       <p>Carboidrati: <span id="preview-carb"></span> g</p>
+    </div>
+
+    <button id="add-draft-btn" disabled>➕ Aggiungi al pasto in corso</button>
+  </section>
+
+  <section id="pasto-corrente" class="card no-print">
+    <h2>🧾 Pasto in corso</h2>
+    <div id="draft-container">
+      <p class="vuoto">Nessun alimento aggiunto al pasto in corso.</p>
     </div>
 
     <div class="conferma-riga">
@@ -69,7 +114,8 @@
         <option>Cena</option>
       </select>
 
-      <button id="add-btn" disabled>✅ Conferma e aggiungi alla dieta</button>
+      <button id="conferma-pasto-btn" disabled>✅ Conferma pasto e aggiungi alla giornata</button>
+      <button id="svuota-pasto-btn" class="danger">Svuota pasto in corso</button>
     </div>
   </section>
 
