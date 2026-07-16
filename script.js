@@ -1,5 +1,6 @@
 const GIORNI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
 const GIORNI_FERIALI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
+const GIORNI_WEEKEND = ["Sabato", "Domenica"];
 const PASTI = ["Colazione", "Spuntino mattina", "Pranzo", "Merenda", "Cena"];
 const STORAGE_KEY = "dieta-nutrizionista-state";
 
@@ -429,6 +430,7 @@ function applicaPresetGiorni(container, preset) {
     if (preset === "tutti") cb.checked = true;
     else if (preset === "nessuno") cb.checked = false;
     else if (preset === "feriali") cb.checked = GIORNI_FERIALI.includes(cb.value);
+    else if (preset === "weekend") cb.checked = GIORNI_WEEKEND.includes(cb.value);
   });
 }
 
