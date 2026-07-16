@@ -1,9 +1,7 @@
 const GIORNI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
-const GIORNI_BREVI = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 const GIORNI_FERIALI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
 const GIORNI_WEEKEND = ["Sabato", "Domenica"];
 const PASTI = ["Colazione", "Spuntino mattina", "Pranzo", "Merenda", "Cena"];
-const PASTI_BREVI = { "Spuntino mattina": "Spuntino" };
 const STORAGE_KEY = "dieta-nutrizionista-state";
 
 let baseAlimenti = [];
@@ -12,11 +10,8 @@ let foodNames = [];
 let currentCalc = null;
 let suggestionIndex = -1;
 let draftPasto = [];
-let pastoSelezionato = "Colazione";
-let giorniSelezionati = new Set();
-let recentCells = new Set();
+let collapsedGiorni = new Set();
 let duplicaContesto = null;
-let cellaContesto = null;
 
 function creaDietaVuota() {
   const dieta = {};
@@ -57,8 +52,10 @@ function caricaState() {
 // Elementi DOM
 const foodInput = document.getElementById("food-input");
 const suggestions = document.getElementById("suggestions");
+const foodError = document.getElementById("food-error");
 const gramsInput = document.getElementById("grams-input");
 const notaInput = document.getElementById("nota-input");
+const preview = document.getElementById("preview");
 const previewKcal = document.getElementById("preview-kcal");
 const previewProt = document.getElementById("preview-prot");
 const previewFat = document.getElementById("preview-fat");
@@ -66,12 +63,14 @@ const previewCarb = document.getElementById("preview-carb");
 const addDraftBtn = document.getElementById("add-draft-btn");
 
 const draftContainer = document.getElementById("draft-container");
-const draftSummary = document.getElementById("draft-summary");
-const pastoPills = document.getElementById("pasto-pills");
-const giorniToggle = document.getElementById("giorni-toggle");
+const confermaGiorniCheckbox = document.getElementById("conferma-giorni-checkbox");
+const giorniDropdownBtn = document.getElementById("giorni-dropdown-btn");
+const giorniDropdownPanel = document.getElementById("giorni-dropdown-panel");
+const pastoSelect = document.getElementById("pasto-select");
 const confermaPastoBtn = document.getElementById("conferma-pasto-btn");
 const svuotaPastoBtn = document.getElementById("svuota-pasto-btn");
 
+const nuovoAlimentoBtn = document.getElementById("nuovo-alimento-btn");
 const nuovoAlimentoForm = document.getElementById("nuovo-alimento-form");
 const nuovoNomeInput = document.getElementById("nuovo-nome");
 const nuovoKcalInput = document.getElementById("nuovo-kcal");
@@ -84,29 +83,15 @@ const annullaAlimentoBtn = document.getElementById("annulla-alimento-btn");
 
 const pazienteInput = document.getElementById("paziente-input");
 const maxKcalInput = document.getElementById("max-kcal-input");
-const grigliaSettimana = document.getElementById("griglia-settimana");
-const grigliaTotali = document.getElementById("griglia-totali");
-const legenda = document.getElementById("legenda");
-const resetBtn = document.getElementById("reset-btn");
-
-const pdfMenuBtn = document.getElementById("pdf-menu-btn");
-const pdfMenu = document.getElementById("pdf-menu");
+const dietaContainer = document.getElementById("dieta-container");
 const pdfDietaBtn = document.getElementById("pdf-dieta-btn");
 const pdfSpesaBtn = document.getElementById("pdf-spesa-btn");
 const pdfNutrizionistaBtn = document.getElementById("pdf-nutrizionista-btn");
-
+const resetBtn = document.getElementById("reset-btn");
 const printTitle = document.getElementById("print-title");
 const printPaziente = document.getElementById("print-paziente");
 const printDate = document.getElementById("print-date");
 const listaSpesaPrint = document.getElementById("lista-spesa-print");
-const printDieta = document.getElementById("print-dieta");
-
-const cellaOverlay = document.getElementById("cella-overlay");
-const cellaTitolo = document.getElementById("cella-titolo");
-const cellaDettaglio = document.getElementById("cella-dettaglio");
-const cellaDuplicaBtn = document.getElementById("cella-duplica-btn");
-const cellaSvuotaBtn = document.getElementById("cella-svuota-btn");
-const cellaChiudiBtn = document.getElementById("cella-chiudi-btn");
 
 const duplicaOverlay = document.getElementById("duplica-overlay");
 const duplicaTitolo = document.getElementById("duplica-titolo");
@@ -139,9 +124,10 @@ function ricostruisciElencoAlimenti() {
 }
 
 async function caricaAlimenti() {
-  const risposta = await fetch("foods.json");
+  const risposta = await fetch("../foods.json");
   baseAlimenti = await risposta.json();
   ricostruisciElencoAlimenti();
+  aggiornaSuggerimenti();
 }
 
 function apriFormNuovoAlimento() {
@@ -205,11 +191,14 @@ function aggiornaPreview() {
   const grammi = parseFloat(gramsInput.value);
   const alimento = foodMap.get(nome);
 
+  if (!nome) {
+    foodError.classList.add("hidden");
+  } else {
+    foodError.classList.toggle("hidden", !!alimento);
+  }
+
   if (!alimento || !grammi || grammi <= 0) {
-    previewKcal.textContent = "—";
-    previewProt.textContent = "—";
-    previewFat.textContent = "—";
-    previewCarb.textContent = "—";
+    preview.classList.add("hidden");
     addDraftBtn.disabled = true;
     currentCalc = null;
     return;
@@ -229,6 +218,7 @@ function aggiornaPreview() {
   previewProt.textContent = currentCalc.proteine;
   previewFat.textContent = currentCalc.grassi;
   previewCarb.textContent = currentCalc.carboidrati;
+  preview.classList.remove("hidden");
   addDraftBtn.disabled = false;
 }
 
@@ -238,19 +228,17 @@ function normalizza(testo) {
   return testo.toUpperCase();
 }
 
-function elementiSuggerimenti() {
-  return suggestions.querySelectorAll(".suggestion-item, .suggestion-create");
-}
-
 function mostraSuggerimenti(elenco) {
   suggestionIndex = -1;
+  if (elenco.length === 0) {
+    suggestions.innerHTML = "";
+    suggestions.classList.add("hidden");
+    return;
+  }
   const customNames = new Set(state.customFoods.map(a => a.nome));
-  const righe = elenco.map((nome, i) => {
-    const a = foodMap.get(nome);
-    const tag = customNames.has(nome) ? ' <span class="tag-custom">personalizzato</span>' : '';
-    return `<div class="suggestion-item" data-index="${i}"><span class="suggestion-nome">${nome}${tag}</span><span class="suggestion-kcal">${a.kcal} kcal/100g</span></div>`;
-  }).join("");
-  suggestions.innerHTML = righe + `<div class="suggestion-create">+ Crea nuovo alimento…</div>`;
+  suggestions.innerHTML = elenco
+    .map((nome, i) => `<div class="suggestion-item" data-index="${i}">${nome}${customNames.has(nome) ? ' <span class="tag-custom">personalizzato</span>' : ''}</div>`)
+    .join("");
   suggestions.dataset.items = JSON.stringify(elenco);
   suggestions.classList.remove("hidden");
 }
@@ -271,42 +259,11 @@ function aggiornaSuggerimenti() {
 }
 
 function evidenziaSuggerimento() {
-  const items = elementiSuggerimenti();
+  const items = suggestions.querySelectorAll(".suggestion-item");
   items.forEach((el, i) => el.classList.toggle("active", i === suggestionIndex));
-  if (suggestionIndex >= 0 && items[suggestionIndex]) {
-    items[suggestionIndex].scrollIntoView({ block: "nearest" });
-  }
 }
 
-function scegliSuggerimento(el) {
-  if (el.classList.contains("suggestion-create")) {
-    apriFormNuovoAlimento();
-    return;
-  }
-  const elenco = JSON.parse(suggestions.dataset.items || "[]");
-  const nome = elenco[parseInt(el.dataset.index, 10)];
-  if (!nome) return;
-  foodInput.value = nome;
-  nascondiSuggerimenti();
-  aggiornaPreview();
-  gramsInput.focus();
-}
-
-// ---------- Pasto in corso ----------
-
-function totaliItems(items) {
-  return items.reduce((acc, item) => {
-    acc.kcal += item.kcal;
-    acc.proteine += item.proteine;
-    acc.grassi += item.grassi;
-    acc.carboidrati += item.carboidrati;
-    return acc;
-  }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
-}
-
-function formattaTotali(t) {
-  return `${round1(t.kcal)} kcal · P ${round1(t.proteine)} g · G ${round1(t.grassi)} g · C ${round1(t.carboidrati)} g`;
-}
+// ---------- Pasto in corso (fase intermedia) ----------
 
 function aggiungiAlPastoInCorso() {
   if (!currentCalc) return;
@@ -332,80 +289,108 @@ function svuotaDraft() {
   renderDraft();
 }
 
+function giorniSelezionatiConferma() {
+  return Array.from(confermaGiorniCheckbox.querySelectorAll("input:checked")).map(cb => cb.value);
+}
+
+function aggiornaTestoDropdownGiorni() {
+  const selezionati = giorniSelezionatiConferma();
+  let testo;
+  if (selezionati.length === 0) testo = "Seleziona giorni";
+  else if (selezionati.length === GIORNI.length) testo = "Tutti i giorni";
+  else testo = selezionati.join(", ");
+  giorniDropdownBtn.textContent = `${testo} ▾`;
+}
+
 function aggiornaStatoConfermaBtn() {
-  confermaPastoBtn.disabled = draftPasto.length === 0 || giorniSelezionati.size === 0;
+  confermaPastoBtn.disabled = draftPasto.length === 0 || giorniSelezionatiConferma().length === 0;
+  aggiornaTestoDropdownGiorni();
 }
 
 function renderDraft() {
   aggiornaStatoConfermaBtn();
 
   if (draftPasto.length === 0) {
-    draftSummary.textContent = "—";
-    draftContainer.innerHTML = '<div class="draft-vuoto">Nessun alimento nel pasto in corso.<br>Cerca un alimento qui sopra e aggiungilo.</div>';
+    draftContainer.innerHTML = '<p class="vuoto">Nessun alimento aggiunto al pasto in corso.</p>';
     return;
   }
 
-  const totali = totaliItems(draftPasto);
-  draftSummary.textContent = `${draftPasto.length} aliment${draftPasto.length === 1 ? "o" : "i"} · ${round1(totali.kcal)} kcal`;
+  const totali = draftPasto.reduce((acc, item) => {
+    acc.kcal += item.kcal;
+    acc.proteine += item.proteine;
+    acc.grassi += item.grassi;
+    acc.carboidrati += item.carboidrati;
+    return acc;
+  }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
 
   const righe = draftPasto.map((item, index) => `
-    <div class="draft-riga">
-      <span><b>${item.alimento}</b> · ${item.grammi} g ${item.nota ? `<span class="nota">· ${item.nota}</span>` : ""}</span>
-      <span class="draft-riga-dx">${item.kcal} kcal <button class="remove-btn" data-draft-index="${index}" title="Rimuovi">✕</button></span>
-    </div>
+    <tr>
+      <td>${item.alimento}</td>
+      <td>${item.grammi} g</td>
+      <td>${item.nota || "-"}</td>
+      <td>${item.kcal} kcal</td>
+      <td>${item.proteine} g</td>
+      <td>${item.grassi} g</td>
+      <td>${item.carboidrati} g</td>
+      <td><button class="remove-btn" data-draft-index="${index}" title="Rimuovi">✕</button></td>
+    </tr>
   `).join("");
 
   draftContainer.innerHTML = `
-    <div class="draft-lista">${righe}</div>
-    <div class="draft-totali">Totale pasto: ${formattaTotali(totali)}</div>
+    <table>
+      <thead>
+        <tr><th>Alimento</th><th>Quantità</th><th>Note</th><th>Calorie</th><th>Proteine</th><th>Grassi</th><th>Carboidrati</th><th></th></tr>
+      </thead>
+      <tbody>${righe}</tbody>
+      <tfoot>
+        <tr class="riga-totale">
+          <td colspan="3">Totale pasto</td>
+          <td>${round1(totali.kcal)} kcal</td>
+          <td>${round1(totali.proteine)} g</td>
+          <td>${round1(totali.grassi)} g</td>
+          <td>${round1(totali.carboidrati)} g</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
   `;
 }
 
-function renderPastoPills() {
-  pastoPills.innerHTML = PASTI.map(p =>
-    `<button class="pasto-pill${p === pastoSelezionato ? " attiva" : ""}" data-pasto="${p}">${p}</button>`
-  ).join("");
-}
-
-function renderGiorniToggle() {
-  giorniToggle.innerHTML = GIORNI.map((g, i) =>
-    `<button class="giorno-toggle${giorniSelezionati.has(g) ? " attivo" : ""}" data-giorno="${g}" title="${g}">${GIORNI_BREVI[i].slice(0, 2)}</button>`
-  ).join("");
-}
-
-function applicaPresetConferma(preset) {
-  if (preset === "tutti") giorniSelezionati = new Set(GIORNI);
-  else if (preset === "feriali") giorniSelezionati = new Set(GIORNI_FERIALI);
-  else if (preset === "weekend") giorniSelezionati = new Set(GIORNI_WEEKEND);
-  renderGiorniToggle();
-  aggiornaStatoConfermaBtn();
-}
-
 function confermaPasto() {
-  if (draftPasto.length === 0 || giorniSelezionati.size === 0) return;
-  const giorni = GIORNI.filter(g => giorniSelezionati.has(g));
-  const pasto = pastoSelezionato;
+  if (draftPasto.length === 0) return;
+  const giorni = giorniSelezionatiConferma();
+  if (giorni.length === 0) return;
+  const pasto = pastoSelect.value;
 
   giorni.forEach(giorno => {
     draftPasto.forEach(item => state.dieta[giorno][pasto].push({ ...item }));
   });
-  recentCells = new Set(giorni.map(g => `${g}|${pasto}`));
   draftPasto = [];
   salvaState();
   renderDraft();
-  renderGriglia();
+  renderDieta();
 
   const giorniSuperati = giorni.filter(g => controllaLimite(g));
   if (giorniSuperati.length > 0) {
-    alert(`Attenzione: il totale calorico supera il target giornaliero impostato per: ${giorniSuperati.join(", ")}.`);
+    alert(`Attenzione: il totale calorico supera il limite massimo giornaliero impostato per: ${giorniSuperati.join(", ")}.`);
   }
 }
 
 // ---------- Dieta settimanale ----------
 
+function totaliPasto(items) {
+  return items.reduce((acc, item) => {
+    acc.kcal += item.kcal;
+    acc.proteine += item.proteine;
+    acc.grassi += item.grassi;
+    acc.carboidrati += item.carboidrati;
+    return acc;
+  }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
+}
+
 function totaliGiorno(giorno) {
   return PASTI.reduce((acc, pasto) => {
-    const t = totaliItems(state.dieta[giorno][pasto]);
+    const t = totaliPasto(state.dieta[giorno][pasto]);
     acc.kcal += t.kcal;
     acc.proteine += t.proteine;
     acc.grassi += t.grassi;
@@ -414,117 +399,25 @@ function totaliGiorno(giorno) {
   }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
 }
 
+function totaleGiornoKcal(giorno) {
+  return totaliGiorno(giorno).kcal;
+}
+
 function controllaLimite(giorno) {
   const max = parseFloat(state.maxKcal);
   if (!max || max <= 0) return false;
-  return totaliGiorno(giorno).kcal > max;
+  return totaleGiornoKcal(giorno) > max;
+}
+
+function formattaTotali(t) {
+  return `${round1(t.kcal)} kcal · ${round1(t.proteine)} g prot · ${round1(t.grassi)} g grassi · ${round1(t.carboidrati)} g carb`;
 }
 
 function giornoHaAlimenti(giorno) {
   return PASTI.some(pasto => state.dieta[giorno][pasto].length > 0);
 }
 
-function renderGriglia() {
-  let html = "<div></div>";
-  GIORNI.forEach((g, i) => {
-    const weekend = i >= 5;
-    const duplicabile = giornoHaAlimenti(g);
-    html += `<div class="col-header${weekend ? " weekend" : ""}${duplicabile ? " duplicabile" : ""}" data-giorno="${g}"${duplicabile ? ` title="Duplica la giornata di ${g} in altri giorni"` : ""}>${GIORNI_BREVI[i]}</div>`;
-  });
-
-  PASTI.forEach(pasto => {
-    html += `<div class="riga-label">${PASTI_BREVI[pasto] || pasto}</div>`;
-    GIORNI.forEach(giorno => {
-      const items = state.dieta[giorno][pasto];
-      if (items.length === 0) {
-        html += `<div class="cella-vuota" data-giorno="${giorno}" data-pasto="${pasto}" title="Aggiungi ${pasto} di ${giorno}">+</div>`;
-      } else {
-        const t = totaliItems(items);
-        const recente = recentCells.has(`${giorno}|${pasto}`);
-        const testo = items.map(i => `${i.alimento} ${i.grammi} g`).join(", ");
-        html += `<div class="cella-piena${recente ? " recente" : ""}" data-giorno="${giorno}" data-pasto="${pasto}" title="Vedi dettaglio">
-          <div class="cella-testo">${testo}</div>
-          <div class="cella-kcal">${round1(t.kcal)} kcal</div>
-        </div>`;
-      }
-    });
-  });
-  grigliaSettimana.innerHTML = html;
-
-  const target = parseFloat(state.maxKcal);
-  let totHtml = `<div class="totale-label">Totale</div>`;
-  GIORNI.forEach(giorno => {
-    const t = totaliGiorno(giorno);
-    const oltre = target > 0 && t.kcal > target;
-    const pct = target > 0 ? Math.min(100, Math.round(t.kcal / target * 100)) : 0;
-    totHtml += `<div class="totale-giorno">
-      <span class="totale-kcal${t.kcal ? (oltre ? " oltre" : "") : " vuoto"}">${t.kcal ? round1(t.kcal) : "—"}</span>
-      ${target > 0 ? `<div class="totale-bar"><div class="totale-bar-fill${oltre ? " oltre" : ""}" style="width:${pct}%"></div></div>` : ""}
-      <span class="totale-macro">${t.kcal ? `P ${round1(t.proteine)} · G ${round1(t.grassi)} · C ${round1(t.carboidrati)}` : ""}</span>
-    </div>`;
-  });
-  grigliaTotali.innerHTML = totHtml;
-
-  legenda.textContent = target > 0
-    ? `Barra verde = entro il target di ${target} kcal · ambra = oltre il target · vuoto = giorno da completare`
-    : "Imposta un target kcal/die nell'intestazione per vedere le barre di avanzamento.";
-}
-
-function rimuoviElemento(giorno, pasto, index) {
-  state.dieta[giorno][pasto].splice(index, 1);
-  salvaState();
-  renderGriglia();
-}
-
-function svuotaDieta() {
-  if (!confirm("Vuoi davvero svuotare tutta la dieta? L'operazione non è reversibile.")) return;
-  state.dieta = creaDietaVuota();
-  recentCells = new Set();
-  salvaState();
-  renderGriglia();
-}
-
-// ---------- Popup dettaglio cella ----------
-
-function apriCella(giorno, pasto) {
-  cellaContesto = { giorno, pasto };
-  renderCellaDettaglio();
-  cellaOverlay.classList.remove("hidden");
-}
-
-function chiudiCella() {
-  cellaOverlay.classList.add("hidden");
-  cellaContesto = null;
-}
-
-function renderCellaDettaglio() {
-  if (!cellaContesto) return;
-  const { giorno, pasto } = cellaContesto;
-  const items = state.dieta[giorno][pasto];
-  cellaTitolo.textContent = `${pasto} — ${giorno}`;
-
-  if (items.length === 0) {
-    chiudiCella();
-    return;
-  }
-
-  const righe = items.map((item, index) => `
-    <div class="cella-dettaglio-riga">
-      <span class="cella-dettaglio-info">
-        <b>${item.alimento}</b> · ${item.grammi} g ${item.nota ? `<span class="nota">· ${item.nota}</span>` : ""}<br>
-        <span class="cella-dettaglio-macro">${item.kcal} kcal · P ${item.proteine} g · G ${item.grassi} g · C ${item.carboidrati} g</span>
-      </span>
-      <button class="remove-btn" data-index="${index}" title="Rimuovi">✕</button>
-    </div>
-  `).join("");
-
-  cellaDettaglio.innerHTML = `
-    <div class="cella-dettaglio-lista">${righe}</div>
-    <div class="cella-dettaglio-totali">Totale pasto: ${formattaTotali(totaliItems(items))}</div>
-  `;
-}
-
-// ---------- Duplica pasto / giornata ----------
+// ---------- Selezione multipla dei giorni (checkbox condivisi) ----------
 
 function renderGiorniCheckbox(container, giorni) {
   container.innerHTML = giorni.map(g => `
@@ -541,11 +434,17 @@ function applicaPresetGiorni(container, preset) {
   });
 }
 
+// ---------- Duplica pasto / giornata ----------
+
+function renderDuplicaGiorni(giornoEscluso) {
+  renderGiorniCheckbox(duplicaGiorniCheckbox, GIORNI.filter(g => g !== giornoEscluso));
+}
+
 function apriDuplicaPasto(giorno, pasto) {
   duplicaContesto = { tipo: "pasto", giorno, pasto };
   duplicaTitolo.textContent = `Duplica "${pasto}"`;
   duplicaSottotitolo.textContent = `Copia gli alimenti di ${pasto} di ${giorno} anche in altri giorni, nello stesso pasto. Verranno aggiunti a quanto già presente.`;
-  renderGiorniCheckbox(duplicaGiorniCheckbox, GIORNI.filter(g => g !== giorno));
+  renderDuplicaGiorni(giorno);
   duplicaOverlay.classList.remove("hidden");
 }
 
@@ -553,7 +452,7 @@ function apriDuplicaGiorno(giorno) {
   duplicaContesto = { tipo: "giorno", giorno };
   duplicaTitolo.textContent = `Duplica giornata "${giorno}"`;
   duplicaSottotitolo.textContent = `Copia tutti i pasti di ${giorno} anche in altri giorni. Verranno aggiunti a quanto già presente.`;
-  renderGiorniCheckbox(duplicaGiorniCheckbox, GIORNI.filter(g => g !== giorno));
+  renderDuplicaGiorni(giorno);
   duplicaOverlay.classList.remove("hidden");
 }
 
@@ -577,7 +476,6 @@ function confermaDuplica() {
     selezionati.forEach(target => {
       origine.forEach(item => state.dieta[target][pasto].push({ ...item }));
     });
-    recentCells = new Set(selezionati.map(g => `${g}|${pasto}`));
   } else {
     const { giorno } = duplicaContesto;
     selezionati.forEach(target => {
@@ -585,12 +483,101 @@ function confermaDuplica() {
         state.dieta[giorno][pasto].forEach(item => state.dieta[target][pasto].push({ ...item }));
       });
     });
-    recentCells = new Set();
   }
 
   salvaState();
-  renderGriglia();
+  renderDieta();
   chiudiDuplica();
+}
+
+function renderDieta() {
+  dietaContainer.innerHTML = "";
+
+  GIORNI.forEach(giorno => {
+    const totaleGiorno = totaliGiorno(giorno);
+    const superato = controllaLimite(giorno);
+    const collassato = collapsedGiorni.has(giorno);
+
+    const blocco = document.createElement("div");
+    blocco.className = "giorno-block";
+
+    const titolo = document.createElement("div");
+    titolo.className = "giorno-titolo";
+    titolo.dataset.giorno = giorno;
+    titolo.innerHTML = `
+      <span>
+        <span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${giorno}
+        ${giornoHaAlimenti(giorno) ? `<button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">📋 Duplica</button>` : ''}
+      </span>
+      <span class="solo-nutrizionista">${superato ? '<span class="totale-warning">⚠ ' : ''}Totale: ${formattaTotali(totaleGiorno)}${superato ? '</span>' : ''}</span>
+    `;
+    blocco.appendChild(titolo);
+
+    const contenuto = document.createElement("div");
+    contenuto.className = "giorno-contenuto" + (collassato ? " collassato" : "");
+
+    if (superato) {
+      const max = parseFloat(state.maxKcal);
+      const banner = document.createElement("div");
+      banner.className = "alert-banner no-print";
+      banner.textContent = `Attenzione: ${giorno} supera il limite di ${max} kcal impostato (${round1(totaleGiorno.kcal)} kcal totali).`;
+      contenuto.appendChild(banner);
+    }
+
+    PASTI.forEach(pasto => {
+      const items = state.dieta[giorno][pasto];
+      const pastoDiv = document.createElement("div");
+      pastoDiv.className = "pasto-blocco";
+
+      if (items.length === 0) {
+        pastoDiv.innerHTML = `<h4>🍴 ${pasto}</h4><p class="vuoto">Nessun alimento inserito.</p>`;
+      } else {
+        const totalePasto = totaliPasto(items);
+        let righe = items.map((item, index) => `
+          <tr>
+            <td>${item.alimento}</td>
+            <td>${item.grammi} g</td>
+            <td>${item.nota || "-"}</td>
+            <td class="solo-nutrizionista">${item.kcal} kcal</td>
+            <td class="solo-nutrizionista">${item.proteine} g</td>
+            <td class="solo-nutrizionista">${item.grassi} g</td>
+            <td class="solo-nutrizionista">${item.carboidrati} g</td>
+            <td class="no-print"><button class="remove-btn" data-giorno="${giorno}" data-pasto="${pasto}" data-index="${index}" title="Rimuovi">✕</button></td>
+          </tr>
+        `).join("");
+
+        pastoDiv.innerHTML = `
+          <h4>🍴 ${pasto} <span class="solo-nutrizionista">— ${formattaTotali(totalePasto)}</span> <button class="duplica-pasto-btn no-print" data-giorno="${giorno}" data-pasto="${pasto}" title="Duplica questo pasto in altri giorni">📋 Duplica</button></h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Alimento</th><th>Quantità</th><th>Note</th><th class="solo-nutrizionista">Calorie</th><th class="solo-nutrizionista">Proteine</th><th class="solo-nutrizionista">Grassi</th><th class="solo-nutrizionista">Carboidrati</th><th class="no-print"></th>
+              </tr>
+            </thead>
+            <tbody>${righe}</tbody>
+          </table>
+        `;
+      }
+
+      contenuto.appendChild(pastoDiv);
+    });
+
+    blocco.appendChild(contenuto);
+    dietaContainer.appendChild(blocco);
+  });
+}
+
+function rimuoviElemento(giorno, pasto, index) {
+  state.dieta[giorno][pasto].splice(index, 1);
+  salvaState();
+  renderDieta();
+}
+
+function svuotaDieta() {
+  if (!confirm("Vuoi davvero svuotare tutta la dieta? L'operazione non è reversibile.")) return;
+  state.dieta = creaDietaVuota();
+  salvaState();
+  renderDieta();
 }
 
 // ---------- Lista della spesa ----------
@@ -613,7 +600,7 @@ function renderListaSpesa() {
   const lista = calcolaListaSpesa();
 
   if (lista.length === 0) {
-    listaSpesaPrint.innerHTML = '<p>La dieta è vuota: nessun alimento da acquistare.</p>';
+    listaSpesaPrint.innerHTML = '<p class="vuoto">La dieta è vuota: nessun alimento da acquistare.</p>';
     return;
   }
 
@@ -631,57 +618,6 @@ function renderListaSpesa() {
 
 // ---------- Generazione PDF (stampa) ----------
 
-function renderPrintDieta() {
-  let html = "";
-  GIORNI.forEach(giorno => {
-    if (!giornoHaAlimenti(giorno)) return;
-    const tGiorno = totaliGiorno(giorno);
-
-    let pastiHtml = "";
-    PASTI.forEach(pasto => {
-      const items = state.dieta[giorno][pasto];
-      if (items.length === 0) return;
-      const tPasto = totaliItems(items);
-
-      const righe = items.map(item => `
-        <tr>
-          <td>${item.alimento}</td>
-          <td>${item.grammi} g</td>
-          <td>${item.nota || "-"}</td>
-          <td class="solo-nutrizionista">${item.kcal} kcal</td>
-          <td class="solo-nutrizionista">${item.proteine} g</td>
-          <td class="solo-nutrizionista">${item.grassi} g</td>
-          <td class="solo-nutrizionista">${item.carboidrati} g</td>
-        </tr>
-      `).join("");
-
-      pastiHtml += `
-        <div class="p-pasto">
-          <h4>${pasto} <span class="solo-nutrizionista">— ${formattaTotali(tPasto)}</span></h4>
-          <table>
-            <thead>
-              <tr>
-                <th>Alimento</th><th>Quantità</th><th>Note</th>
-                <th class="solo-nutrizionista">Calorie</th><th class="solo-nutrizionista">Proteine</th><th class="solo-nutrizionista">Grassi</th><th class="solo-nutrizionista">Carboidrati</th>
-              </tr>
-            </thead>
-            <tbody>${righe}</tbody>
-          </table>
-        </div>
-      `;
-    });
-
-    html += `
-      <div class="p-giorno">
-        <div class="p-giorno-titolo">${giorno} <span class="solo-nutrizionista">Totale: ${formattaTotali(tGiorno)}</span></div>
-        ${pastiHtml}
-      </div>
-    `;
-  });
-
-  printDieta.innerHTML = html || "<p>La dieta è vuota.</p>";
-}
-
 function impostaIntestazionePdf(titolo) {
   printTitle.textContent = titolo;
   printPaziente.textContent = state.paziente || pazienteInput.value || "-";
@@ -694,23 +630,21 @@ function impostaModalitaStampa(modalita) {
 }
 
 function generaPdfDieta() {
-  renderPrintDieta();
   impostaModalitaStampa("stampa-dieta");
-  impostaIntestazionePdf("Piano alimentare");
+  impostaIntestazionePdf("🥗 Piano alimentare");
   window.print();
 }
 
 function generaPdfNutrizionista() {
-  renderPrintDieta();
   impostaModalitaStampa("stampa-nutrizionista");
-  impostaIntestazionePdf("Piano alimentare — Scheda nutrizionista");
+  impostaIntestazionePdf("📊 Piano alimentare — Scheda nutrizionista");
   window.print();
 }
 
 function generaPdfSpesa() {
   renderListaSpesa();
   impostaModalitaStampa("stampa-spesa");
-  impostaIntestazionePdf("Lista della spesa settimanale");
+  impostaIntestazionePdf("🛒 Lista della spesa settimanale");
   window.print();
 }
 
@@ -722,14 +656,13 @@ function inizializza() {
   pazienteInput.value = state.paziente || "";
   maxKcalInput.value = state.maxKcal || "";
 
-  // Autocomplete
   foodInput.addEventListener("input", () => {
     aggiornaSuggerimenti();
     aggiornaPreview();
   });
 
   foodInput.addEventListener("keydown", (e) => {
-    const items = elementiSuggerimenti();
+    const items = suggestions.querySelectorAll(".suggestion-item");
     if (suggestions.classList.contains("hidden") || items.length === 0) return;
 
     if (e.key === "ArrowDown") {
@@ -742,67 +675,77 @@ function inizializza() {
       evidenziaSuggerimento();
     } else if (e.key === "Enter" && suggestionIndex >= 0) {
       e.preventDefault();
-      scegliSuggerimento(items[suggestionIndex]);
+      const scelto = JSON.parse(suggestions.dataset.items || "[]")[suggestionIndex];
+      if (scelto) {
+        foodInput.value = scelto;
+        nascondiSuggerimenti();
+        aggiornaPreview();
+      }
     } else if (e.key === "Escape") {
       nascondiSuggerimenti();
     }
   });
 
   suggestions.addEventListener("mousedown", (e) => {
-    const item = e.target.closest(".suggestion-item, .suggestion-create");
+    const item = e.target.closest(".suggestion-item");
     if (!item) return;
     e.preventDefault();
-    scegliSuggerimento(item);
+    const elenco = JSON.parse(suggestions.dataset.items || "[]");
+    const nome = elenco[parseInt(item.dataset.index, 10)];
+    foodInput.value = nome;
+    nascondiSuggerimenti();
+    aggiornaPreview();
   });
 
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".autocomplete-wrapper")) {
       nascondiSuggerimenti();
     }
-    if (!e.target.closest(".pdf-menu-wrapper")) {
-      pdfMenu.classList.add("hidden");
-    }
   });
 
   gramsInput.addEventListener("input", aggiornaPreview);
   addDraftBtn.addEventListener("click", aggiungiAlPastoInCorso);
 
-  // Nuovo alimento
-  annullaAlimentoBtn.addEventListener("click", chiudiFormNuovoAlimento);
-  salvaAlimentoBtn.addEventListener("click", salvaNuovoAlimento);
-
-  // Pasto in corso
   draftContainer.addEventListener("click", (e) => {
     if (e.target.classList.contains("remove-btn")) {
       rimuoviDaDraft(parseInt(e.target.dataset.draftIndex, 10));
     }
   });
 
-  pastoPills.addEventListener("click", (e) => {
-    const pill = e.target.closest(".pasto-pill");
-    if (!pill) return;
-    pastoSelezionato = pill.dataset.pasto;
-    renderPastoPills();
+  renderGiorniCheckbox(confermaGiorniCheckbox, GIORNI);
+  confermaGiorniCheckbox.addEventListener("change", aggiornaStatoConfermaBtn);
+  aggiornaTestoDropdownGiorni();
+
+  giorniDropdownBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    giorniDropdownPanel.classList.toggle("hidden");
   });
 
-  giorniToggle.addEventListener("click", (e) => {
-    const btn = e.target.closest(".giorno-toggle");
-    if (!btn) return;
-    const g = btn.dataset.giorno;
-    if (giorniSelezionati.has(g)) giorniSelezionati.delete(g);
-    else giorniSelezionati.add(g);
-    renderGiorniToggle();
-    aggiornaStatoConfermaBtn();
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".giorni-dropdown")) {
+      giorniDropdownPanel.classList.add("hidden");
+    }
   });
 
-  document.querySelectorAll("#pasto-corrente .scorciatoia").forEach(btn => {
-    btn.addEventListener("click", () => applicaPresetConferma(btn.dataset.preset));
+  document.addEventListener("click", (e) => {
+    const presetBtn = e.target.closest(".preset-btn");
+    if (!presetBtn) return;
+    const target = document.getElementById(presetBtn.dataset.target);
+    if (!target) return;
+    applicaPresetGiorni(target, presetBtn.dataset.preset);
+    if (target === confermaGiorniCheckbox) aggiornaStatoConfermaBtn();
   });
 
   confermaPastoBtn.addEventListener("click", confermaPasto);
   svuotaPastoBtn.addEventListener("click", svuotaDraft);
 
-  // Dati dieta
+  nuovoAlimentoBtn.addEventListener("click", () => {
+    if (nuovoAlimentoForm.classList.contains("hidden")) apriFormNuovoAlimento();
+    else chiudiFormNuovoAlimento();
+  });
+  annullaAlimentoBtn.addEventListener("click", chiudiFormNuovoAlimento);
+  salvaAlimentoBtn.addEventListener("click", salvaNuovoAlimento);
+
   pazienteInput.addEventListener("input", () => {
     state.paziente = pazienteInput.value;
     salvaState();
@@ -811,92 +754,51 @@ function inizializza() {
   maxKcalInput.addEventListener("input", () => {
     state.maxKcal = maxKcalInput.value;
     salvaState();
-    renderGriglia();
+    renderDieta();
   });
 
-  // Griglia
-  grigliaSettimana.addEventListener("click", (e) => {
-    const vuota = e.target.closest(".cella-vuota");
-    if (vuota) {
-      pastoSelezionato = vuota.dataset.pasto;
-      giorniSelezionati = new Set([vuota.dataset.giorno]);
-      renderPastoPills();
-      renderGiorniToggle();
-      aggiornaStatoConfermaBtn();
-      document.getElementById("calcolatore").scrollIntoView({ behavior: "smooth", block: "start" });
-      foodInput.focus();
+  dietaContainer.addEventListener("click", (e) => {
+    const duplicaGiornoBtn = e.target.closest(".duplica-giorno-btn");
+    if (duplicaGiornoBtn) {
+      apriDuplicaGiorno(duplicaGiornoBtn.dataset.giorno);
       return;
     }
-    const piena = e.target.closest(".cella-piena");
-    if (piena) {
-      apriCella(piena.dataset.giorno, piena.dataset.pasto);
+    const duplicaPastoBtn = e.target.closest(".duplica-pasto-btn");
+    if (duplicaPastoBtn) {
+      apriDuplicaPasto(duplicaPastoBtn.dataset.giorno, duplicaPastoBtn.dataset.pasto);
       return;
     }
-    const header = e.target.closest(".col-header.duplicabile");
-    if (header) {
-      apriDuplicaGiorno(header.dataset.giorno);
+    const titoloClicked = e.target.closest(".giorno-titolo");
+    if (titoloClicked) {
+      const giorno = titoloClicked.dataset.giorno;
+      if (collapsedGiorni.has(giorno)) collapsedGiorni.delete(giorno);
+      else collapsedGiorni.add(giorno);
+      renderDieta();
+      return;
+    }
+    if (e.target.classList.contains("remove-btn")) {
+      const { giorno, pasto, index } = e.target.dataset;
+      rimuoviElemento(giorno, pasto, parseInt(index, 10));
     }
   });
 
-  resetBtn.addEventListener("click", svuotaDieta);
-
-  // Popup cella
-  cellaDettaglio.addEventListener("click", (e) => {
-    if (e.target.classList.contains("remove-btn") && cellaContesto) {
-      rimuoviElemento(cellaContesto.giorno, cellaContesto.pasto, parseInt(e.target.dataset.index, 10));
-      renderCellaDettaglio();
-    }
-  });
-
-  cellaDuplicaBtn.addEventListener("click", () => {
-    if (!cellaContesto) return;
-    const { giorno, pasto } = cellaContesto;
-    chiudiCella();
-    apriDuplicaPasto(giorno, pasto);
-  });
-
-  cellaSvuotaBtn.addEventListener("click", () => {
-    if (!cellaContesto) return;
-    const { giorno, pasto } = cellaContesto;
-    if (!confirm(`Vuoi svuotare ${pasto} di ${giorno}?`)) return;
-    state.dieta[giorno][pasto] = [];
-    salvaState();
-    renderGriglia();
-    chiudiCella();
-  });
-
-  cellaChiudiBtn.addEventListener("click", chiudiCella);
-  cellaOverlay.addEventListener("click", (e) => {
-    if (e.target === cellaOverlay) chiudiCella();
-  });
-
-  // Modal duplica
-  document.querySelectorAll("#duplica-overlay .scorciatoia").forEach(btn => {
-    btn.addEventListener("click", () => applicaPresetGiorni(duplicaGiorniCheckbox, btn.dataset.preset));
-  });
   duplicaConfermaBtn.addEventListener("click", confermaDuplica);
   duplicaAnnullaBtn.addEventListener("click", chiudiDuplica);
   duplicaOverlay.addEventListener("click", (e) => {
     if (e.target === duplicaOverlay) chiudiDuplica();
   });
 
-  // Menu PDF
-  pdfMenuBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    pdfMenu.classList.toggle("hidden");
-  });
-  pdfDietaBtn.addEventListener("click", () => { pdfMenu.classList.add("hidden"); generaPdfDieta(); });
-  pdfSpesaBtn.addEventListener("click", () => { pdfMenu.classList.add("hidden"); generaPdfSpesa(); });
-  pdfNutrizionistaBtn.addEventListener("click", () => { pdfMenu.classList.add("hidden"); generaPdfNutrizionista(); });
+  pdfDietaBtn.addEventListener("click", generaPdfDieta);
+  pdfSpesaBtn.addEventListener("click", generaPdfSpesa);
+  pdfNutrizionistaBtn.addEventListener("click", generaPdfNutrizionista);
+  resetBtn.addEventListener("click", svuotaDieta);
 
   window.addEventListener("afterprint", () => {
     document.body.classList.remove("stampa-dieta", "stampa-nutrizionista", "stampa-spesa");
   });
 
   renderDraft();
-  renderPastoPills();
-  renderGiorniToggle();
-  renderGriglia();
+  renderDieta();
   caricaAlimenti();
 }
 
