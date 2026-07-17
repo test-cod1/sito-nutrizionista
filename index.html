@@ -4,165 +4,181 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calcolatore Dieta</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Intestazione per la stampa -->
   <div class="print-only" id="print-header">
-    <p class="print-studio">Dott.ssa Federica Galiano — Biologa Nutrizionista</p>
     <h1 id="print-title">Piano alimentare</h1>
     <p>Paziente: <span id="print-paziente">-</span></p>
     <p>Data: <span id="print-date">-</span></p>
   </div>
 
   <div class="lista-spesa-print" id="lista-spesa-print"></div>
-  <div class="print-dieta" id="print-dieta"></div>
 
-  <!-- HEADER -->
-  <header class="app-header no-print">
-    <div class="header-left">
-      <div class="avatar">FG</div>
-      <div>
-        <div class="header-nome">Dott.ssa Federica Galiano</div>
-        <div class="header-sub">Biologa Nutrizionista · Piano alimentare</div>
-      </div>
-    </div>
-    <div class="header-right">
-      <div class="dati-inline">
-        <span class="dati-label">Paziente</span>
-        <input type="text" id="paziente-input" placeholder="Nome e cognome">
-        <span class="dati-label">Target</span>
-        <input type="number" id="max-kcal-input" min="0" placeholder="2000">
-        <span class="dati-label">kcal/die</span>
-      </div>
-      <div class="pdf-menu-wrapper">
-        <button id="pdf-menu-btn">Esporta PDF ▾</button>
-        <div id="pdf-menu" class="pdf-menu hidden">
-          <div class="pdf-menu-item" id="pdf-dieta-btn">PDF Dieta (cliente)</div>
-          <div class="pdf-menu-item" id="pdf-spesa-btn">PDF Lista della spesa</div>
-          <div class="pdf-menu-item" id="pdf-nutrizionista-btn">PDF Scheda nutrizionista</div>
-        </div>
-      </div>
-      <a href="vecchia/" class="link-vecchia" title="Apri la versione precedente del sito">Versione precedente</a>
-    </div>
+  <header class="hero no-print">
+    <h1>Calcolatore Dieta</h1>
+    <p class="hero-sub">Crea, calcola e stampa il piano alimentare del paziente</p>
   </header>
 
-  <!-- MAIN -->
-  <main class="app-main no-print">
-    <div class="col-sinistra">
+  <section id="impostazioni" class="card no-print">
+    <h2>Dati dieta</h2>
+    <label for="paziente-input">Nome paziente</label>
+    <input type="text" id="paziente-input" placeholder="Nome e cognome">
 
-      <!-- Aggiungi alimento -->
-      <section class="card" id="calcolatore">
-        <div class="card-title">Aggiungi alimento</div>
-        <div class="autocomplete-wrapper">
-          <input type="text" id="food-input" placeholder="Cerca alimento… (es. petto di pollo)" autocomplete="off">
-          <div id="suggestions" class="suggestions hidden"></div>
-        </div>
+    <label for="max-kcal-input">Calorie massime giornaliere</label>
+    <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
 
-        <div id="nuovo-alimento-form" class="nuovo-alimento-form hidden">
-          <div class="nuovo-alimento-titolo">Nuovo alimento (valori per 100 g)</div>
-          <div class="nuovo-alimento-griglia">
-            <input type="text" id="nuovo-nome" placeholder="Nome alimento" class="campo-nome">
-            <input type="number" id="nuovo-kcal" min="0" step="0.1" placeholder="Calorie">
-            <input type="number" id="nuovo-prot" min="0" step="0.1" placeholder="Proteine (g)">
-            <input type="number" id="nuovo-fat" min="0" step="0.1" placeholder="Grassi (g)">
-            <input type="number" id="nuovo-carb" min="0" step="0.1" placeholder="Carboidrati (g)">
-          </div>
-          <p id="nuovo-alimento-error" class="error hidden">Compila nome e tutti i valori nutrizionali (numeri, anche 0).</p>
-          <div class="nuovo-alimento-azioni">
-            <button id="salva-alimento-btn">Salva alimento</button>
-            <button id="annulla-alimento-btn" class="ghost">Annulla</button>
-          </div>
-        </div>
+    <label for="sostituzioni-input">Sostituzioni possibili (stampate in fondo al PDF cliente)</label>
+    <textarea id="sostituzioni-input" rows="3" placeholder="es. Il petto di pollo può essere sostituito con tacchino o pesce bianco; la pasta con riso o farro…"></textarea>
+  </section>
 
-        <div class="riga-peso-note">
-          <div class="campo-peso">
-            <label for="grams-input">Peso (g)</label>
-            <input type="number" id="grams-input" min="0" step="1">
-          </div>
-          <div class="campo-note">
-            <label for="nota-input">Note (opzionale)</label>
-            <input type="text" id="nota-input" placeholder="es. alla piastra, cottura al vapore…">
-          </div>
-        </div>
+  <section id="calcolatore" class="card no-print">
+    <h2>Calcolatore alimento</h2>
 
-        <div class="valori-griglia">
-          <div class="valore-box"><div class="valore-num" id="preview-kcal">—</div><div class="valore-label">kcal</div></div>
-          <div class="valore-box"><div class="valore-num" id="preview-prot">—</div><div class="valore-label">proteine g</div></div>
-          <div class="valore-box"><div class="valore-num" id="preview-fat">—</div><div class="valore-label">grassi g</div></div>
-          <div class="valore-box"><div class="valore-num" id="preview-carb">—</div><div class="valore-label">carboidrati g</div></div>
-        </div>
+    <label for="food-input">Alimento</label>
+    <div class="riga-alimento">
+      <div class="autocomplete-wrapper">
+        <input type="text" id="food-input" placeholder="Inizia a scrivere il nome dell'alimento..." autocomplete="off">
+        <div id="suggestions" class="suggestions hidden"></div>
+      </div>
+      <button id="nuovo-alimento-btn" class="secondary btn-plus" title="Aggiungi un nuovo alimento al database">+</button>
+    </div>
+    <p id="food-error" class="error hidden">Alimento non trovato. Selezionalo dall'elenco suggerito mentre scrivi.</p>
 
-        <button id="add-draft-btn" class="cta" disabled>+ Aggiungi al pasto</button>
-      </section>
+    <div id="nuovo-alimento-form" class="nuovo-alimento-form hidden">
+      <h3>Nuovo alimento</h3>
+      <label for="nuovo-nome">Nome alimento</label>
+      <input type="text" id="nuovo-nome" placeholder="es. PANE INTEGRALE">
 
-      <!-- Pasto in corso -->
-      <section class="card" id="pasto-corrente">
-        <div class="card-head">
-          <div class="card-title">Pasto in corso</div>
-          <div class="draft-summary" id="draft-summary">—</div>
+      <div class="griglia-4">
+        <div>
+          <label for="nuovo-kcal">Calorie (per 100g)</label>
+          <input type="number" id="nuovo-kcal" min="0" step="0.1">
         </div>
-        <div id="draft-container"></div>
-        <div class="dest-label">Pasto e giorni di destinazione</div>
-        <div id="pasto-pills" class="pasto-pills"></div>
-        <div class="giorni-toggle-row">
-          <div id="giorni-toggle" class="giorni-toggle"></div>
-          <button class="scorciatoia" data-preset="feriali">Lun–Ven</button>
-          <button class="scorciatoia" data-preset="weekend">Weekend</button>
-          <button class="scorciatoia" data-preset="tutti">Tutti</button>
+        <div>
+          <label for="nuovo-prot">Proteine (per 100g)</label>
+          <input type="number" id="nuovo-prot" min="0" step="0.1">
         </div>
-        <button id="conferma-pasto-btn" class="outline" disabled>Conferma pasto → aggiungi ai giorni</button>
-        <button id="svuota-pasto-btn" class="link-btn">Svuota pasto in corso</button>
-      </section>
+        <div>
+          <label for="nuovo-fat">Grassi (per 100g)</label>
+          <input type="number" id="nuovo-fat" min="0" step="0.1">
+        </div>
+        <div>
+          <label for="nuovo-carb">Carboidrati (per 100g)</label>
+          <input type="number" id="nuovo-carb" min="0" step="0.1">
+        </div>
+      </div>
+      <p id="nuovo-alimento-error" class="error hidden">Compila nome e tutti i valori nutrizionali (numeri, anche 0).</p>
+      <div>
+        <button id="salva-alimento-btn">Salva alimento</button>
+        <button id="annulla-alimento-btn" class="danger">Annulla</button>
+      </div>
     </div>
 
-    <!-- Dieta settimanale -->
-    <section class="card" id="dieta">
-      <div class="card-head">
-        <div class="card-title">Dieta settimanale</div>
-        <button id="reset-btn" class="outline-danger">Svuota dieta</button>
-      </div>
-      <div class="griglia-scroll">
-        <div class="griglia-inner">
-          <div id="griglia-settimana" class="griglia"></div>
-          <div id="griglia-totali" class="griglia griglia-totali"></div>
+    <label for="grams-input">Peso (g)</label>
+    <input type="number" id="grams-input" min="0" step="1" placeholder="es. 100">
+
+    <label for="nota-input">Note (opzionale)</label>
+    <input type="text" id="nota-input" placeholder="es. cotto al vapore, sostituibile con...">
+
+    <label class="check-inline">
+      <input type="checkbox" id="porzione-check">
+      Mostra porzione al posto dei grammi nel PDF cliente
+    </label>
+    <input type="text" id="porzione-input" class="hidden" placeholder="es. 3 cucchiai, 1 vasetto, q.b.">
+
+    <div id="preview" class="preview hidden">
+      <p>Calorie: <strong><span id="preview-kcal"></span> kcal</strong></p>
+      <p>Proteine: <span id="preview-prot"></span> g</p>
+      <p>Grassi: <span id="preview-fat"></span> g</p>
+      <p>Carboidrati: <span id="preview-carb"></span> g</p>
+    </div>
+
+    <button id="add-draft-btn" disabled>Aggiungi al pasto in corso</button>
+  </section>
+
+  <section id="pasto-corrente" class="card no-print">
+    <h2>Pasto in corso</h2>
+    <div id="draft-container">
+      <p class="vuoto">Nessun alimento aggiunto al pasto in corso.</p>
+    </div>
+
+    <div class="conferma-riga">
+      <label>In quali giorni inserire questo pasto?</label>
+      <div class="giorni-dropdown">
+        <button type="button" id="giorni-dropdown-btn" class="giorni-dropdown-btn">Seleziona giorni ▾</button>
+        <div id="giorni-dropdown-panel" class="giorni-dropdown-panel hidden">
+          <div class="giorni-preset">
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="tutti">Tutti i giorni</button>
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="weekend">Weekend</button>
+          </div>
+          <div id="conferma-giorni-checkbox" class="giorni-checkbox-griglia"></div>
         </div>
       </div>
-      <div class="legenda" id="legenda">Barra verde = entro il target · ambra = oltre il target · vuoto = giorno da completare</div>
-    </section>
-  </main>
 
-  <!-- Popup dettaglio cella -->
-  <div id="cella-overlay" class="modal-overlay hidden no-print">
-    <div class="modal modal-larga">
-      <h3 id="cella-titolo"></h3>
-      <div id="cella-dettaglio"></div>
-      <div class="modal-azioni">
-        <button id="cella-duplica-btn" class="outline">Duplica in altri giorni</button>
-        <button id="cella-svuota-btn" class="outline-danger">Svuota pasto</button>
-        <button id="cella-chiudi-btn" class="ghost">Chiudi</button>
+      <label for="pasto-select">Pasto</label>
+      <select id="pasto-select">
+        <option>Colazione</option>
+        <option>Spuntino mattina</option>
+        <option>Pranzo</option>
+        <option>Merenda</option>
+        <option>Cena</option>
+      </select>
+
+      <button id="conferma-pasto-btn" disabled>Conferma pasto e aggiungi ai giorni selezionati</button>
+      <button id="svuota-pasto-btn" class="danger">Svuota pasto in corso</button>
+    </div>
+
+    <div class="pasto-libero-blocco">
+      <label>Pasto libero</label>
+      <p class="hint">Segna il pasto e i giorni selezionati qui sopra come "Pasto libero" (sostituisce eventuali alimenti già presenti in quel pasto).</p>
+      <div class="pasto-libero-campi">
+        <input type="number" id="libero-kcal-input" min="0" placeholder="kcal stimate (opzionale)">
+        <input type="text" id="libero-nota-input" placeholder="nota (opzionale, es. cena fuori)">
+      </div>
+      <button id="pasto-libero-btn" class="secondary" disabled>Segna come pasto libero</button>
+    </div>
+  </section>
+
+  <section id="panoramica" class="card no-print">
+    <button id="panoramica-toggle" class="panoramica-toggle" type="button">▸ Panoramica settimanale</button>
+    <div id="panoramica-contenuto" class="hidden">
+      <div class="panoramica-scroll">
+        <div id="panoramica-griglia" class="panoramica-griglia"></div>
+      </div>
+      <p class="hint">Vista riassuntiva di sola consultazione: per modificare usa l'elenco qui sotto.</p>
+    </div>
+  </section>
+
+  <section id="dieta" class="card">
+    <div class="dieta-header no-print">
+      <h2>Dieta settimanale</h2>
+      <div class="pdf-buttons">
+        <button id="pdf-dieta-btn" class="secondary">PDF Dieta (cliente)</button>
+        <button id="pdf-spesa-btn" class="secondary">PDF Lista della spesa</button>
+        <button id="pdf-nutrizionista-btn" class="secondary">PDF Scheda nutrizionista</button>
+        <button id="reset-btn" class="danger">Svuota dieta</button>
       </div>
     </div>
-  </div>
+    <div id="dieta-container"></div>
+    <div id="print-sostituzioni" class="print-sostituzioni"></div>
+  </section>
 
-  <!-- Modal duplica -->
-  <div id="duplica-overlay" class="modal-overlay hidden no-print">
-    <div class="modal">
+  <div id="duplica-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
       <h3 id="duplica-titolo">Duplica</h3>
-      <p id="duplica-sottotitolo" class="modal-sottotitolo"></p>
+      <p id="duplica-sottotitolo" class="duplica-sottotitolo"></p>
       <div class="giorni-preset">
-        <button type="button" class="scorciatoia" data-target="duplica-giorni-checkbox" data-preset="tutti">Tutti</button>
-        <button type="button" class="scorciatoia" data-target="duplica-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
-        <button type="button" class="scorciatoia" data-target="duplica-giorni-checkbox" data-preset="weekend">Weekend</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="tutti">Tutti</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="weekend">Weekend</button>
       </div>
       <div id="duplica-giorni-checkbox" class="duplica-giorni-checkbox"></div>
-      <div class="modal-azioni">
+      <div class="duplica-azioni">
         <button id="duplica-conferma-btn">Duplica</button>
-        <button id="duplica-annulla-btn" class="ghost">Annulla</button>
+        <button id="duplica-annulla-btn" class="danger">Annulla</button>
       </div>
     </div>
   </div>
