@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Calcolatore Dieta</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("dieta-nutrizionista-tema");
+        if (t !== "chiaro" && t !== "notte") {
+          t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "notte" : "chiaro";
+        }
+        if (t === "notte") document.documentElement.classList.add("tema-notte");
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,6 +41,10 @@
   </table>
 
   <header class="hero no-print">
+    <div class="tema-toggle">
+      <button type="button" id="tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
+      <button type="button" id="tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
+    </div>
     <h1>Calcolatore Dieta</h1>
     <p class="hero-sub">Crea, calcola e stampa il piano alimentare del paziente</p>
   </header>

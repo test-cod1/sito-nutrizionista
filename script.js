@@ -3,6 +3,7 @@ const GIORNI_FERIALI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerd
 const GIORNI_WEEKEND = ["Sabato", "Domenica"];
 const PASTI = ["Colazione", "Spuntino mattina", "Pranzo", "Merenda", "Cena"];
 const STORAGE_KEY = "dieta-nutrizionista-state";
+const TEMA_KEY = "dieta-nutrizionista-tema";
 
 let baseAlimenti = [];
 let foodMap = new Map();
@@ -94,6 +95,9 @@ const nuovoAlimentoError = document.getElementById("nuovo-alimento-error");
 const salvaAlimentoBtn = document.getElementById("salva-alimento-btn");
 const annullaAlimentoBtn = document.getElementById("annulla-alimento-btn");
 
+const temaChiaroBtn = document.getElementById("tema-chiaro-btn");
+const temaNotteBtn = document.getElementById("tema-notte-btn");
+
 const pazienteInput = document.getElementById("paziente-input");
 const maxKcalInput = document.getElementById("max-kcal-input");
 const impostazioniStampaToggle = document.getElementById("impostazioni-stampa-toggle");
@@ -121,6 +125,35 @@ const duplicaSottotitolo = document.getElementById("duplica-sottotitolo");
 const duplicaGiorniCheckbox = document.getElementById("duplica-giorni-checkbox");
 const duplicaConfermaBtn = document.getElementById("duplica-conferma-btn");
 const duplicaAnnullaBtn = document.getElementById("duplica-annulla-btn");
+
+// ---------- Modalità giorno/notte ----------
+
+function applicaTema(tema) {
+  document.documentElement.classList.toggle("tema-notte", tema === "notte");
+  temaChiaroBtn.classList.toggle("attivo", tema === "chiaro");
+  temaNotteBtn.classList.toggle("attivo", tema === "notte");
+}
+
+function impostaTema(tema) {
+  try {
+    localStorage.setItem(TEMA_KEY, tema);
+  } catch (e) {}
+  applicaTema(tema);
+}
+
+function inizializzaTema() {
+  let salvato = null;
+  try {
+    salvato = localStorage.getItem(TEMA_KEY);
+  } catch (e) {}
+
+  if (salvato === "chiaro" || salvato === "notte") {
+    applicaTema(salvato);
+  } else {
+    const preferisceScuro = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    applicaTema(preferisceScuro ? "notte" : "chiaro");
+  }
+}
 
 function round1(n) {
   return Math.round(n * 10) / 10;
@@ -886,6 +919,10 @@ function generaPdfSpesa() {
 // ---------- Inizializzazione ----------
 
 function inizializza() {
+  inizializzaTema();
+  temaChiaroBtn.addEventListener("click", () => impostaTema("chiaro"));
+  temaNotteBtn.addEventListener("click", () => impostaTema("notte"));
+
   caricaState();
 
   pazienteInput.value = state.paziente || "";
