@@ -631,4 +631,218 @@ table tfoot .riga-totale td {
   .giorno-contenuto.collassato {
     display: block !important;
   }
+  body.stampa-dieta .ha-porzione .solo-non-cliente {
+    display: none;
+  }
+  body.stampa-dieta .ha-porzione .solo-cliente {
+    display: inline;
+  }
+  body.stampa-dieta .print-sostituzioni {
+    display: block;
+  }
+}
+
+/* ---------- Campi aggiuntivi ---------- */
+
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #cdd9d2;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #fbfdfc;
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #3f9068;
+  box-shadow: 0 0 0 3px rgba(63, 144, 104, 0.15);
+}
+
+.check-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.check-inline input {
+  width: auto;
+  accent-color: #2f6d4f;
+}
+
+#porzione-input {
+  margin-top: 6px;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: #7a8a82;
+  margin: 4px 0 8px;
+}
+
+.solo-cliente {
+  display: none;
+}
+
+.riga-libero td {
+  font-style: italic;
+  color: #35543f;
+}
+
+/* ---------- Pasto libero ---------- */
+
+.pasto-libero-blocco {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px dashed #d5e0da;
+}
+
+.pasto-libero-blocco > label {
+  margin-top: 0;
+}
+
+.pasto-libero-campi {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .pasto-libero-campi {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Panoramica settimanale ---------- */
+
+.panoramica-toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: #2f6d4f;
+  font-size: 1.2rem;
+  font-weight: 700;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.panoramica-toggle:hover {
+  background: none;
+  color: #24573f;
+  transform: none;
+}
+
+.panoramica-scroll {
+  overflow-x: auto;
+  margin-top: 14px;
+}
+
+.panoramica-griglia {
+  display: grid;
+  grid-template-columns: 90px repeat(7, 1fr);
+  gap: 4px;
+  min-width: 720px;
+  font-size: 0.78rem;
+}
+
+.pan-header {
+  text-align: center;
+  font-weight: 700;
+  color: #223229;
+  padding: 4px 0;
+}
+
+.pan-header.pan-weekend {
+  color: #7a8a82;
+}
+
+.pan-label {
+  font-weight: 700;
+  color: #7a8a82;
+  display: flex;
+  align-items: center;
+}
+
+.pan-cella {
+  background: #eef6f1;
+  border-radius: 6px;
+  padding: 6px;
+  min-height: 40px;
+  color: #2f4a3b;
+  line-height: 1.35;
+}
+
+.pan-cella.pan-vuota {
+  background: none;
+  border: 1px dashed #d5e0da;
+  color: #b3c2ba;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pan-testo {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pan-kcal {
+  font-weight: 800;
+  margin-top: 2px;
+  color: #2f6d4f;
+}
+
+.pan-cella.pan-tot {
+  background: none;
+  font-weight: 800;
+  color: #2f6d4f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: auto;
+  border-top: 2px solid #d5e0da;
+  border-radius: 0;
+  padding-top: 8px;
+}
+
+.pan-label.pan-tot-label {
+  border-top: 2px solid #d5e0da;
+  padding-top: 8px;
+}
+
+.pan-cella.pan-tot.pan-oltre {
+  color: #a33a3a;
+}
+
+/* ---------- Sostituzioni nel PDF cliente ---------- */
+
+.print-sostituzioni {
+  display: none;
+}
+
+.print-sostituzioni h3 {
+  color: #2f6d4f;
+  border-bottom: 2px solid #2f6d4f;
+  padding-bottom: 4px;
+  margin: 24px 0 10px;
+}
+
+.sostituzioni-testo {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.linea-vuota {
+  border-bottom: 1px solid #b3c2ba;
+  height: 26px;
 }

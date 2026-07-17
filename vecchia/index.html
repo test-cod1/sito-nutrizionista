@@ -9,7 +9,7 @@
 <body>
 
   <div class="print-only" id="print-header">
-    <h1 id="print-title">🥗 Piano alimentare</h1>
+    <h1 id="print-title">Piano alimentare</h1>
     <p>Paziente: <span id="print-paziente">-</span></p>
     <p>Data: <span id="print-date">-</span></p>
   </div>
@@ -21,21 +21,24 @@
   </div>
 
   <header class="hero no-print">
-    <h1>🥗 Calcolatore Dieta</h1>
+    <h1>Calcolatore Dieta</h1>
     <p class="hero-sub">Crea, calcola e stampa il piano alimentare del paziente</p>
   </header>
 
   <section id="impostazioni" class="card no-print">
-    <h2>📋 Dati dieta</h2>
+    <h2>Dati dieta</h2>
     <label for="paziente-input">Nome paziente</label>
     <input type="text" id="paziente-input" placeholder="Nome e cognome">
 
     <label for="max-kcal-input">Calorie massime giornaliere</label>
     <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
+
+    <label for="sostituzioni-input">Sostituzioni possibili (stampate in fondo al PDF cliente)</label>
+    <textarea id="sostituzioni-input" rows="3" placeholder="es. Il petto di pollo può essere sostituito con tacchino o pesce bianco; la pasta con riso o farro…"></textarea>
   </section>
 
   <section id="calcolatore" class="card no-print">
-    <h2>🍽️ Calcolatore alimento</h2>
+    <h2>Calcolatore alimento</h2>
 
     <label for="food-input">Alimento</label>
     <div class="riga-alimento">
@@ -48,7 +51,7 @@
     <p id="food-error" class="error hidden">Alimento non trovato. Selezionalo dall'elenco suggerito mentre scrivi.</p>
 
     <div id="nuovo-alimento-form" class="nuovo-alimento-form hidden">
-      <h3>➕ Nuovo alimento</h3>
+      <h3>Nuovo alimento</h3>
       <label for="nuovo-nome">Nome alimento</label>
       <input type="text" id="nuovo-nome" placeholder="es. PANE INTEGRALE">
 
@@ -72,7 +75,7 @@
       </div>
       <p id="nuovo-alimento-error" class="error hidden">Compila nome e tutti i valori nutrizionali (numeri, anche 0).</p>
       <div>
-        <button id="salva-alimento-btn">💾 Salva alimento</button>
+        <button id="salva-alimento-btn">Salva alimento</button>
         <button id="annulla-alimento-btn" class="danger">Annulla</button>
       </div>
     </div>
@@ -83,6 +86,12 @@
     <label for="nota-input">Note (opzionale)</label>
     <input type="text" id="nota-input" placeholder="es. cotto al vapore, sostituibile con...">
 
+    <label class="check-inline">
+      <input type="checkbox" id="porzione-check">
+      Mostra porzione al posto dei grammi nel PDF cliente
+    </label>
+    <input type="text" id="porzione-input" class="hidden" placeholder="es. 3 cucchiai, 1 vasetto, q.b.">
+
     <div id="preview" class="preview hidden">
       <p>Calorie: <strong><span id="preview-kcal"></span> kcal</strong></p>
       <p>Proteine: <span id="preview-prot"></span> g</p>
@@ -90,11 +99,11 @@
       <p>Carboidrati: <span id="preview-carb"></span> g</p>
     </div>
 
-    <button id="add-draft-btn" disabled>➕ Aggiungi al pasto in corso</button>
+    <button id="add-draft-btn" disabled>Aggiungi al pasto in corso</button>
   </section>
 
   <section id="pasto-corrente" class="card no-print">
-    <h2>🧾 Pasto in corso</h2>
+    <h2>Pasto in corso</h2>
     <div id="draft-container">
       <p class="vuoto">Nessun alimento aggiunto al pasto in corso.</p>
     </div>
@@ -122,22 +131,43 @@
         <option>Cena</option>
       </select>
 
-      <button id="conferma-pasto-btn" disabled>✅ Conferma pasto e aggiungi ai giorni selezionati</button>
+      <button id="conferma-pasto-btn" disabled>Conferma pasto e aggiungi ai giorni selezionati</button>
       <button id="svuota-pasto-btn" class="danger">Svuota pasto in corso</button>
+    </div>
+
+    <div class="pasto-libero-blocco">
+      <label>Pasto libero</label>
+      <p class="hint">Segna il pasto e i giorni selezionati qui sopra come "Pasto libero" (sostituisce eventuali alimenti già presenti in quel pasto).</p>
+      <div class="pasto-libero-campi">
+        <input type="number" id="libero-kcal-input" min="0" placeholder="kcal stimate (opzionale)">
+        <input type="text" id="libero-nota-input" placeholder="nota (opzionale, es. cena fuori)">
+      </div>
+      <button id="pasto-libero-btn" class="secondary" disabled>Segna come pasto libero</button>
+    </div>
+  </section>
+
+  <section id="panoramica" class="card no-print">
+    <button id="panoramica-toggle" class="panoramica-toggle" type="button">▸ Panoramica settimanale</button>
+    <div id="panoramica-contenuto" class="hidden">
+      <div class="panoramica-scroll">
+        <div id="panoramica-griglia" class="panoramica-griglia"></div>
+      </div>
+      <p class="hint">Vista riassuntiva di sola consultazione: per modificare usa l'elenco qui sotto.</p>
     </div>
   </section>
 
   <section id="dieta" class="card">
     <div class="dieta-header no-print">
-      <h2>📅 Dieta settimanale</h2>
+      <h2>Dieta settimanale</h2>
       <div class="pdf-buttons">
-        <button id="pdf-dieta-btn" class="secondary">📄 PDF Dieta (cliente)</button>
-        <button id="pdf-spesa-btn" class="secondary">🛒 PDF Lista della spesa</button>
-        <button id="pdf-nutrizionista-btn" class="secondary">📊 PDF Scheda nutrizionista</button>
-        <button id="reset-btn" class="danger">🗑️ Svuota dieta</button>
+        <button id="pdf-dieta-btn" class="secondary">PDF Dieta (cliente)</button>
+        <button id="pdf-spesa-btn" class="secondary">PDF Lista della spesa</button>
+        <button id="pdf-nutrizionista-btn" class="secondary">PDF Scheda nutrizionista</button>
+        <button id="reset-btn" class="danger">Svuota dieta</button>
       </div>
     </div>
     <div id="dieta-container"></div>
+    <div id="print-sostituzioni" class="print-sostituzioni"></div>
   </section>
 
   <div id="duplica-overlay" class="duplica-overlay hidden no-print">
@@ -147,11 +177,11 @@
       <div class="giorni-preset">
         <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="tutti">Tutti</button>
         <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
-        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="nessuno">Nessuno</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="weekend">Weekend</button>
       </div>
       <div id="duplica-giorni-checkbox" class="duplica-giorni-checkbox"></div>
       <div class="duplica-azioni">
-        <button id="duplica-conferma-btn">✅ Duplica</button>
+        <button id="duplica-conferma-btn">Duplica</button>
         <button id="duplica-annulla-btn" class="danger">Annulla</button>
       </div>
     </div>
