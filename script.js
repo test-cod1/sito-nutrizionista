@@ -1107,4 +1107,14 @@ function inizializza() {
   caricaAlimenti();
 }
 
+// ---------- PWA: registrazione service worker ----------
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(err => {
+      console.warn("Registrazione service worker fallita:", err);
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", inizializza);
