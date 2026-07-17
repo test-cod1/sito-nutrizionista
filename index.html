@@ -8,13 +8,26 @@
 </head>
 <body>
 
-  <div class="print-only" id="print-header">
-    <h1 id="print-title">Piano alimentare</h1>
-    <p>Paziente: <span id="print-paziente">-</span></p>
-    <p>Data: <span id="print-date">-</span></p>
-  </div>
-
-  <div class="lista-spesa-print" id="lista-spesa-print"></div>
+  <table class="print-shell">
+    <thead>
+      <tr><td>
+        <div class="print-running-header">
+          <div class="print-running-title" id="print-running-title"></div>
+          <div class="print-running-meta" id="print-running-meta"></div>
+        </div>
+      </td></tr>
+    </thead>
+    <tfoot>
+      <tr><td>
+        <div class="print-running-footer" id="print-running-footer"></div>
+      </td></tr>
+    </tfoot>
+    <tbody>
+      <tr><td>
+        <div id="print-content"></div>
+      </td></tr>
+    </tbody>
+  </table>
 
   <header class="hero no-print">
     <h1>Calcolatore Dieta</h1>
@@ -29,8 +42,26 @@
     <label for="max-kcal-input">Calorie massime giornaliere</label>
     <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
 
-    <label for="sostituzioni-input">Sostituzioni possibili (stampate in fondo al PDF cliente)</label>
-    <textarea id="sostituzioni-input" rows="3" placeholder="es. Il petto di pollo può essere sostituito con tacchino o pesce bianco; la pasta con riso o farro…"></textarea>
+    <button id="impostazioni-stampa-toggle" class="impostazioni-stampa-toggle" type="button">⚙ Impostazioni di stampa ▸</button>
+    <div id="impostazioni-stampa-contenuto" class="hidden">
+      <label for="sostituzioni-input">Sostituzioni possibili (stampate in fondo al PDF cliente)</label>
+      <textarea id="sostituzioni-input" rows="3" placeholder="es. Il petto di pollo può essere sostituito con tacchino o pesce bianco; la pasta con riso o farro…"></textarea>
+
+      <label for="info-studio-input">Informazioni studio (a piè di pagina nei PDF)</label>
+      <input type="text" id="info-studio-input" placeholder="es. Dott.ssa Nome Cognome · Tel. 000 000000 · email@studio.it">
+
+      <label>Validità del piano (opzionale, stampata in ogni PDF)</label>
+      <div class="riga-validita">
+        <div>
+          <label for="valido-dal-input" class="sotto-etichetta">Dal</label>
+          <input type="date" id="valido-dal-input">
+        </div>
+        <div>
+          <label for="valido-al-input" class="sotto-etichetta">Al</label>
+          <input type="date" id="valido-al-input">
+        </div>
+      </div>
+    </div>
   </section>
 
   <section id="calcolatore" class="card no-print">
@@ -110,9 +141,9 @@
         <button type="button" id="giorni-dropdown-btn" class="giorni-dropdown-btn">Seleziona giorni ▾</button>
         <div id="giorni-dropdown-panel" class="giorni-dropdown-panel hidden">
           <div class="giorni-preset">
-            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="tutti">Tutti i giorni</button>
-            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
-            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="weekend">Weekend</button>
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="tutti" title="Clicca di nuovo per deselezionare">Tutti i giorni</button>
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="feriali" title="Clicca di nuovo per deselezionare">Lun–Ven</button>
+            <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="weekend" title="Clicca di nuovo per deselezionare">Weekend</button>
           </div>
           <div id="conferma-giorni-checkbox" class="giorni-checkbox-griglia"></div>
         </div>
@@ -163,7 +194,6 @@
       </div>
     </div>
     <div id="dieta-container"></div>
-    <div id="print-sostituzioni" class="print-sostituzioni"></div>
   </section>
 
   <div id="duplica-overlay" class="duplica-overlay hidden no-print">
@@ -171,9 +201,9 @@
       <h3 id="duplica-titolo">Duplica</h3>
       <p id="duplica-sottotitolo" class="duplica-sottotitolo"></p>
       <div class="giorni-preset">
-        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="tutti">Tutti</button>
-        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="feriali">Lun–Ven</button>
-        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="weekend">Weekend</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="tutti" title="Clicca di nuovo per deselezionare">Tutti</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="feriali" title="Clicca di nuovo per deselezionare">Lun–Ven</button>
+        <button type="button" class="preset-btn" data-target="duplica-giorni-checkbox" data-preset="weekend" title="Clicca di nuovo per deselezionare">Weekend</button>
       </div>
       <div id="duplica-giorni-checkbox" class="duplica-giorni-checkbox"></div>
       <div class="duplica-azioni">

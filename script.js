@@ -29,7 +29,10 @@ let state = {
   maxKcal: null,
   dieta: creaDietaVuota(),
   customFoods: [],
-  sostituzioni: ""
+  sostituzioni: "",
+  infoStudio: "",
+  validoDal: "",
+  validoAl: ""
 };
 
 function salvaState() {
@@ -45,6 +48,9 @@ function caricaState() {
       state = salvato;
       if (!Array.isArray(state.customFoods)) state.customFoods = [];
       if (typeof state.sostituzioni !== "string") state.sostituzioni = "";
+      if (typeof state.infoStudio !== "string") state.infoStudio = "";
+      if (typeof state.validoDal !== "string") state.validoDal = "";
+      if (typeof state.validoAl !== "string") state.validoAl = "";
     }
   } catch (e) {
     console.warn("Impossibile leggere lo stato salvato:", e);
@@ -90,20 +96,24 @@ const annullaAlimentoBtn = document.getElementById("annulla-alimento-btn");
 
 const pazienteInput = document.getElementById("paziente-input");
 const maxKcalInput = document.getElementById("max-kcal-input");
+const impostazioniStampaToggle = document.getElementById("impostazioni-stampa-toggle");
+const impostazioniStampaContenuto = document.getElementById("impostazioni-stampa-contenuto");
 const sostituzioniInput = document.getElementById("sostituzioni-input");
+const infoStudioInput = document.getElementById("info-studio-input");
+const validoDalInput = document.getElementById("valido-dal-input");
+const validoAlInput = document.getElementById("valido-al-input");
 const dietaContainer = document.getElementById("dieta-container");
 const panoramicaToggle = document.getElementById("panoramica-toggle");
 const panoramicaContenuto = document.getElementById("panoramica-contenuto");
 const panoramicaGriglia = document.getElementById("panoramica-griglia");
-const printSostituzioni = document.getElementById("print-sostituzioni");
 const pdfDietaBtn = document.getElementById("pdf-dieta-btn");
 const pdfSpesaBtn = document.getElementById("pdf-spesa-btn");
 const pdfNutrizionistaBtn = document.getElementById("pdf-nutrizionista-btn");
 const resetBtn = document.getElementById("reset-btn");
-const printTitle = document.getElementById("print-title");
-const printPaziente = document.getElementById("print-paziente");
-const printDate = document.getElementById("print-date");
-const listaSpesaPrint = document.getElementById("lista-spesa-print");
+const printRunningTitle = document.getElementById("print-running-title");
+const printRunningMeta = document.getElementById("print-running-meta");
+const printRunningFooter = document.getElementById("print-running-footer");
+const printContent = document.getElementById("print-content");
 
 const duplicaOverlay = document.getElementById("duplica-overlay");
 const duplicaTitolo = document.getElementById("duplica-titolo");
@@ -500,12 +510,15 @@ function renderGiorniCheckbox(container, giorni) {
 }
 
 function applicaPresetGiorni(container, preset) {
-  container.querySelectorAll("input").forEach(cb => {
-    if (preset === "tutti") cb.checked = true;
-    else if (preset === "nessuno") cb.checked = false;
-    else if (preset === "feriali") cb.checked = GIORNI_FERIALI.includes(cb.value);
-    else if (preset === "weekend") cb.checked = GIORNI_WEEKEND.includes(cb.value);
-  });
+  const gruppo = preset === "tutti" ? GIORNI
+    : preset === "feriali" ? GIORNI_FERIALI
+    : preset === "weekend" ? GIORNI_WEEKEND
+    : [];
+  if (gruppo.length === 0) return;
+
+  const checkbox = Array.from(container.querySelectorAll("input")).filter(cb => gruppo.includes(cb.value));
+  const giaTuttiSelezionati = checkbox.every(cb => cb.checked);
+  checkbox.forEach(cb => { cb.checked = !giaTuttiSelezionati; });
 }
 
 // ---------- Duplica pasto / giornata ----------
@@ -697,6 +710,11 @@ function togglePanoramica() {
   panoramicaToggle.textContent = `${chiusa ? "▸" : "▾"} Panoramica settimanale`;
 }
 
+function toggleImpostazioniStampa() {
+  const chiusa = impostazioniStampaContenuto.classList.toggle("hidden");
+  impostazioniStampaToggle.textContent = `⚙ Impostazioni di stampa ${chiusa ? "▸" : "▾"}`;
+}
+
 function rimuoviElemento(giorno, pasto, index) {
   state.dieta[giorno][pasto].splice(index, 1);
   salvaState();
@@ -727,32 +745,23 @@ function calcolaListaSpesa() {
     .sort((a, b) => a.nome.localeCompare(b.nome, "it"));
 }
 
-function renderListaSpesa() {
-  const lista = calcolaListaSpesa();
-
-  if (lista.length === 0) {
-    listaSpesaPrint.innerHTML = '<p class="vuoto">La dieta è vuota: nessun alimento da acquistare.</p>';
-    return;
-  }
-
-  const righe = lista.map(voce => `
-    <tr><td>${voce.nome}</td><td>${voce.grammi} g</td></tr>
-  `).join("");
-
-  listaSpesaPrint.innerHTML = `
-    <table>
-      <thead><tr><th>Alimento</th><th>Quantità totale settimanale</th></tr></thead>
-      <tbody>${righe}</tbody>
-    </table>
-  `;
-}
-
 // ---------- Generazione PDF (stampa) ----------
 
-function impostaIntestazionePdf(titolo) {
-  printTitle.textContent = titolo;
-  printPaziente.textContent = state.paziente || pazienteInput.value || "-";
-  printDate.textContent = new Date().toLocaleDateString("it-IT");
+function escapeHtml(testo) {
+  return testo.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function formattaDataIt(isoDate) {
+  const [y, m, d] = isoDate.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function formattaValidita() {
+  const dal = (state.validoDal || "").trim();
+  const al = (state.validoAl || "").trim();
+  if (dal && al) return `Piano valido dal ${formattaDataIt(dal)} al ${formattaDataIt(al)}`;
+  if (dal) return `Piano valido dal ${formattaDataIt(dal)}`;
+  return `Stampato il ${new Date().toLocaleDateString("it-IT")}`;
 }
 
 function impostaModalitaStampa(modalita) {
@@ -760,11 +769,14 @@ function impostaModalitaStampa(modalita) {
   document.body.classList.add(modalita);
 }
 
-function escapeHtml(testo) {
-  return testo.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function renderIntestazioneStampa(titolo) {
+  printRunningTitle.textContent = titolo;
+  const paziente = state.paziente || pazienteInput.value || "-";
+  printRunningMeta.textContent = `Paziente: ${paziente} · ${formattaValidita()}`;
+  printRunningFooter.textContent = (state.infoStudio || "").trim();
 }
 
-function renderPrintSostituzioni() {
+function costruisciSostituzioniHtml() {
   const testo = (state.sostituzioni || "").trim();
   let corpo;
   if (testo) {
@@ -772,26 +784,102 @@ function renderPrintSostituzioni() {
   } else {
     corpo = '<div class="linea-vuota"></div>'.repeat(4);
   }
-  printSostituzioni.innerHTML = `<h3>Sostituzioni possibili</h3>${corpo}`;
+  return `<div class="print-sostituzioni"><h3>Sostituzioni possibili</h3>${corpo}</div>`;
+}
+
+function costruisciRigaPrint(item, giorno, pasto) {
+  let cellaQta;
+  if (item.libero) {
+    cellaQta = "—";
+  } else if (item.mostraPorzione) {
+    cellaQta = `<span class="solo-non-cliente">${item.grammi} g <em>(${item.porzione || "porzione"})</em></span><span class="solo-cliente">${item.porzione || ""}</span>`;
+  } else {
+    cellaQta = `${item.grammi} g`;
+  }
+  const cellaKcal = item.libero ? (item.kcal ? `${item.kcal} kcal (stima)` : "—") : `${item.kcal} kcal`;
+
+  return `
+    <tr${item.libero ? ' class="p-riga-libero"' : ''}>
+      <td>${item.alimento}</td>
+      <td class="${item.mostraPorzione ? "ha-porzione" : ""}">${cellaQta}</td>
+      <td>${item.nota || "-"}</td>
+      <td class="solo-nutrizionista">${cellaKcal}</td>
+      <td class="solo-nutrizionista">${item.libero ? "—" : `${item.proteine} g`}</td>
+      <td class="solo-nutrizionista">${item.libero ? "—" : `${item.grassi} g`}</td>
+      <td class="solo-nutrizionista">${item.libero ? "—" : `${item.carboidrati} g`}</td>
+    </tr>
+  `;
+}
+
+function costruisciContenutoPrintDieta() {
+  const giorniConDati = GIORNI.filter(giornoHaAlimenti);
+  if (giorniConDati.length === 0) return "<p>La dieta è vuota.</p>";
+
+  return giorniConDati.map(giorno => {
+    const totG = totaliGiorno(giorno);
+    const pastiHtml = PASTI.filter(p => state.dieta[giorno][p].length > 0).map(pasto => {
+      const items = state.dieta[giorno][pasto];
+      const totP = totaliPasto(items);
+      const righe = items.map(item => costruisciRigaPrint(item, giorno, pasto)).join("");
+      return `
+        <div class="p-pasto">
+          <div class="p-pasto-titolo"><span>${pasto}</span><span class="solo-nutrizionista">${formattaTotali(totP)}</span></div>
+          <table class="p-tabella">
+            <thead>
+              <tr>
+                <th>Alimento</th><th>Quantità</th><th>Note</th>
+                <th class="solo-nutrizionista">Calorie</th><th class="solo-nutrizionista">Proteine</th><th class="solo-nutrizionista">Grassi</th><th class="solo-nutrizionista">Carboidrati</th>
+              </tr>
+            </thead>
+            <tbody>${righe}</tbody>
+          </table>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="p-giorno">
+        <div class="p-giorno-titolo"><span>${giorno}</span><span class="solo-nutrizionista">${formattaTotali(totG)}</span></div>
+        ${pastiHtml}
+      </div>
+    `;
+  }).join("");
+}
+
+function costruisciContenutoListaSpesa() {
+  const lista = calcolaListaSpesa();
+  if (lista.length === 0) return "<p>La dieta è vuota: nessun alimento da acquistare.</p>";
+
+  const righe = lista.map(voce => `
+    <tr><td class="p-checkbox">☐</td><td>${voce.nome}</td><td>${voce.grammi} g</td></tr>
+  `).join("");
+
+  return `
+    <table class="p-tabella">
+      <thead><tr><th></th><th>Alimento</th><th>Quantità totale settimanale</th></tr></thead>
+      <tbody>${righe}</tbody>
+    </table>
+  `;
 }
 
 function generaPdfDieta() {
-  renderPrintSostituzioni();
   impostaModalitaStampa("stampa-dieta");
-  impostaIntestazionePdf("Piano alimentare");
+  renderIntestazioneStampa("Piano alimentare");
+  printContent.innerHTML = costruisciContenutoPrintDieta() + costruisciSostituzioniHtml();
   window.print();
 }
 
 function generaPdfNutrizionista() {
   impostaModalitaStampa("stampa-nutrizionista");
-  impostaIntestazionePdf("Piano alimentare — Scheda nutrizionista");
+  renderIntestazioneStampa("Piano alimentare — Scheda nutrizionista");
+  printContent.innerHTML = costruisciContenutoPrintDieta();
   window.print();
 }
 
 function generaPdfSpesa() {
-  renderListaSpesa();
   impostaModalitaStampa("stampa-spesa");
-  impostaIntestazionePdf("Lista della spesa settimanale");
+  renderIntestazioneStampa("Lista della spesa settimanale");
+  printContent.innerHTML = costruisciContenutoListaSpesa();
   window.print();
 }
 
@@ -803,6 +891,9 @@ function inizializza() {
   pazienteInput.value = state.paziente || "";
   maxKcalInput.value = state.maxKcal || "";
   sostituzioniInput.value = state.sostituzioni || "";
+  infoStudioInput.value = state.infoStudio || "";
+  validoDalInput.value = state.validoDal || "";
+  validoAlInput.value = state.validoAl || "";
 
   foodInput.addEventListener("input", () => {
     aggiornaSuggerimenti();
@@ -864,8 +955,24 @@ function inizializza() {
     salvaState();
   });
 
+  infoStudioInput.addEventListener("input", () => {
+    state.infoStudio = infoStudioInput.value;
+    salvaState();
+  });
+
+  validoDalInput.addEventListener("change", () => {
+    state.validoDal = validoDalInput.value;
+    salvaState();
+  });
+
+  validoAlInput.addEventListener("change", () => {
+    state.validoAl = validoAlInput.value;
+    salvaState();
+  });
+
   pastoLiberoBtn.addEventListener("click", inserisciPastoLibero);
   panoramicaToggle.addEventListener("click", togglePanoramica);
+  impostazioniStampaToggle.addEventListener("click", toggleImpostazioniStampa);
 
   draftContainer.addEventListener("click", (e) => {
     if (e.target.classList.contains("remove-btn")) {
