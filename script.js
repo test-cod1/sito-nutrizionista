@@ -156,7 +156,9 @@ const loginBtn = document.getElementById("login-btn");
 
 const appShell = document.getElementById("app-shell");
 const areaLavoro = document.getElementById("area-lavoro");
-const pazienteSelect = document.getElementById("paziente-select");
+const pazienteSearchInput = document.getElementById("paziente-search-input");
+const pazienteSuggestions = document.getElementById("paziente-suggestions");
+let pazienteSuggestionIndex = -1;
 const nuovoPazienteBtn = document.getElementById("nuovo-paziente-btn");
 const storicoBtn = document.getElementById("storico-btn");
 const profiloBtn = document.getElementById("profilo-btn");
@@ -792,8 +794,44 @@ async function caricaListaPazienti() {
     return;
   }
   listaPazienti = data || [];
-  pazienteSelect.innerHTML = '<option value="">— Seleziona un paziente —</option>' +
-    listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+}
+
+function mostraSuggerimentiPazienti(elenco) {
+  pazienteSuggestionIndex = -1;
+  if (elenco.length === 0) {
+    pazienteSuggestions.innerHTML = "";
+    pazienteSuggestions.classList.add("hidden");
+    return;
+  }
+  pazienteSuggestions.innerHTML = elenco
+    .map((p, i) => `<div class="suggestion-item" data-index="${i}">${escapeHtml(p.nome)}</div>`)
+    .join("");
+  pazienteSuggestions.dataset.ids = JSON.stringify(elenco.map(p => p.id));
+  pazienteSuggestions.classList.remove("hidden");
+}
+
+function nascondiSuggerimentiPazienti() {
+  pazienteSuggestions.classList.add("hidden");
+  pazienteSuggestionIndex = -1;
+}
+
+function aggiornaSuggerimentiPazienti() {
+  const testo = normalizza(pazienteSearchInput.value.trim());
+  const elenco = testo ? listaPazienti.filter(p => normalizza(p.nome).includes(testo)) : listaPazienti;
+  mostraSuggerimentiPazienti(elenco);
+}
+
+function evidenziaSuggerimentoPaziente() {
+  const items = pazienteSuggestions.querySelectorAll(".suggestion-item");
+  items.forEach((el, i) => el.classList.toggle("active", i === pazienteSuggestionIndex));
+}
+
+async function selezionaPazienteDaRicerca(id) {
+  const p = listaPazienti.find(p => p.id === id);
+  if (!p) return;
+  pazienteSearchInput.value = p.nome;
+  nascondiSuggerimentiPazienti();
+  await selezionaPaziente(id);
 }
 
 async function selezionaPaziente(pazienteId) {
@@ -885,7 +923,7 @@ async function confermaNuovoPaziente() {
 
   chiudiNuovoPaziente();
   await caricaListaPazienti();
-  pazienteSelect.value = data.id;
+  pazienteSearchInput.value = data.nome;
   await selezionaPaziente(data.id);
 }
 
@@ -1881,7 +1919,45 @@ function inizializza() {
   invitoInviaBtn.addEventListener("click", inviaInvito);
   aggiornaVisibilitaBloccoPaziente();
 
-  pazienteSelect.addEventListener("change", () => selezionaPaziente(pazienteSelect.value));
+  pazienteSearchInput.addEventListener("input", aggiornaSuggerimentiPazienti);
+  pazienteSearchInput.addEventListener("focus", aggiornaSuggerimentiPazienti);
+
+  pazienteSearchInput.addEventListener("keydown", (e) => {
+    const items = pazienteSuggestions.querySelectorAll(".suggestion-item");
+    if (pazienteSuggestions.classList.contains("hidden") || items.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      pazienteSuggestionIndex = Math.min(pazienteSuggestionIndex + 1, items.length - 1);
+      evidenziaSuggerimentoPaziente();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      pazienteSuggestionIndex = Math.max(pazienteSuggestionIndex - 1, 0);
+      evidenziaSuggerimentoPaziente();
+    } else if (e.key === "Enter" && pazienteSuggestionIndex >= 0) {
+      e.preventDefault();
+      const ids = JSON.parse(pazienteSuggestions.dataset.ids || "[]");
+      const id = ids[pazienteSuggestionIndex];
+      if (id) selezionaPazienteDaRicerca(id);
+    } else if (e.key === "Escape") {
+      nascondiSuggerimentiPazienti();
+    }
+  });
+
+  pazienteSuggestions.addEventListener("mousedown", (e) => {
+    const item = e.target.closest(".suggestion-item");
+    if (!item) return;
+    e.preventDefault();
+    const ids = JSON.parse(pazienteSuggestions.dataset.ids || "[]");
+    const id = ids[parseInt(item.dataset.index, 10)];
+    if (id) selezionaPazienteDaRicerca(id);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#paziente-search-input") && !e.target.closest("#paziente-suggestions")) {
+      nascondiSuggerimentiPazienti();
+    }
+  });
   nuovoPazienteBtn.addEventListener("click", apriNuovoPaziente);
   nuovoPazienteConfermaBtn.addEventListener("click", confermaNuovoPaziente);
   nuovoPazienteAnnullaBtn.addEventListener("click", chiudiNuovoPaziente);

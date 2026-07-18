@@ -172,10 +172,11 @@
     <section id="paziente-bar" class="card no-print">
       <div class="paziente-bar-riga">
         <div class="paziente-selettore">
-          <label for="paziente-select">Paziente in lavorazione</label>
-          <select id="paziente-select">
-            <option value="">— Seleziona un paziente —</option>
-          </select>
+          <label for="paziente-search-input">Paziente in lavorazione</label>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="paziente-search-input" placeholder="Cerca paziente per nome..." autocomplete="off">
+            <div id="paziente-suggestions" class="suggestions hidden"></div>
+          </div>
         </div>
         <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
