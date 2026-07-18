@@ -197,8 +197,9 @@ const impostaPasswordError = document.getElementById("imposta-password-error");
 const impostaPasswordBtn = document.getElementById("imposta-password-btn");
 
 // Gestione utenti (admin)
-const gestioneUtentiToggle = document.getElementById("gestione-utenti-toggle");
-const gestioneUtentiContenuto = document.getElementById("gestione-utenti-contenuto");
+const gestioneUtentiBtn = document.getElementById("gestione-utenti-btn");
+const gestioneUtentiOverlay = document.getElementById("gestione-utenti-overlay");
+const gestioneUtentiChiudiBtn = document.getElementById("gestione-utenti-chiudi-btn");
 const invitoEmailInput = document.getElementById("invito-email");
 const invitoRuoloSelect = document.getElementById("invito-ruolo");
 const invitoPazienteBlocco = document.getElementById("invito-paziente-blocco");
@@ -507,10 +508,15 @@ async function avviaVistaPaziente(pazienteRecord) {
 
 // ---------- Gestione utenti (admin): invito nuovi accessi ----------
 
-function toggleGestioneUtenti() {
-  const chiusa = gestioneUtentiContenuto.classList.toggle("hidden");
-  gestioneUtentiToggle.textContent = `${chiusa ? "▸" : "▾"} Gestione utenti`;
-  if (!chiusa) popolaSelettorePazientiInvito();
+function apriGestioneUtenti() {
+  invitoError.classList.add("hidden");
+  invitoSuccesso.classList.add("hidden");
+  popolaSelettorePazientiInvito();
+  gestioneUtentiOverlay.classList.remove("hidden");
+}
+
+function chiudiGestioneUtenti() {
+  gestioneUtentiOverlay.classList.add("hidden");
 }
 
 function popolaSelettorePazientiInvito() {
@@ -1652,7 +1658,11 @@ function inizializza() {
   pzTemaNotteBtn.addEventListener("click", () => impostaTema("notte"));
   pazientePdfBtn.addEventListener("click", generaPdfDieta);
 
-  gestioneUtentiToggle.addEventListener("click", toggleGestioneUtenti);
+  gestioneUtentiBtn.addEventListener("click", apriGestioneUtenti);
+  gestioneUtentiChiudiBtn.addEventListener("click", chiudiGestioneUtenti);
+  gestioneUtentiOverlay.addEventListener("click", (e) => {
+    if (e.target === gestioneUtentiOverlay) chiudiGestioneUtenti();
+  });
   invitoRuoloSelect.addEventListener("change", aggiornaVisibilitaBloccoPaziente);
   invitoPazienteSelect.addEventListener("change", aggiornaVisibilitaBloccoPaziente);
   invitoInviaBtn.addEventListener("click", inviaInvito);

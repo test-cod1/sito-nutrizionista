@@ -131,6 +131,7 @@
   <div id="app-shell" class="hidden">
     <header class="hero no-print">
       <div class="tema-toggle">
+        <button type="button" id="gestione-utenti-btn" class="tema-btn" title="Gestione utenti" aria-label="Gestione utenti">⚙</button>
         <button type="button" id="tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
         <button type="button" id="tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
       </div>
@@ -153,36 +154,6 @@
       </div>
     </section>
 
-    <section id="gestione-utenti" class="card no-print">
-      <button id="gestione-utenti-toggle" class="panoramica-toggle" type="button">▸ Gestione utenti</button>
-      <div id="gestione-utenti-contenuto" class="hidden">
-        <p class="hint">Crea un accesso per un amministratore o per un paziente. La persona riceverà un'email di invito con cui impostare la propria password.</p>
-
-        <label for="invito-email">Email della persona da invitare</label>
-        <input type="email" id="invito-email" placeholder="email@esempio.com">
-
-        <label for="invito-ruolo">Ruolo</label>
-        <select id="invito-ruolo">
-          <option value="paziente">Paziente</option>
-          <option value="admin">Amministratore</option>
-        </select>
-
-        <div id="invito-paziente-blocco">
-          <label for="invito-paziente-select">Collega a</label>
-          <select id="invito-paziente-select">
-            <option value="nuovo">— Crea un nuovo paziente —</option>
-          </select>
-          <div id="invito-nuovo-paziente-blocco">
-            <label for="invito-nuovo-paziente-nome">Nome del nuovo paziente</label>
-            <input type="text" id="invito-nuovo-paziente-nome" placeholder="Nome e cognome">
-          </div>
-        </div>
-
-        <p id="invito-error" class="error hidden"></p>
-        <p id="invito-successo" class="hidden"></p>
-        <button id="invito-invia-btn">Invia invito</button>
-      </div>
-    </section>
 
     <div id="area-lavoro" class="hidden">
       <section id="impostazioni" class="card no-print">
@@ -344,6 +315,41 @@
         </div>
         <div id="dieta-container"></div>
       </section>
+    </div>
+  </div>
+
+  <!-- Gestione utenti -->
+  <div id="gestione-utenti-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3>Gestione utenti</h3>
+      <p class="duplica-sottotitolo">Crea un accesso per un amministratore o per un paziente. La persona riceverà un'email di invito con cui impostare la propria password.</p>
+
+      <label for="invito-email">Email della persona da invitare</label>
+      <input type="email" id="invito-email" placeholder="email@esempio.com">
+
+      <label for="invito-ruolo">Ruolo</label>
+      <select id="invito-ruolo">
+        <option value="paziente">Paziente</option>
+        <option value="admin">Amministratore</option>
+      </select>
+
+      <div id="invito-paziente-blocco">
+        <label for="invito-paziente-select">Collega a</label>
+        <select id="invito-paziente-select">
+          <option value="nuovo">— Crea un nuovo paziente —</option>
+        </select>
+        <div id="invito-nuovo-paziente-blocco">
+          <label for="invito-nuovo-paziente-nome">Nome del nuovo paziente</label>
+          <input type="text" id="invito-nuovo-paziente-nome" placeholder="Nome e cognome">
+        </div>
+      </div>
+
+      <p id="invito-error" class="error hidden"></p>
+      <p id="invito-successo" class="hidden"></p>
+      <div class="duplica-azioni">
+        <button id="invito-invia-btn">Invia invito</button>
+        <button id="gestione-utenti-chiudi-btn" class="danger">Chiudi</button>
+      </div>
     </div>
   </div>
 
