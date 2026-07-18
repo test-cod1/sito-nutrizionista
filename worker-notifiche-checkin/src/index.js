@@ -6,6 +6,7 @@
 //
 // SUPABASE_SECRET_KEY e VAPID_PRIVATE_KEY vanno impostati come secret
 // cifrati nel pannello del Worker (Settings → Variables and secrets).
+// (build rilanciato dopo un build precedente rimasto bloccato)
 
 import webpush from "web-push";
 
