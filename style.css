@@ -1415,13 +1415,14 @@ textarea:focus {
   overflow-wrap: break-word;
 }
 
-#paziente-dieta-vista .p-tabella th:nth-child(1), #paziente-dieta-vista .p-tabella td:nth-child(1) { width: 26%; }
-#paziente-dieta-vista .p-tabella th:nth-child(2), #paziente-dieta-vista .p-tabella td:nth-child(2) { width: 11%; }
-#paziente-dieta-vista .p-tabella th:nth-child(3), #paziente-dieta-vista .p-tabella td:nth-child(3) { width: 20%; }
-#paziente-dieta-vista .p-tabella th:nth-child(4), #paziente-dieta-vista .p-tabella td:nth-child(4) { width: 13%; }
-#paziente-dieta-vista .p-tabella th:nth-child(5), #paziente-dieta-vista .p-tabella td:nth-child(5) { width: 10%; }
-#paziente-dieta-vista .p-tabella th:nth-child(6), #paziente-dieta-vista .p-tabella td:nth-child(6) { width: 10%; }
-#paziente-dieta-vista .p-tabella th:nth-child(7), #paziente-dieta-vista .p-tabella td:nth-child(7) { width: 10%; }
+#paziente-dieta-vista .p-tabella th:nth-child(1), #paziente-dieta-vista .p-tabella td:nth-child(1) { width: 45%; }
+#paziente-dieta-vista .p-tabella th:nth-child(2), #paziente-dieta-vista .p-tabella td:nth-child(2) { width: 20%; }
+#paziente-dieta-vista .p-tabella th:nth-child(3), #paziente-dieta-vista .p-tabella td:nth-child(3) { width: 35%; }
+
+/* Il paziente non deve vedere calorie e macronutrienti nella propria vista */
+#paziente-dieta-vista .solo-nutrizionista {
+  display: none;
+}
 
 #paziente-dieta-vista .p-riga-libero td {
   font-style: italic;
