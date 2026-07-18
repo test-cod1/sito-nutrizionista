@@ -587,6 +587,7 @@ button.danger:hover {
 
 table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   margin: 8px 0;
 }
@@ -596,7 +597,20 @@ table th, table td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--border-2);
   font-size: 0.95rem;
+  overflow-wrap: break-word;
 }
+
+/* Larghezze fisse delle colonne (Alimento, Quantità, Note, Calorie, Proteine,
+   Grassi, Carboidrati, azione): non si spostano più al variare della
+   lunghezza del nome dell'alimento, e restano allineate fra un pasto e l'altro. */
+table th:nth-child(1), table td:nth-child(1) { width: 24%; }
+table th:nth-child(2), table td:nth-child(2) { width: 10%; }
+table th:nth-child(3), table td:nth-child(3) { width: 18%; }
+table th:nth-child(4), table td:nth-child(4) { width: 12%; }
+table th:nth-child(5), table td:nth-child(5) { width: 10%; }
+table th:nth-child(6), table td:nth-child(6) { width: 10%; }
+table th:nth-child(7), table td:nth-child(7) { width: 10%; }
+table th:nth-child(8), table td:nth-child(8) { width: 6%; }
 
 table th {
   color: var(--text-muted);
@@ -942,7 +956,23 @@ table tfoot .riga-totale td {
   .p-tabella td {
     padding: 4pt 6pt;
     border-bottom: 0.5pt solid #eceff0;
+    overflow-wrap: break-word;
   }
+
+  /* Solo la tabella di dettaglio pasto (dentro .p-pasto), non la lista della
+     spesa che riusa .p-tabella con colonne diverse: larghezze fisse così
+     Alimento/Quantità/Note/Calorie/Proteine/Grassi/Carboidrati restano
+     allineate fra un pasto e l'altro anche con nomi più lunghi. */
+  .p-pasto .p-tabella {
+    table-layout: fixed;
+  }
+  .p-pasto .p-tabella th:nth-child(1), .p-pasto .p-tabella td:nth-child(1) { width: 26%; }
+  .p-pasto .p-tabella th:nth-child(2), .p-pasto .p-tabella td:nth-child(2) { width: 11%; }
+  .p-pasto .p-tabella th:nth-child(3), .p-pasto .p-tabella td:nth-child(3) { width: 20%; }
+  .p-pasto .p-tabella th:nth-child(4), .p-pasto .p-tabella td:nth-child(4) { width: 13%; }
+  .p-pasto .p-tabella th:nth-child(5), .p-pasto .p-tabella td:nth-child(5) { width: 10%; }
+  .p-pasto .p-tabella th:nth-child(6), .p-pasto .p-tabella td:nth-child(6) { width: 10%; }
+  .p-pasto .p-tabella th:nth-child(7), .p-pasto .p-tabella td:nth-child(7) { width: 10%; }
 
   .p-riga-libero td {
     font-style: italic;
@@ -1363,6 +1393,7 @@ textarea:focus {
 
 #paziente-dieta-vista .p-tabella {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
@@ -1381,7 +1412,16 @@ textarea:focus {
 #paziente-dieta-vista .p-tabella td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--border-2);
+  overflow-wrap: break-word;
 }
+
+#paziente-dieta-vista .p-tabella th:nth-child(1), #paziente-dieta-vista .p-tabella td:nth-child(1) { width: 26%; }
+#paziente-dieta-vista .p-tabella th:nth-child(2), #paziente-dieta-vista .p-tabella td:nth-child(2) { width: 11%; }
+#paziente-dieta-vista .p-tabella th:nth-child(3), #paziente-dieta-vista .p-tabella td:nth-child(3) { width: 20%; }
+#paziente-dieta-vista .p-tabella th:nth-child(4), #paziente-dieta-vista .p-tabella td:nth-child(4) { width: 13%; }
+#paziente-dieta-vista .p-tabella th:nth-child(5), #paziente-dieta-vista .p-tabella td:nth-child(5) { width: 10%; }
+#paziente-dieta-vista .p-tabella th:nth-child(6), #paziente-dieta-vista .p-tabella td:nth-child(6) { width: 10%; }
+#paziente-dieta-vista .p-tabella th:nth-child(7), #paziente-dieta-vista .p-tabella td:nth-child(7) { width: 10%; }
 
 #paziente-dieta-vista .p-riga-libero td {
   font-style: italic;
