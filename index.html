@@ -104,9 +104,12 @@
   <!-- Vista paziente: profilo e dieta attuale in sola lettura -->
   <div id="vista-paziente" class="hidden">
     <header class="hero no-print">
-      <div class="tema-toggle">
-        <button type="button" id="pz-tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
-        <button type="button" id="pz-tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
+      <div class="header-azioni-destra">
+        <button type="button" id="paziente-logout-btn" class="esci-header-btn">Esci</button>
+        <div class="tema-toggle">
+          <button type="button" id="pz-tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
+          <button type="button" id="pz-tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
+        </div>
       </div>
       <h1>Il mio piano alimentare</h1>
       <p class="hero-sub" id="vista-paziente-nome"></p>
@@ -144,7 +147,6 @@
         <div class="pdf-buttons">
           <button id="paziente-pdf-btn" class="secondary">Scarica Piano Alimentare</button>
           <button id="paziente-spesa-btn" class="secondary">Scarica Lista della Spesa</button>
-          <button id="paziente-logout-btn" class="danger">Esci</button>
         </div>
       </div>
       <div id="paziente-dieta-vista"></div>
@@ -156,9 +158,12 @@
       <div class="gestione-utenti-fisso">
         <button type="button" id="gestione-utenti-btn" title="Gestione utenti" aria-label="Gestione utenti">⚙</button>
       </div>
-      <div class="tema-toggle">
-        <button type="button" id="tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
-        <button type="button" id="tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
+      <div class="header-azioni-destra">
+        <button type="button" id="logout-btn" class="esci-header-btn">Esci</button>
+        <div class="tema-toggle">
+          <button type="button" id="tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
+          <button type="button" id="tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
+        </div>
       </div>
       <h1>Calcolatore Piano Alimentare</h1>
       <p class="hero-sub">Crea, calcola e stampa il piano alimentare del paziente</p>
@@ -175,7 +180,6 @@
         <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
         <button type="button" id="storico-btn" class="secondary" disabled>Storico piani alimentari</button>
-        <button type="button" id="logout-btn" class="danger">Esci</button>
       </div>
     </section>
 
