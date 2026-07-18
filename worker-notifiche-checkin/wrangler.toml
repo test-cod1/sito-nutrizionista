@@ -3,6 +3,11 @@ main = "src/index.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Senza questo, ogni deploy da Git sovrascrive/ignora le variabili e i
+# secret impostati manualmente nel pannello Cloudflare (SUPABASE_SECRET_KEY,
+# VAPID_PRIVATE_KEY): con keep_vars restano quelli già configurati.
+keep_vars = true
+
 # Ogni giorno alle 06:00 UTC (~07-08 in Italia a seconda dell'ora legale).
 [triggers]
 crons = ["0 6 * * *"]
