@@ -493,6 +493,21 @@ button.danger:hover {
   margin-top: 0;
 }
 
+.paziente-selettore-riga {
+  display: flex;
+  gap: 8px;
+}
+
+.paziente-selettore-riga .autocomplete-wrapper {
+  flex: 1;
+}
+
+.paziente-selettore-riga select {
+  flex-shrink: 0;
+  width: auto;
+  max-width: 150px;
+}
+
 .paziente-bar-riga > button {
   margin-top: 0;
   white-space: nowrap;
