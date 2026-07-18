@@ -6,3 +6,12 @@ compatibility_flags = ["nodejs_compat"]
 # Ogni giorno alle 06:00 UTC (~07-08 in Italia a seconda dell'ora legale).
 [triggers]
 crons = ["0 6 * * *"]
+
+# Valori non sensibili (la chiave pubblica VAPID è pensata per essere pubblica,
+# l'email è solo un contatto richiesto dallo standard VAPID): messi qui così
+# sono sempre presenti a ogni deploy, senza dipendere dal pannello Cloudflare.
+# SUPABASE_SECRET_KEY e VAPID_PRIVATE_KEY restano invece solo come secret nel
+# pannello del Worker, perché sono sensibili e non vanno mai versionati.
+[vars]
+VAPID_PUBLIC_KEY = "BIEBCyDIMbT8zbhfdcQFXAsbcbWBhtD2cX5QB0uhr7i8tTtINB4Ii8w3xKN-1No8HqeHCmo5bKltmFz0Ve1_B9k"
+VAPID_CONTACT_EMAIL = "jacopo.ravaiolicri@gmail.com"

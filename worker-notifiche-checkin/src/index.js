@@ -32,6 +32,12 @@ export default {
 };
 
 async function inviaPromemoriaCheckin(env) {
+  const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL"];
+  const mancanti = richieste.filter((nome) => !env[nome]);
+  if (mancanti.length > 0) {
+    throw new Error(`Variabili/secret mancanti sul Worker: ${mancanti.join(", ")}. Aggiungile in Settings → Variables and secrets, poi rifai un deploy.`);
+  }
+
   webpush.setVapidDetails(
     "mailto:" + env.VAPID_CONTACT_EMAIL,
     env.VAPID_PUBLIC_KEY,
