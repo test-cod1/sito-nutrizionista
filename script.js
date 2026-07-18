@@ -181,12 +181,43 @@ const profiloNoteInput = document.getElementById("profilo-note");
 const profiloSalvaBtn = document.getElementById("profilo-salva-btn");
 const profiloAnnullaBtn = document.getElementById("profilo-annulla-btn");
 
+// Imposta password (primo accesso dopo invito)
+const impostaPasswordOverlay = document.getElementById("imposta-password-overlay");
+const nuovaPasswordInput = document.getElementById("nuova-password-input");
+const impostaPasswordError = document.getElementById("imposta-password-error");
+const impostaPasswordBtn = document.getElementById("imposta-password-btn");
+
+// Gestione utenti (admin)
+const gestioneUtentiToggle = document.getElementById("gestione-utenti-toggle");
+const gestioneUtentiContenuto = document.getElementById("gestione-utenti-contenuto");
+const invitoEmailInput = document.getElementById("invito-email");
+const invitoRuoloSelect = document.getElementById("invito-ruolo");
+const invitoPazienteBlocco = document.getElementById("invito-paziente-blocco");
+const invitoPazienteSelect = document.getElementById("invito-paziente-select");
+const invitoNuovoPazienteBlocco = document.getElementById("invito-nuovo-paziente-blocco");
+const invitoNuovoPazienteNomeInput = document.getElementById("invito-nuovo-paziente-nome");
+const invitoError = document.getElementById("invito-error");
+const invitoSuccesso = document.getElementById("invito-successo");
+const invitoInviaBtn = document.getElementById("invito-invia-btn");
+
+// Vista paziente (sola lettura)
+const vistaPaziente = document.getElementById("vista-paziente");
+const vistaPazienteNomeEl = document.getElementById("vista-paziente-nome");
+const pazienteProfiloVista = document.getElementById("paziente-profilo-vista");
+const pazienteDietaVista = document.getElementById("paziente-dieta-vista");
+const pazientePdfBtn = document.getElementById("paziente-pdf-btn");
+const pazienteLogoutBtn = document.getElementById("paziente-logout-btn");
+const pzTemaChiaroBtn = document.getElementById("pz-tema-chiaro-btn");
+const pzTemaNotteBtn = document.getElementById("pz-tema-notte-btn");
+
 // ---------- Modalità giorno/notte ----------
 
 function applicaTema(tema) {
   document.documentElement.classList.toggle("tema-notte", tema === "notte");
   temaChiaroBtn.classList.toggle("attivo", tema === "chiaro");
   temaNotteBtn.classList.toggle("attivo", tema === "notte");
+  pzTemaChiaroBtn.classList.toggle("attivo", tema === "chiaro");
+  pzTemaNotteBtn.classList.toggle("attivo", tema === "notte");
 }
 
 function impostaTema(tema) {
@@ -226,14 +257,60 @@ function inizializzaSupabase() {
 
 function mostraLogin() {
   loginOverlay.classList.remove("hidden");
+  impostaPasswordOverlay.classList.add("hidden");
   appShell.classList.add("hidden");
+  vistaPaziente.classList.add("hidden");
+}
+
+function urlContieneTipo(tipo) {
+  const hash = window.location.hash || "";
+  const search = window.location.search || "";
+  return hash.includes(`type=${tipo}`) || search.includes(`type=${tipo}`);
+}
+
+function mostraImpostaPassword() {
+  loginOverlay.classList.add("hidden");
+  nuovaPasswordInput.value = "";
+  impostaPasswordError.classList.add("hidden");
+  impostaPasswordOverlay.classList.remove("hidden");
+}
+
+async function confermaImpostaPassword() {
+  const nuovaPassword = nuovaPasswordInput.value;
+  impostaPasswordError.classList.add("hidden");
+
+  if (!nuovaPassword || nuovaPassword.length < 6) {
+    impostaPasswordError.textContent = "La password deve avere almeno 6 caratteri.";
+    impostaPasswordError.classList.remove("hidden");
+    return;
+  }
+
+  impostaPasswordBtn.disabled = true;
+  const { error } = await supabaseClient.auth.updateUser({ password: nuovaPassword });
+  impostaPasswordBtn.disabled = false;
+
+  if (error) {
+    impostaPasswordError.textContent = "Errore: " + error.message;
+    impostaPasswordError.classList.remove("hidden");
+    return;
+  }
+
+  impostaPasswordOverlay.classList.add("hidden");
+  history.replaceState(null, "", window.location.pathname);
+  await avviaDopoLogin();
 }
 
 async function inizializzaAuth() {
   const { data } = await supabaseClient.auth.getSession();
   sessioneUtente = data.session;
+
+  if (sessioneUtente && (urlContieneTipo("invite") || urlContieneTipo("recovery"))) {
+    mostraImpostaPassword();
+    return;
+  }
+
   if (sessioneUtente) {
-    await avviaApp();
+    await avviaDopoLogin();
   } else {
     mostraLogin();
   }
@@ -262,7 +339,7 @@ async function effettuaLogin() {
 
   sessioneUtente = data.session;
   loginPasswordInput.value = "";
-  await avviaApp();
+  await avviaDopoLogin();
 }
 
 async function effettuaLogout() {
@@ -270,8 +347,47 @@ async function effettuaLogout() {
   location.reload();
 }
 
-async function avviaApp() {
+async function determinaRuolo() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return { ruolo: "nessuno" };
+
+  const { data: rigaAdmin } = await supabaseClient
+    .from("amministratori")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (rigaAdmin) return { ruolo: "admin" };
+
+  const { data: rigaPaziente } = await supabaseClient
+    .from("pazienti")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (rigaPaziente) return { ruolo: "paziente", paziente: rigaPaziente };
+
+  return { ruolo: "nessuno" };
+}
+
+async function avviaDopoLogin() {
   loginOverlay.classList.add("hidden");
+
+  const ruoloInfo = await determinaRuolo();
+
+  if (ruoloInfo.ruolo === "admin") {
+    await avviaAppAdmin();
+  } else if (ruoloInfo.ruolo === "paziente") {
+    await avviaVistaPaziente(ruoloInfo.paziente);
+  } else {
+    alert("Il tuo account non è collegato a nessun profilo attivo. Contatta lo studio.");
+    await supabaseClient.auth.signOut();
+    mostraLogin();
+  }
+}
+
+async function avviaAppAdmin() {
+  vistaPaziente.classList.add("hidden");
   appShell.classList.remove("hidden");
 
   await caricaAlimentiBase();
@@ -282,6 +398,149 @@ async function avviaApp() {
 
   renderDraft();
   renderDieta();
+}
+
+// ---------- Vista paziente (sola lettura) ----------
+
+function renderProfiloPazienteVista(p) {
+  const campi = [
+    ["Data di nascita", p.data_nascita ? formattaDataIt(p.data_nascita) : null],
+    ["Sesso", p.sesso],
+    ["Altezza", p.altezza_cm ? `${p.altezza_cm} cm` : null],
+    ["Peso attuale", p.peso_kg ? `${p.peso_kg} kg` : null],
+    ["Livello di attività", p.attivita],
+    ["Telefono", p.telefono],
+    ["Email", p.email],
+    ["Allergie / intolleranze", p.allergie],
+    ["Note", p.note]
+  ].filter(([, valore]) => valore);
+
+  if (campi.length === 0) {
+    pazienteProfiloVista.innerHTML = '<p class="vuoto">Nessun dato disponibile. Contatta lo studio per aggiornare il tuo profilo.</p>';
+    return;
+  }
+
+  pazienteProfiloVista.innerHTML = campi
+    .map(([label, valore]) => `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(String(valore))}</p>`)
+    .join("");
+}
+
+async function caricaDietaAttivaPaziente(pazienteId) {
+  const { data, error } = await supabaseClient
+    .from("diete")
+    .select("*")
+    .eq("paziente_id", pazienteId)
+    .eq("stato", "attiva")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error || !data || data.length === 0) return null;
+  return data[0];
+}
+
+async function avviaVistaPaziente(pazienteRecord) {
+  appShell.classList.add("hidden");
+  vistaPaziente.classList.remove("hidden");
+  vistaPazienteNomeEl.textContent = pazienteRecord.nome;
+
+  pazienteCorrente = { id: pazienteRecord.id, nome: pazienteRecord.nome };
+  renderProfiloPazienteVista(pazienteRecord);
+
+  const rigaDieta = await caricaDietaAttivaPaziente(pazienteRecord.id);
+  if (rigaDieta) {
+    dietaCorrenteId = rigaDieta.id;
+    applicaDatiDieta(rigaDieta.dati);
+  } else {
+    dietaCorrenteId = null;
+    state = creaStatoVuoto();
+  }
+
+  pazienteDietaVista.innerHTML = costruisciContenutoPrintDieta();
+}
+
+// ---------- Gestione utenti (admin): invito nuovi accessi ----------
+
+function toggleGestioneUtenti() {
+  const chiusa = gestioneUtentiContenuto.classList.toggle("hidden");
+  gestioneUtentiToggle.textContent = `${chiusa ? "▸" : "▾"} Gestione utenti`;
+  if (!chiusa) popolaSelettorePazientiInvito();
+}
+
+function popolaSelettorePazientiInvito() {
+  invitoPazienteSelect.innerHTML = '<option value="nuovo">— Crea un nuovo paziente —</option>' +
+    listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+}
+
+function aggiornaVisibilitaBloccoPaziente() {
+  const ePaziente = invitoRuoloSelect.value === "paziente";
+  invitoPazienteBlocco.classList.toggle("hidden", !ePaziente);
+  invitoNuovoPazienteBlocco.classList.toggle("hidden", !ePaziente || invitoPazienteSelect.value !== "nuovo");
+}
+
+async function inviaInvito() {
+  const email = invitoEmailInput.value.trim();
+  const ruolo = invitoRuoloSelect.value;
+  invitoError.classList.add("hidden");
+  invitoSuccesso.classList.add("hidden");
+
+  if (!email) {
+    invitoError.textContent = "Inserisci un'email.";
+    invitoError.classList.remove("hidden");
+    return;
+  }
+
+  const corpo = { email, ruolo };
+
+  if (ruolo === "paziente") {
+    const selezione = invitoPazienteSelect.value;
+    if (selezione === "nuovo") {
+      const nome = invitoNuovoPazienteNomeInput.value.trim();
+      if (!nome) {
+        invitoError.textContent = "Inserisci il nome del nuovo paziente.";
+        invitoError.classList.remove("hidden");
+        return;
+      }
+      corpo.nomeNuovoPaziente = nome;
+    } else {
+      corpo.pazienteId = selezione;
+    }
+  }
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+
+  invitoInviaBtn.disabled = true;
+  let risposta;
+  try {
+    risposta = await fetch("/.netlify/functions/crea-utente", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + session.access_token
+      },
+      body: JSON.stringify(corpo)
+    });
+  } catch (e) {
+    invitoInviaBtn.disabled = false;
+    invitoError.textContent = "Errore di rete: " + e.message;
+    invitoError.classList.remove("hidden");
+    return;
+  }
+  invitoInviaBtn.disabled = false;
+
+  const risultato = await risposta.json().catch(() => ({}));
+
+  if (!risposta.ok) {
+    invitoError.textContent = "Errore: " + (risultato.error || "sconosciuto");
+    invitoError.classList.remove("hidden");
+    return;
+  }
+
+  invitoSuccesso.textContent = `Invito inviato a ${email}.`;
+  invitoSuccesso.classList.remove("hidden");
+  invitoEmailInput.value = "";
+  invitoNuovoPazienteNomeInput.value = "";
+  if (ruolo === "paziente") await caricaListaPazienti();
+  popolaSelettorePazientiInvito();
 }
 
 // ---------- Pazienti ----------
@@ -1322,6 +1581,22 @@ function inizializza() {
     if (e.key === "Enter") effettuaLogin();
   });
   logoutBtn.addEventListener("click", effettuaLogout);
+  pazienteLogoutBtn.addEventListener("click", effettuaLogout);
+
+  impostaPasswordBtn.addEventListener("click", confermaImpostaPassword);
+  nuovaPasswordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") confermaImpostaPassword();
+  });
+
+  pzTemaChiaroBtn.addEventListener("click", () => impostaTema("chiaro"));
+  pzTemaNotteBtn.addEventListener("click", () => impostaTema("notte"));
+  pazientePdfBtn.addEventListener("click", generaPdfDieta);
+
+  gestioneUtentiToggle.addEventListener("click", toggleGestioneUtenti);
+  invitoRuoloSelect.addEventListener("change", aggiornaVisibilitaBloccoPaziente);
+  invitoPazienteSelect.addEventListener("change", aggiornaVisibilitaBloccoPaziente);
+  invitoInviaBtn.addEventListener("click", inviaInvito);
+  aggiornaVisibilitaBloccoPaziente();
 
   pazienteSelect.addEventListener("change", () => selezionaPaziente(pazienteSelect.value));
   nuovoPazienteBtn.addEventListener("click", apriNuovoPaziente);

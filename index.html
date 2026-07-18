@@ -57,7 +57,7 @@
   <div id="login-overlay" class="duplica-overlay no-print">
     <div class="duplica-modal">
       <h3>Accedi</h3>
-      <p class="duplica-sottotitolo">Inserisci le tue credenziali per accedere ai dati dei pazienti.</p>
+      <p class="duplica-sottotitolo">Inserisci le tue credenziali per accedere.</p>
       <label for="login-email">Email</label>
       <input type="email" id="login-email" autocomplete="username">
       <label for="login-password">Password</label>
@@ -67,6 +67,48 @@
         <button id="login-btn">Accedi</button>
       </div>
     </div>
+  </div>
+
+  <!-- Primo accesso dopo un invito: l'utente deve impostare la password -->
+  <div id="imposta-password-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3>Benvenuto/a</h3>
+      <p class="duplica-sottotitolo">Imposta una password per il tuo account.</p>
+      <label for="nuova-password-input">Nuova password</label>
+      <input type="password" id="nuova-password-input" autocomplete="new-password">
+      <p id="imposta-password-error" class="error hidden"></p>
+      <div class="duplica-azioni">
+        <button id="imposta-password-btn">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista paziente: profilo e dieta attuale in sola lettura -->
+  <div id="vista-paziente" class="hidden">
+    <header class="hero no-print">
+      <div class="tema-toggle">
+        <button type="button" id="pz-tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
+        <button type="button" id="pz-tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
+      </div>
+      <h1>Il mio piano alimentare</h1>
+      <p class="hero-sub" id="vista-paziente-nome"></p>
+    </header>
+
+    <section class="card no-print">
+      <h2>Il mio profilo</h2>
+      <div id="paziente-profilo-vista"></div>
+    </section>
+
+    <section class="card">
+      <div class="dieta-header no-print">
+        <h2>La mia dieta</h2>
+        <div class="pdf-buttons">
+          <button id="paziente-pdf-btn" class="secondary">Scarica PDF</button>
+          <button id="paziente-logout-btn" class="danger">Esci</button>
+        </div>
+      </div>
+      <div id="paziente-dieta-vista"></div>
+    </section>
   </div>
 
   <div id="app-shell" class="hidden">
@@ -91,6 +133,37 @@
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
         <button type="button" id="storico-btn" class="secondary" disabled>Storico diete</button>
         <button type="button" id="logout-btn" class="danger">Esci</button>
+      </div>
+    </section>
+
+    <section id="gestione-utenti" class="card no-print">
+      <button id="gestione-utenti-toggle" class="panoramica-toggle" type="button">▸ Gestione utenti</button>
+      <div id="gestione-utenti-contenuto" class="hidden">
+        <p class="hint">Crea un accesso per un amministratore o per un paziente. La persona riceverà un'email di invito con cui impostare la propria password.</p>
+
+        <label for="invito-email">Email della persona da invitare</label>
+        <input type="email" id="invito-email" placeholder="email@esempio.com">
+
+        <label for="invito-ruolo">Ruolo</label>
+        <select id="invito-ruolo">
+          <option value="paziente">Paziente</option>
+          <option value="admin">Amministratore</option>
+        </select>
+
+        <div id="invito-paziente-blocco">
+          <label for="invito-paziente-select">Collega a</label>
+          <select id="invito-paziente-select">
+            <option value="nuovo">— Crea un nuovo paziente —</option>
+          </select>
+          <div id="invito-nuovo-paziente-blocco">
+            <label for="invito-nuovo-paziente-nome">Nome del nuovo paziente</label>
+            <input type="text" id="invito-nuovo-paziente-nome" placeholder="Nome e cognome">
+          </div>
+        </div>
+
+        <p id="invito-error" class="error hidden"></p>
+        <p id="invito-successo" class="hidden"></p>
+        <button id="invito-invia-btn">Invia invito</button>
       </div>
     </section>
 

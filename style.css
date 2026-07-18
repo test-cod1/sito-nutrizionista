@@ -1155,6 +1155,103 @@ textarea:focus {
   margin: 0;
 }
 
+/* ---------- Gestione utenti ---------- */
+
+#gestione-utenti-contenuto {
+  padding-top: 10px;
+}
+
+#invito-paziente-blocco {
+  margin-top: 4px;
+}
+
+#invito-successo {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------- Vista paziente (sola lettura) ---------- */
+
+#paziente-profilo-vista p {
+  margin: 4px 0;
+}
+
+#paziente-dieta-vista .p-giorno {
+  margin: 20px 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+#paziente-dieta-vista .p-giorno:last-child {
+  border-bottom: none;
+}
+
+#paziente-dieta-vista .p-giorno-titolo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+#paziente-dieta-vista .p-giorno-titolo .solo-nutrizionista {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+#paziente-dieta-vista .p-pasto {
+  margin-bottom: 16px;
+}
+
+#paziente-dieta-vista .p-pasto-titolo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+#paziente-dieta-vista .p-pasto-titolo .solo-nutrizionista {
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+#paziente-dieta-vista .p-tabella {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+#paziente-dieta-vista .p-tabella th {
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  padding: 4px 8px;
+}
+
+#paziente-dieta-vista .p-tabella td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-2);
+}
+
+#paziente-dieta-vista .p-riga-libero td {
+  font-style: italic;
+  color: var(--accent);
+}
+
 .linea-vuota {
   border-bottom: 1px solid #b3c2ba;
   height: 26px;
