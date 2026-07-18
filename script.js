@@ -796,7 +796,7 @@ async function selezionaPaziente(pazienteId) {
     .limit(1);
 
   if (error) {
-    alert("Errore nel caricamento della dieta: " + error.message);
+    alert("Errore nel caricamento del piano alimentare: " + error.message);
     return;
   }
 
@@ -810,7 +810,7 @@ async function selezionaPaziente(pazienteId) {
       .select()
       .single();
     if (erroreCreazione) {
-      alert("Errore nella creazione della dieta: " + erroreCreazione.message);
+      alert("Errore nella creazione del piano alimentare: " + erroreCreazione.message);
       return;
     }
     riga = creata;
@@ -941,7 +941,7 @@ async function salvaProfiloPaziente() {
 
 async function salvaComeStorico() {
   if (!dietaCorrenteId || !pazienteCorrente) return;
-  if (!confirm(`Salvare una copia della dieta attuale nello storico di ${pazienteCorrente.nome}? La dieta attiva resterà comunque modificabile.`)) return;
+  if (!confirm(`Salvare una copia del piano alimentare attuale nello storico di ${pazienteCorrente.nome}? Il piano alimentare attivo resterà comunque modificabile.`)) return;
 
   const dati = {
     maxKcal: state.maxKcal,
@@ -1637,7 +1637,7 @@ function rimuoviElemento(giorno, pasto, index) {
 }
 
 function svuotaDieta() {
-  if (!confirm("Vuoi davvero svuotare tutta la dieta? L'operazione non è reversibile.")) return;
+  if (!confirm("Vuoi davvero svuotare tutto il piano alimentare? L'operazione non è reversibile.")) return;
   state.dieta = creaDietaVuota();
   salvaStateRemoto();
   renderDieta();
@@ -1724,7 +1724,7 @@ function costruisciRigaPrint(item) {
 
 function costruisciContenutoPrintDieta() {
   const giorniConDati = GIORNI.filter(giornoHaAlimenti);
-  if (giorniConDati.length === 0) return "<p>La dieta è vuota.</p>";
+  if (giorniConDati.length === 0) return "<p>Il piano alimentare è vuoto.</p>";
 
   return giorniConDati.map(giorno => {
     const totG = totaliGiorno(giorno);
@@ -1759,7 +1759,7 @@ function costruisciContenutoPrintDieta() {
 
 function costruisciContenutoListaSpesa() {
   const lista = calcolaListaSpesa();
-  if (lista.length === 0) return "<p>La dieta è vuota: nessun alimento da acquistare.</p>";
+  if (lista.length === 0) return "<p>Il piano alimentare è vuoto: nessun alimento da acquistare.</p>";
 
   const righe = lista.map(voce => `
     <tr><td class="p-checkbox">☐</td><td>${voce.nome}</td><td>${voce.grammi} g</td></tr>

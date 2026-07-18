@@ -1,7 +1,7 @@
 {
-  "name": "Calcolatore Dieta",
-  "short_name": "Dieta",
-  "description": "Calcolatore e gestore della dieta settimanale, con generazione PDF per il paziente",
+  "name": "Calcolatore Piano Alimentare",
+  "short_name": "Piano Alimentare",
+  "description": "Calcolatore e gestore del piano alimentare settimanale, con generazione PDF per il paziente",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calcolatore Dieta</title>
+  <title>Calcolatore Piano Alimentare</title>
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2f6d4f">
@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Dieta">
+  <meta name="apple-mobile-web-app-title" content="Piano Alimentare">
 
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 
@@ -140,7 +140,7 @@
 
     <section class="card">
       <div class="dieta-header no-print">
-        <h2>La mia dieta</h2>
+        <h2>Il mio piano alimentare</h2>
         <div class="pdf-buttons">
           <button id="paziente-pdf-btn" class="secondary">Scarica Piano Alimentare</button>
           <button id="paziente-spesa-btn" class="secondary">Scarica Lista della Spesa</button>
@@ -160,7 +160,7 @@
         <button type="button" id="tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
         <button type="button" id="tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
       </div>
-      <h1>Calcolatore Dieta</h1>
+      <h1>Calcolatore Piano Alimentare</h1>
       <p class="hero-sub">Crea, calcola e stampa il piano alimentare del paziente</p>
     </header>
 
@@ -174,7 +174,7 @@
         </div>
         <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
-        <button type="button" id="storico-btn" class="secondary" disabled>Storico diete</button>
+        <button type="button" id="storico-btn" class="secondary" disabled>Storico piani alimentari</button>
         <button type="button" id="logout-btn" class="danger">Esci</button>
       </div>
     </section>
@@ -182,7 +182,7 @@
 
     <div id="area-lavoro" class="hidden">
       <section id="impostazioni" class="card no-print">
-        <h2>Dati dieta</h2>
+        <h2>Dati piano alimentare</h2>
         <label for="max-kcal-input">Calorie massime giornaliere</label>
         <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
 
@@ -329,13 +329,13 @@
 
       <section id="dieta" class="card">
         <div class="dieta-header no-print">
-          <h2>Dieta settimanale</h2>
+          <h2>Piano alimentare settimanale</h2>
           <div class="pdf-buttons">
             <button id="salva-storico-btn" class="secondary">Salva come versione storica</button>
-            <button id="pdf-dieta-btn" class="secondary">PDF Dieta (cliente)</button>
+            <button id="pdf-dieta-btn" class="secondary">PDF Piano alimentare (cliente)</button>
             <button id="pdf-spesa-btn" class="secondary">PDF Lista della spesa</button>
             <button id="pdf-nutrizionista-btn" class="secondary">PDF Scheda nutrizionista</button>
-            <button id="reset-btn" class="danger">Svuota dieta</button>
+            <button id="reset-btn" class="danger">Svuota piano alimentare</button>
           </div>
         </div>
         <div id="dieta-container"></div>
@@ -456,8 +456,8 @@
   <!-- Storico diete -->
   <div id="storico-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal duplica-modal-larga">
-      <h3>Storico diete — <span id="storico-paziente-nome"></span></h3>
-      <p class="duplica-sottotitolo">Versioni salvate in precedenza per questo paziente. Aprine una per vederla e stamparla; la dieta attiva non viene modificata.</p>
+      <h3>Storico piani alimentari — <span id="storico-paziente-nome"></span></h3>
+      <p class="duplica-sottotitolo">Versioni salvate in precedenza per questo paziente. Aprine una per vederla e stamparla; il piano alimentare attivo non viene modificato.</p>
       <div id="storico-lista"></div>
       <div class="duplica-azioni">
         <button id="storico-chiudi-btn" class="danger">Chiudi</button>
