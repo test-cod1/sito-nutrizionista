@@ -18,8 +18,28 @@ export default {
 
   // GET su "/" esegue lo stesso controllo su richiesta manuale, utile per
   // verificare che il worker sia configurato correttamente senza aspettare
-  // l'orario del cron.
+  // l'orario del cron. GET su "/diagnostica" mostra, senza mai rivelare i
+  // valori veri, che tipo di dato arriva per ciascuna variabile attesa.
   async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/diagnostica") {
+      const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL"];
+      const dettaglio = {};
+      for (const nome of richieste) {
+        const v = env[nome];
+        dettaglio[nome] = {
+          tipo: typeof v,
+          presente: v !== undefined && v !== null,
+          vuoto: v === "",
+          lunghezza: typeof v === "string" ? v.length : null
+        };
+      }
+      return new Response(JSON.stringify(dettaglio, null, 2), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
     try {
       const risultato = await inviaPromemoriaCheckin(env);
       return new Response(JSON.stringify(risultato, null, 2), {
