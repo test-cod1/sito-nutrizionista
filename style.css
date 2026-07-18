@@ -624,20 +624,28 @@ table th, table td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--border-2);
   font-size: 0.95rem;
+}
+
+table td {
   overflow-wrap: break-word;
+}
+
+table th {
+  white-space: nowrap;
 }
 
 /* Larghezze fisse delle colonne (Alimento, Quantità, Note, Calorie, Proteine,
    Grassi, Carboidrati, azione): non si spostano più al variare della
-   lunghezza del nome dell'alimento, e restano allineate fra un pasto e l'altro. */
-table th:nth-child(1), table td:nth-child(1) { width: 24%; }
-table th:nth-child(2), table td:nth-child(2) { width: 10%; }
-table th:nth-child(3), table td:nth-child(3) { width: 18%; }
-table th:nth-child(4), table td:nth-child(4) { width: 12%; }
-table th:nth-child(5), table td:nth-child(5) { width: 10%; }
+   lunghezza del nome dell'alimento, e restano allineate fra un pasto e l'altro.
+   "Carboidrati" è l'intestazione più lunga, ha bisogno di più spazio delle altre. */
+table th:nth-child(1), table td:nth-child(1) { width: 22%; }
+table th:nth-child(2), table td:nth-child(2) { width: 11%; }
+table th:nth-child(3), table td:nth-child(3) { width: 16%; }
+table th:nth-child(4), table td:nth-child(4) { width: 11%; }
+table th:nth-child(5), table td:nth-child(5) { width: 11%; }
 table th:nth-child(6), table td:nth-child(6) { width: 10%; }
-table th:nth-child(7), table td:nth-child(7) { width: 10%; }
-table th:nth-child(8), table td:nth-child(8) { width: 6%; }
+table th:nth-child(7), table td:nth-child(7) { width: 14%; }
+table th:nth-child(8), table td:nth-child(8) { width: 5%; }
 
 table th {
   color: var(--text-muted);
@@ -978,6 +986,7 @@ table tfoot .riga-totale td {
     font-weight: 700;
     border-bottom: 0.75pt solid #cfdccf;
     padding: 3pt 6pt;
+    white-space: nowrap;
   }
 
   .p-tabella td {
@@ -989,17 +998,18 @@ table tfoot .riga-totale td {
   /* Solo la tabella di dettaglio pasto (dentro .p-pasto), non la lista della
      spesa che riusa .p-tabella con colonne diverse: larghezze fisse così
      Alimento/Quantità/Note/Calorie/Proteine/Grassi/Carboidrati restano
-     allineate fra un pasto e l'altro anche con nomi più lunghi. */
+     allineate fra un pasto e l'altro anche con nomi più lunghi.
+     "Carboidrati" è l'intestazione più lunga, ha bisogno di più spazio. */
   .p-pasto .p-tabella {
     table-layout: fixed;
   }
-  .p-pasto .p-tabella th:nth-child(1), .p-pasto .p-tabella td:nth-child(1) { width: 26%; }
+  .p-pasto .p-tabella th:nth-child(1), .p-pasto .p-tabella td:nth-child(1) { width: 24%; }
   .p-pasto .p-tabella th:nth-child(2), .p-pasto .p-tabella td:nth-child(2) { width: 11%; }
-  .p-pasto .p-tabella th:nth-child(3), .p-pasto .p-tabella td:nth-child(3) { width: 20%; }
-  .p-pasto .p-tabella th:nth-child(4), .p-pasto .p-tabella td:nth-child(4) { width: 13%; }
-  .p-pasto .p-tabella th:nth-child(5), .p-pasto .p-tabella td:nth-child(5) { width: 10%; }
+  .p-pasto .p-tabella th:nth-child(3), .p-pasto .p-tabella td:nth-child(3) { width: 17%; }
+  .p-pasto .p-tabella th:nth-child(4), .p-pasto .p-tabella td:nth-child(4) { width: 11%; }
+  .p-pasto .p-tabella th:nth-child(5), .p-pasto .p-tabella td:nth-child(5) { width: 11%; }
   .p-pasto .p-tabella th:nth-child(6), .p-pasto .p-tabella td:nth-child(6) { width: 10%; }
-  .p-pasto .p-tabella th:nth-child(7), .p-pasto .p-tabella td:nth-child(7) { width: 10%; }
+  .p-pasto .p-tabella th:nth-child(7), .p-pasto .p-tabella td:nth-child(7) { width: 16%; }
 
   .p-riga-libero td {
     font-style: italic;
@@ -1450,6 +1460,7 @@ textarea:focus {
   font-weight: 700;
   border-bottom: 1px solid var(--border);
   padding: 4px 8px;
+  white-space: nowrap;
 }
 
 #paziente-dieta-vista .p-tabella td {
