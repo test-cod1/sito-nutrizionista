@@ -153,6 +153,7 @@ const areaLavoro = document.getElementById("area-lavoro");
 const pazienteSelect = document.getElementById("paziente-select");
 const nuovoPazienteBtn = document.getElementById("nuovo-paziente-btn");
 const storicoBtn = document.getElementById("storico-btn");
+const profiloBtn = document.getElementById("profilo-btn");
 const logoutBtn = document.getElementById("logout-btn");
 
 const nuovoPazienteOverlay = document.getElementById("nuovo-paziente-overlay");
@@ -165,6 +166,20 @@ const storicoOverlay = document.getElementById("storico-overlay");
 const storicoPazienteNomeEl = document.getElementById("storico-paziente-nome");
 const storicoLista = document.getElementById("storico-lista");
 const storicoChiudiBtn = document.getElementById("storico-chiudi-btn");
+
+const profiloOverlay = document.getElementById("profilo-overlay");
+const profiloPazienteNomeEl = document.getElementById("profilo-paziente-nome");
+const profiloDataNascitaInput = document.getElementById("profilo-data-nascita");
+const profiloSessoInput = document.getElementById("profilo-sesso");
+const profiloAltezzaInput = document.getElementById("profilo-altezza");
+const profiloPesoInput = document.getElementById("profilo-peso");
+const profiloAttivitaInput = document.getElementById("profilo-attivita");
+const profiloTelefonoInput = document.getElementById("profilo-telefono");
+const profiloEmailInput = document.getElementById("profilo-email");
+const profiloAllergieInput = document.getElementById("profilo-allergie");
+const profiloNoteInput = document.getElementById("profilo-note");
+const profiloSalvaBtn = document.getElementById("profilo-salva-btn");
+const profiloAnnullaBtn = document.getElementById("profilo-annulla-btn");
 
 // ---------- Modalità giorno/notte ----------
 
@@ -287,6 +302,7 @@ async function selezionaPaziente(pazienteId) {
     pazienteCorrente = null;
     dietaCorrenteId = null;
     storicoBtn.disabled = true;
+    profiloBtn.disabled = true;
     areaLavoro.classList.add("hidden");
     return;
   }
@@ -337,6 +353,7 @@ async function selezionaPaziente(pazienteId) {
   draftPasto = [];
 
   storicoBtn.disabled = false;
+  profiloBtn.disabled = false;
   areaLavoro.classList.remove("hidden");
 
   renderDraft();
@@ -371,6 +388,67 @@ async function confermaNuovoPaziente() {
   await caricaListaPazienti();
   pazienteSelect.value = data.id;
   await selezionaPaziente(data.id);
+}
+
+// ---------- Profilo paziente ----------
+
+async function apriProfiloPaziente() {
+  if (!pazienteCorrente) return;
+  profiloPazienteNomeEl.textContent = pazienteCorrente.nome;
+
+  const { data, error } = await supabaseClient
+    .from("pazienti")
+    .select("*")
+    .eq("id", pazienteCorrente.id)
+    .single();
+
+  if (error) {
+    alert("Errore nel caricamento del profilo: " + error.message);
+    return;
+  }
+
+  profiloDataNascitaInput.value = data.data_nascita || "";
+  profiloSessoInput.value = data.sesso || "";
+  profiloAltezzaInput.value = data.altezza_cm ?? "";
+  profiloPesoInput.value = data.peso_kg ?? "";
+  profiloAttivitaInput.value = data.attivita || "";
+  profiloTelefonoInput.value = data.telefono || "";
+  profiloEmailInput.value = data.email || "";
+  profiloAllergieInput.value = data.allergie || "";
+  profiloNoteInput.value = data.note || "";
+
+  profiloOverlay.classList.remove("hidden");
+}
+
+function chiudiProfiloPaziente() {
+  profiloOverlay.classList.add("hidden");
+}
+
+async function salvaProfiloPaziente() {
+  if (!pazienteCorrente) return;
+
+  const altezza = parseFloat(profiloAltezzaInput.value);
+  const peso = parseFloat(profiloPesoInput.value);
+
+  const aggiornamento = {
+    data_nascita: profiloDataNascitaInput.value || null,
+    sesso: profiloSessoInput.value || null,
+    altezza_cm: isNaN(altezza) ? null : altezza,
+    peso_kg: isNaN(peso) ? null : peso,
+    attivita: profiloAttivitaInput.value || null,
+    telefono: profiloTelefonoInput.value.trim() || null,
+    email: profiloEmailInput.value.trim() || null,
+    allergie: profiloAllergieInput.value.trim() || null,
+    note: profiloNoteInput.value.trim() || null
+  };
+
+  const { error } = await supabaseClient.from("pazienti").update(aggiornamento).eq("id", pazienteCorrente.id);
+  if (error) {
+    alert("Errore nel salvataggio del profilo: " + error.message);
+    return;
+  }
+
+  chiudiProfiloPaziente();
 }
 
 // ---------- Storico diete ----------
@@ -1261,6 +1339,13 @@ function inizializza() {
   storicoLista.addEventListener("click", (e) => {
     const btn = e.target.closest(".storico-apri-btn");
     if (btn) apriEStampaStorico(btn.dataset.id);
+  });
+
+  profiloBtn.addEventListener("click", apriProfiloPaziente);
+  profiloSalvaBtn.addEventListener("click", salvaProfiloPaziente);
+  profiloAnnullaBtn.addEventListener("click", chiudiProfiloPaziente);
+  profiloOverlay.addEventListener("click", (e) => {
+    if (e.target === profiloOverlay) chiudiProfiloPaziente();
   });
 
   salvaStoricoBtn.addEventListener("click", salvaComeStorico);

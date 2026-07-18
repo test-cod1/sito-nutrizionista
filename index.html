@@ -88,6 +88,7 @@
           </select>
         </div>
         <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>
+        <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
         <button type="button" id="storico-btn" class="secondary" disabled>Storico diete</button>
         <button type="button" id="logout-btn" class="danger">Esci</button>
       </div>
@@ -266,6 +267,67 @@
       <div class="duplica-azioni">
         <button id="nuovo-paziente-conferma-btn">Crea</button>
         <button id="nuovo-paziente-annulla-btn" class="danger">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profilo paziente -->
+  <div id="profilo-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal duplica-modal-larga">
+      <h3>Profilo — <span id="profilo-paziente-nome"></span></h3>
+      <div class="griglia-2">
+        <div>
+          <label for="profilo-data-nascita">Data di nascita</label>
+          <input type="date" id="profilo-data-nascita">
+        </div>
+        <div>
+          <label for="profilo-sesso">Sesso</label>
+          <select id="profilo-sesso">
+            <option value="">—</option>
+            <option value="F">Femmina</option>
+            <option value="M">Maschio</option>
+            <option value="Altro">Altro</option>
+          </select>
+        </div>
+        <div>
+          <label for="profilo-altezza">Altezza (cm)</label>
+          <input type="number" id="profilo-altezza" min="0" step="0.1">
+        </div>
+        <div>
+          <label for="profilo-peso">Peso attuale (kg)</label>
+          <input type="number" id="profilo-peso" min="0" step="0.1">
+        </div>
+        <div class="griglia-2-full">
+          <label for="profilo-attivita">Livello di attività fisica</label>
+          <select id="profilo-attivita">
+            <option value="">—</option>
+            <option value="Sedentario">Sedentario</option>
+            <option value="Leggero">Leggero (1-3 giorni/sett.)</option>
+            <option value="Moderato">Moderato (3-5 giorni/sett.)</option>
+            <option value="Intenso">Intenso (6-7 giorni/sett.)</option>
+            <option value="Molto intenso">Molto intenso (lavoro fisico + sport)</option>
+          </select>
+        </div>
+        <div>
+          <label for="profilo-telefono">Telefono</label>
+          <input type="tel" id="profilo-telefono">
+        </div>
+        <div>
+          <label for="profilo-email">Email</label>
+          <input type="email" id="profilo-email">
+        </div>
+        <div class="griglia-2-full">
+          <label for="profilo-allergie">Allergie / intolleranze</label>
+          <input type="text" id="profilo-allergie" placeholder="es. lattosio, glutine, frutta a guscio...">
+        </div>
+        <div class="griglia-2-full">
+          <label for="profilo-note">Note generali</label>
+          <textarea id="profilo-note" rows="3" placeholder="Patologie, obiettivi, altre annotazioni..."></textarea>
+        </div>
+      </div>
+      <div class="duplica-azioni">
+        <button id="profilo-salva-btn">Salva profilo</button>
+        <button id="profilo-annulla-btn" class="danger">Chiudi</button>
       </div>
     </div>
   </div>
