@@ -162,6 +162,9 @@ let pazienteSuggestionIndex = -1;
 const nuovoPazienteBtn = document.getElementById("nuovo-paziente-btn");
 const storicoBtn = document.getElementById("storico-btn");
 const profiloBtn = document.getElementById("profilo-btn");
+const anteprimaPazienteBtn = document.getElementById("anteprima-paziente-btn");
+const anteprimaBanner = document.getElementById("anteprima-banner");
+const anteprimaTornaBtn = document.getElementById("anteprima-torna-btn");
 const logoutBtn = document.getElementById("logout-btn");
 
 const nuovoPazienteOverlay = document.getElementById("nuovo-paziente-overlay");
@@ -674,6 +677,58 @@ async function avviaVistaPaziente(pazienteRecord) {
   applicaStatoCollassoPaziente();
 }
 
+// ---------- Anteprima vista paziente (dal pannello amministratore) ----------
+// Mostra all'admin esattamente ciò che vede il paziente selezionato, usando il
+// piano alimentare attualmente caricato (già salvato a ogni modifica) e i dati
+// di profilo/peso dal database. Un banner permette di tornare indietro senza
+// effettuare il logout.
+
+async function apriAnteprimaPaziente() {
+  if (!pazienteCorrente) return;
+
+  const { data, error } = await supabaseClient
+    .from("pazienti")
+    .select("*")
+    .eq("id", pazienteCorrente.id)
+    .single();
+
+  if (error) {
+    alert("Errore nel caricamento dell'anteprima: " + error.message);
+    return;
+  }
+
+  vistaPazienteNomeEl.textContent = data.nome;
+  renderProfiloPazienteVista(data);
+
+  storicoPesoCompleto = await caricaStoricoPeso(data.id);
+  const ultimoPeso = storicoPesoCompleto.length > 0
+    ? storicoPesoCompleto[storicoPesoCompleto.length - 1].peso_kg
+    : data.peso_kg;
+  renderBmi(data.altezza_cm, ultimoPeso);
+  aggiornaFiltroPeso(filtroPesoAttivo);
+
+  pazienteHaDieta = !dietaVuota();
+  aggiornaBottoniPdfPaziente();
+  pazienteDietaVista.innerHTML = costruisciContenutoPrintDieta();
+  collapsedGiorniPaziente = new Set(GIORNI);
+  applicaStatoCollassoPaziente();
+
+  anteprimaBanner.classList.remove("hidden");
+  pazienteLogoutBtn.classList.add("hidden");
+  appShell.classList.add("hidden");
+  vistaPaziente.classList.remove("hidden");
+  window.scrollTo(0, 0);
+}
+
+function chiudiAnteprimaPaziente() {
+  anteprimaBanner.classList.add("hidden");
+  pazienteLogoutBtn.classList.remove("hidden");
+  vistaPaziente.classList.add("hidden");
+  appShell.classList.remove("hidden");
+  renderDieta();
+  window.scrollTo(0, 0);
+}
+
 // ---------- Vista paziente: giorni collassabili (vista più compatta) ----------
 
 let collapsedGiorniPaziente = new Set(GIORNI);
@@ -842,6 +897,7 @@ async function selezionaPaziente(pazienteId) {
     dietaCorrenteId = null;
     storicoBtn.disabled = true;
     profiloBtn.disabled = true;
+    anteprimaPazienteBtn.disabled = true;
     areaLavoro.classList.add("hidden");
     return;
   }
@@ -893,6 +949,7 @@ async function selezionaPaziente(pazienteId) {
 
   storicoBtn.disabled = false;
   profiloBtn.disabled = false;
+  anteprimaPazienteBtn.disabled = false;
   areaLavoro.classList.remove("hidden");
 
   renderDraft();
@@ -1993,6 +2050,9 @@ function inizializza() {
   });
 
   salvaStoricoBtn.addEventListener("click", salvaComeStorico);
+
+  anteprimaPazienteBtn.addEventListener("click", apriAnteprimaPaziente);
+  anteprimaTornaBtn.addEventListener("click", chiudiAnteprimaPaziente);
 
   foodInput.addEventListener("input", () => {
     aggiornaSuggerimenti();

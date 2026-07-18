@@ -103,6 +103,10 @@
 
   <!-- Vista paziente: profilo e dieta attuale in sola lettura -->
   <div id="vista-paziente" class="hidden">
+    <div id="anteprima-banner" class="anteprima-banner no-print hidden">
+      <span>Anteprima: stai vedendo il sito come lo vede il paziente.</span>
+      <button type="button" id="anteprima-torna-btn">Torna all'amministrazione</button>
+    </div>
     <header class="hero no-print">
       <div class="header-azioni-destra">
         <button type="button" id="paziente-logout-btn" class="esci-header-btn">Esci</button>
@@ -182,6 +186,7 @@
         <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
         <button type="button" id="storico-btn" class="secondary" disabled>Storico piani alimentari</button>
+        <button type="button" id="anteprima-paziente-btn" class="secondary" disabled>Vista paziente</button>
       </div>
     </section>
 
