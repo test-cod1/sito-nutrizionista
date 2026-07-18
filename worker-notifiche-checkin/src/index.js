@@ -3,6 +3,9 @@
 // a sé stante. Ogni giorno (vedi wrangler.toml) controlla quali pazienti
 // hanno il check-in periodico in scadenza oggi e, se hanno una subscription
 // attiva, invia loro una notifica push di promemoria.
+//
+// SUPABASE_SECRET_KEY e VAPID_PRIVATE_KEY vanno impostati come secret
+// cifrati nel pannello del Worker (Settings → Variables and secrets).
 
 import webpush from "web-push";
 
