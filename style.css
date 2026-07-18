@@ -484,9 +484,20 @@ button.danger:hover {
   gap: 10px;
 }
 
+/* Con flex-wrap:wrap il browser decide se andare a capo guardando le
+   larghezze piene (prima di restringere), quindi il selettore non aveva
+   mai la possibilità di restringersi abbastanza da lasciare spazio ai
+   pulsanti. Da qui in su c'è spazio sufficiente per stare tutti su una
+   riga forzando nowrap (il selettore si restringe fino al suo minimo). */
+@media (min-width: 900px) {
+  .paziente-bar-riga {
+    flex-wrap: nowrap;
+  }
+}
+
 .paziente-selettore {
   flex: 0 1 340px;
-  min-width: 260px;
+  min-width: 225px;
 }
 
 .paziente-selettore label {
