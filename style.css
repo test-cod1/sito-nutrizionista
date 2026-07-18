@@ -562,6 +562,14 @@ button.danger:hover {
   user-select: none;
 }
 
+@media (max-width: 480px) {
+  .giorno-titolo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
 .giorno-titolo:hover {
   filter: brightness(1.08);
 }
@@ -615,11 +623,23 @@ button.danger:hover {
 .pasto-blocco {
   padding: 10px 16px;
   border-top: 1px solid var(--border-2);
+  overflow-x: auto;
 }
 
 .pasto-blocco h4 {
   margin: 6px 0;
   color: var(--accent);
+}
+
+/* Su schermi stretti le 8 colonne non hanno spazio per il testo: invece di
+   comprimerle fino a spezzare le parole lettera per lettera, la tabella
+   mantiene una larghezza minima leggibile e scorre in orizzontale. */
+.pasto-blocco table, #draft-container table {
+  min-width: 620px;
+}
+
+#draft-container {
+  overflow-x: auto;
 }
 
 table {
@@ -1432,6 +1452,11 @@ textarea:focus {
 
 #paziente-dieta-vista .p-pasto {
   margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+#paziente-dieta-vista .p-tabella {
+  min-width: 380px;
 }
 
 #paziente-dieta-vista .p-pasto-titolo {
