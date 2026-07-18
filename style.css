@@ -142,6 +142,34 @@ body {
   color: #2f6d4f;
 }
 
+.gestione-utenti-fisso {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+}
+
+#gestione-utenti-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  color: #2f6d4f;
+  font-size: 1.05rem;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+#gestione-utenti-btn:hover {
+  background: #eef4f0;
+  transform: none;
+}
+
 h2 {
   color: var(--accent);
   font-size: 1.2rem;
