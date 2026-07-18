@@ -173,14 +173,10 @@
       <div class="paziente-bar-riga">
         <div class="paziente-selettore">
           <label for="paziente-search-input">Paziente in lavorazione</label>
-          <div class="paziente-selettore-riga">
-            <div class="autocomplete-wrapper">
-              <input type="text" id="paziente-search-input" placeholder="Cerca paziente per nome..." autocomplete="off">
-              <div id="paziente-suggestions" class="suggestions hidden"></div>
-            </div>
-            <select id="paziente-select" title="Elenco pazienti">
-              <option value="">— Elenco —</option>
-            </select>
+          <div class="autocomplete-wrapper paziente-combo">
+            <input type="text" id="paziente-search-input" placeholder="Cerca o scegli un paziente..." autocomplete="off">
+            <span class="combo-caret" aria-hidden="true">▾</span>
+            <div id="paziente-suggestions" class="suggestions hidden"></div>
           </div>
         </div>
         <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>

@@ -493,19 +493,19 @@ button.danger:hover {
   margin-top: 0;
 }
 
-.paziente-selettore-riga {
-  display: flex;
-  gap: 8px;
+.paziente-combo input {
+  padding-right: 32px;
+  cursor: pointer;
 }
 
-.paziente-selettore-riga .autocomplete-wrapper {
-  flex: 1;
-}
-
-.paziente-selettore-riga select {
-  flex-shrink: 0;
-  width: auto;
-  max-width: 150px;
+.combo-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+  font-size: 0.8rem;
 }
 
 .paziente-bar-riga > button {

@@ -158,7 +158,6 @@ const appShell = document.getElementById("app-shell");
 const areaLavoro = document.getElementById("area-lavoro");
 const pazienteSearchInput = document.getElementById("paziente-search-input");
 const pazienteSuggestions = document.getElementById("paziente-suggestions");
-const pazienteSelect = document.getElementById("paziente-select");
 let pazienteSuggestionIndex = -1;
 const nuovoPazienteBtn = document.getElementById("nuovo-paziente-btn");
 const storicoBtn = document.getElementById("storico-btn");
@@ -795,8 +794,6 @@ async function caricaListaPazienti() {
     return;
   }
   listaPazienti = data || [];
-  pazienteSelect.innerHTML = '<option value="">— Elenco —</option>' +
-    listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
 }
 
 function mostraSuggerimentiPazienti(elenco) {
@@ -818,9 +815,11 @@ function nascondiSuggerimentiPazienti() {
   pazienteSuggestionIndex = -1;
 }
 
-function aggiornaSuggerimentiPazienti() {
+function aggiornaSuggerimentiPazienti(mostraTutti) {
   const testo = normalizza(pazienteSearchInput.value.trim());
-  const elenco = testo ? listaPazienti.filter(p => normalizza(p.nome).includes(testo)) : listaPazienti;
+  const elenco = (mostraTutti || !testo)
+    ? listaPazienti
+    : listaPazienti.filter(p => normalizza(p.nome).includes(testo));
   mostraSuggerimentiPazienti(elenco);
 }
 
@@ -1922,15 +1921,16 @@ function inizializza() {
   invitoInviaBtn.addEventListener("click", inviaInvito);
   aggiornaVisibilitaBloccoPaziente();
 
-  pazienteSearchInput.addEventListener("input", aggiornaSuggerimentiPazienti);
-  pazienteSearchInput.addEventListener("focus", aggiornaSuggerimentiPazienti);
+  pazienteSearchInput.addEventListener("input", () => aggiornaSuggerimentiPazienti(false));
 
-  pazienteSelect.addEventListener("change", async () => {
-    const id = pazienteSelect.value;
-    if (!id) return;
-    await selezionaPazienteDaRicerca(id);
-    pazienteSelect.value = "";
-  });
+  // Al click/focus mostra sempre l'elenco completo e seleziona il testo:
+  // così si può scorrere tutti i nomi, oppure iniziare a digitare per filtrare.
+  const apriElencoPazienti = () => {
+    pazienteSearchInput.select();
+    aggiornaSuggerimentiPazienti(true);
+  };
+  pazienteSearchInput.addEventListener("focus", apriElencoPazienti);
+  pazienteSearchInput.addEventListener("click", apriElencoPazienti);
 
   pazienteSearchInput.addEventListener("keydown", (e) => {
     const items = pazienteSuggestions.querySelectorAll(".suggestion-item");
