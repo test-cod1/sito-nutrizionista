@@ -493,6 +493,39 @@ button.danger:hover {
   margin-top: 0;
 }
 
+.paziente-selettore-testa {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.link-btn:hover {
+  background: none;
+  color: var(--secondary-hover);
+  text-decoration: underline;
+  transform: none;
+}
+
+.link-btn:disabled {
+  background: none;
+  color: var(--disabled);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .paziente-combo input {
   padding-right: 32px;
   cursor: pointer;

@@ -176,7 +176,10 @@
     <section id="paziente-bar" class="card no-print">
       <div class="paziente-bar-riga">
         <div class="paziente-selettore">
-          <label for="paziente-search-input">Paziente in lavorazione</label>
+          <div class="paziente-selettore-testa">
+            <label for="paziente-search-input">Paziente in lavorazione</label>
+            <button type="button" id="anteprima-paziente-btn" class="link-btn" disabled>Vista paziente</button>
+          </div>
           <div class="autocomplete-wrapper paziente-combo">
             <input type="text" id="paziente-search-input" placeholder="Cerca o scegli un paziente..." autocomplete="off">
             <span class="combo-caret" aria-hidden="true">▾</span>
@@ -186,7 +189,6 @@
         <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
         <button type="button" id="storico-btn" class="secondary" disabled>Storico piani alimentari</button>
-        <button type="button" id="anteprima-paziente-btn" class="secondary" disabled>Vista paziente</button>
       </div>
     </section>
 
