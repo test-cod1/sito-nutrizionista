@@ -668,6 +668,29 @@ async function avviaVistaPaziente(pazienteRecord) {
   pazienteHaDieta = !!rigaDieta && !dietaVuota();
   aggiornaBottoniPdfPaziente();
   pazienteDietaVista.innerHTML = costruisciContenutoPrintDieta();
+  collapsedGiorniPaziente = new Set(GIORNI);
+  applicaStatoCollassoPaziente();
+}
+
+// ---------- Vista paziente: giorni collassabili (vista più compatta) ----------
+
+let collapsedGiorniPaziente = new Set(GIORNI);
+
+function applicaStatoCollassoPaziente() {
+  pazienteDietaVista.querySelectorAll(".p-giorno").forEach(el => {
+    const giorno = el.dataset.giorno;
+    const chiuso = collapsedGiorniPaziente.has(giorno);
+    const corpo = el.querySelector(".p-giorno-corpo");
+    if (corpo) corpo.classList.toggle("collassato", chiuso);
+    const freccia = el.querySelector(".freccia-giorno");
+    if (freccia) freccia.textContent = chiuso ? "▸" : "▾";
+  });
+}
+
+function toggleGiornoPaziente(giorno) {
+  if (collapsedGiorniPaziente.has(giorno)) collapsedGiorniPaziente.delete(giorno);
+  else collapsedGiorniPaziente.add(giorno);
+  applicaStatoCollassoPaziente();
 }
 
 // ---------- Gestione utenti (admin): invito nuovi accessi ----------
@@ -1749,9 +1772,9 @@ function costruisciContenutoPrintDieta() {
     }).join("");
 
     return `
-      <div class="p-giorno">
-        <div class="p-giorno-titolo"><span>${giorno}</span><span class="solo-nutrizionista">${formattaTotali(totG)}</span></div>
-        ${pastiHtml}
+      <div class="p-giorno" data-giorno="${giorno}">
+        <div class="p-giorno-titolo"><span><span class="freccia-giorno no-print">▾</span> ${giorno}</span><span class="solo-nutrizionista">${formattaTotali(totG)}</span></div>
+        <div class="p-giorno-corpo">${pastiHtml}</div>
       </div>
     `;
   }).join("");
@@ -1832,6 +1855,13 @@ function inizializza() {
   pzTemaNotteBtn.addEventListener("click", () => impostaTema("notte"));
   pazientePdfBtn.addEventListener("click", generaPdfDieta);
   pazienteSpesaBtn.addEventListener("click", generaPdfSpesa);
+
+  pazienteDietaVista.addEventListener("click", (e) => {
+    const titolo = e.target.closest(".p-giorno-titolo");
+    if (!titolo) return;
+    const giornoEl = titolo.closest(".p-giorno");
+    if (giornoEl) toggleGiornoPaziente(giornoEl.dataset.giorno);
+  });
 
   profiloFisiciToggle.addEventListener("click", () => toggleAccordionProfilo(profiloFisiciToggle, profiloFisiciContenuto, "Dati fisici"));
   profiloContattiToggle.addEventListener("click", () => toggleAccordionProfilo(profiloContattiToggle, profiloContattiContenuto, "Contatti"));

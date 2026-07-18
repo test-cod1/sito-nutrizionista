@@ -1386,6 +1386,22 @@ textarea:focus {
   font-size: 1.15rem;
   font-weight: 700;
   margin-bottom: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#paziente-dieta-vista .p-giorno-titolo:hover {
+  color: var(--accent);
+}
+
+#paziente-dieta-vista .freccia-giorno {
+  display: inline-block;
+  width: 1em;
+  color: var(--accent);
+}
+
+#paziente-dieta-vista .p-giorno-corpo.collassato {
+  display: none;
 }
 
 #paziente-dieta-vista .p-giorno-titolo .solo-nutrizionista {
