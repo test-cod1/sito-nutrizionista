@@ -486,7 +486,7 @@ button.danger:hover {
 
 .paziente-selettore {
   flex: 1;
-  min-width: 220px;
+  min-width: 300px;
 }
 
 .paziente-selettore label {
@@ -497,7 +497,7 @@ button.danger:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .paziente-selettore-testa label {
