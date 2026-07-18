@@ -1,6 +1,6 @@
 {
-  "name": "Calcolatore Piano Alimentare",
-  "short_name": "Piano Alimentare",
+  "name": "NutriPlan",
+  "short_name": "NutriPlan",
   "description": "Calcolatore e gestore del piano alimentare settimanale, con generazione PDF per il paziente",
   "start_url": "/",
   "scope": "/",
