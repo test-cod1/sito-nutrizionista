@@ -17,10 +17,17 @@ export default {
   // verificare che il worker sia configurato correttamente senza aspettare
   // l'orario del cron.
   async fetch(request, env) {
-    const risultato = await inviaPromemoriaCheckin(env);
-    return new Response(JSON.stringify(risultato, null, 2), {
-      headers: { "Content-Type": "application/json" }
-    });
+    try {
+      const risultato = await inviaPromemoriaCheckin(env);
+      return new Response(JSON.stringify(risultato, null, 2), {
+        headers: { "Content-Type": "application/json" }
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ errore: e.message }, null, 2), {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
   }
 };
 
