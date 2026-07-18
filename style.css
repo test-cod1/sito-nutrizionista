@@ -380,6 +380,58 @@ button.danger:hover {
   margin-left: 8px;
 }
 
+.paziente-bar-riga {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.paziente-selettore {
+  flex: 1;
+  min-width: 220px;
+}
+
+.paziente-selettore label {
+  margin-top: 0;
+}
+
+.paziente-bar-riga > button {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.storico-riga {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+
+.storico-riga-info {
+  font-size: 0.9rem;
+}
+
+.storico-riga-info .storico-data {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.storico-riga-info .storico-meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.storico-riga button {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
 .pdf-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -557,6 +609,12 @@ table tfoot .riga-totale td {
   max-width: 380px;
   width: 100%;
   box-shadow: 0 12px 32px var(--shadow-modal);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.duplica-modal-larga {
+  max-width: 560px;
 }
 
 .duplica-modal h3 {

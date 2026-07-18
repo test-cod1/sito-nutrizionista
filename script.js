@@ -2,10 +2,10 @@ const GIORNI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sa
 const GIORNI_FERIALI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
 const GIORNI_WEEKEND = ["Sabato", "Domenica"];
 const PASTI = ["Colazione", "Spuntino mattina", "Pranzo", "Merenda", "Cena"];
-const STORAGE_KEY = "dieta-nutrizionista-state";
 const TEMA_KEY = "dieta-nutrizionista-tema";
 
 let baseAlimenti = [];
+let customFoodsRemoti = [];
 let foodMap = new Map();
 let foodNames = [];
 let currentCalc = null;
@@ -13,6 +13,12 @@ let suggestionIndex = -1;
 let draftPasto = [];
 let collapsedGiorni = new Set();
 let duplicaContesto = null;
+
+let supabaseClient = null;
+let sessioneUtente = null;
+let listaPazienti = [];
+let pazienteCorrente = null; // { id, nome }
+let dietaCorrenteId = null;
 
 function creaDietaVuota() {
   const dieta = {};
@@ -25,36 +31,45 @@ function creaDietaVuota() {
   return dieta;
 }
 
-let state = {
-  paziente: "",
-  maxKcal: null,
-  dieta: creaDietaVuota(),
-  customFoods: [],
-  sostituzioni: "",
-  infoStudio: "",
-  validoDal: "",
-  validoAl: ""
-};
-
-function salvaState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function creaStatoVuoto() {
+  return {
+    maxKcal: null,
+    dieta: creaDietaVuota(),
+    sostituzioni: "",
+    infoStudio: "",
+    validoDal: "",
+    validoAl: ""
+  };
 }
 
-function caricaState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return;
-  try {
-    const salvato = JSON.parse(raw);
-    if (salvato && salvato.dieta) {
-      state = salvato;
-      if (!Array.isArray(state.customFoods)) state.customFoods = [];
-      if (typeof state.sostituzioni !== "string") state.sostituzioni = "";
-      if (typeof state.infoStudio !== "string") state.infoStudio = "";
-      if (typeof state.validoDal !== "string") state.validoDal = "";
-      if (typeof state.validoAl !== "string") state.validoAl = "";
-    }
-  } catch (e) {
-    console.warn("Impossibile leggere lo stato salvato:", e);
+let state = creaStatoVuoto();
+
+function applicaDatiDieta(dati) {
+  dati = dati || {};
+  state.maxKcal = dati.maxKcal ?? null;
+  state.dieta = dati.dieta ?? creaDietaVuota();
+  state.sostituzioni = dati.sostituzioni ?? "";
+  state.infoStudio = dati.infoStudio ?? "";
+  state.validoDal = dati.validoDal ?? "";
+  state.validoAl = dati.validoAl ?? "";
+}
+
+async function salvaStateRemoto() {
+  if (!dietaCorrenteId) return;
+  const dati = {
+    maxKcal: state.maxKcal,
+    dieta: state.dieta,
+    sostituzioni: state.sostituzioni,
+    infoStudio: state.infoStudio,
+    validoDal: state.validoDal,
+    validoAl: state.validoAl
+  };
+  const { error } = await supabaseClient
+    .from("diete")
+    .update({ dati, updated_at: new Date().toISOString() })
+    .eq("id", dietaCorrenteId);
+  if (error) {
+    console.error("Errore nel salvataggio della dieta:", error);
   }
 }
 
@@ -98,7 +113,6 @@ const annullaAlimentoBtn = document.getElementById("annulla-alimento-btn");
 const temaChiaroBtn = document.getElementById("tema-chiaro-btn");
 const temaNotteBtn = document.getElementById("tema-notte-btn");
 
-const pazienteInput = document.getElementById("paziente-input");
 const maxKcalInput = document.getElementById("max-kcal-input");
 const impostazioniStampaToggle = document.getElementById("impostazioni-stampa-toggle");
 const impostazioniStampaContenuto = document.getElementById("impostazioni-stampa-contenuto");
@@ -113,6 +127,7 @@ const panoramicaGriglia = document.getElementById("panoramica-griglia");
 const pdfDietaBtn = document.getElementById("pdf-dieta-btn");
 const pdfSpesaBtn = document.getElementById("pdf-spesa-btn");
 const pdfNutrizionistaBtn = document.getElementById("pdf-nutrizionista-btn");
+const salvaStoricoBtn = document.getElementById("salva-storico-btn");
 const resetBtn = document.getElementById("reset-btn");
 const printRunningTitle = document.getElementById("print-running-title");
 const printRunningMeta = document.getElementById("print-running-meta");
@@ -125,6 +140,31 @@ const duplicaSottotitolo = document.getElementById("duplica-sottotitolo");
 const duplicaGiorniCheckbox = document.getElementById("duplica-giorni-checkbox");
 const duplicaConfermaBtn = document.getElementById("duplica-conferma-btn");
 const duplicaAnnullaBtn = document.getElementById("duplica-annulla-btn");
+
+// Login / pazienti / storico
+const loginOverlay = document.getElementById("login-overlay");
+const loginEmailInput = document.getElementById("login-email");
+const loginPasswordInput = document.getElementById("login-password");
+const loginError = document.getElementById("login-error");
+const loginBtn = document.getElementById("login-btn");
+
+const appShell = document.getElementById("app-shell");
+const areaLavoro = document.getElementById("area-lavoro");
+const pazienteSelect = document.getElementById("paziente-select");
+const nuovoPazienteBtn = document.getElementById("nuovo-paziente-btn");
+const storicoBtn = document.getElementById("storico-btn");
+const logoutBtn = document.getElementById("logout-btn");
+
+const nuovoPazienteOverlay = document.getElementById("nuovo-paziente-overlay");
+const nuovoPazienteNomeInput = document.getElementById("nuovo-paziente-nome");
+const nuovoPazienteError = document.getElementById("nuovo-paziente-error");
+const nuovoPazienteConfermaBtn = document.getElementById("nuovo-paziente-conferma-btn");
+const nuovoPazienteAnnullaBtn = document.getElementById("nuovo-paziente-annulla-btn");
+
+const storicoOverlay = document.getElementById("storico-overlay");
+const storicoPazienteNomeEl = document.getElementById("storico-paziente-nome");
+const storicoLista = document.getElementById("storico-lista");
+const storicoChiudiBtn = document.getElementById("storico-chiudi-btn");
 
 // ---------- Modalità giorno/notte ----------
 
@@ -159,6 +199,272 @@ function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
+function escapeHtml(testo) {
+  return String(testo).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ---------- Login / sessione ----------
+
+function inizializzaSupabase() {
+  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+function mostraLogin() {
+  loginOverlay.classList.remove("hidden");
+  appShell.classList.add("hidden");
+}
+
+async function inizializzaAuth() {
+  const { data } = await supabaseClient.auth.getSession();
+  sessioneUtente = data.session;
+  if (sessioneUtente) {
+    await avviaApp();
+  } else {
+    mostraLogin();
+  }
+}
+
+async function effettuaLogin() {
+  const email = loginEmailInput.value.trim();
+  const password = loginPasswordInput.value;
+  loginError.classList.add("hidden");
+
+  if (!email || !password) {
+    loginError.textContent = "Inserisci email e password.";
+    loginError.classList.remove("hidden");
+    return;
+  }
+
+  loginBtn.disabled = true;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  loginBtn.disabled = false;
+
+  if (error) {
+    loginError.textContent = "Accesso non riuscito: " + error.message;
+    loginError.classList.remove("hidden");
+    return;
+  }
+
+  sessioneUtente = data.session;
+  loginPasswordInput.value = "";
+  await avviaApp();
+}
+
+async function effettuaLogout() {
+  await supabaseClient.auth.signOut();
+  location.reload();
+}
+
+async function avviaApp() {
+  loginOverlay.classList.add("hidden");
+  appShell.classList.remove("hidden");
+
+  await caricaAlimentiBase();
+  customFoodsRemoti = await caricaAlimentiPersonalizzatiRemoti();
+  ricostruisciElencoAlimenti();
+
+  await caricaListaPazienti();
+
+  renderDraft();
+  renderDieta();
+}
+
+// ---------- Pazienti ----------
+
+async function caricaListaPazienti() {
+  const { data, error } = await supabaseClient.from("pazienti").select("*").order("nome", { ascending: true });
+  if (error) {
+    alert("Errore nel caricamento dei pazienti: " + error.message);
+    return;
+  }
+  listaPazienti = data || [];
+  pazienteSelect.innerHTML = '<option value="">— Seleziona un paziente —</option>' +
+    listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+}
+
+async function selezionaPaziente(pazienteId) {
+  if (!pazienteId) {
+    pazienteCorrente = null;
+    dietaCorrenteId = null;
+    storicoBtn.disabled = true;
+    areaLavoro.classList.add("hidden");
+    return;
+  }
+
+  const p = listaPazienti.find(p => p.id === pazienteId);
+  if (!p) return;
+  pazienteCorrente = { id: p.id, nome: p.nome };
+
+  const { data: dieteAttive, error } = await supabaseClient
+    .from("diete")
+    .select("*")
+    .eq("paziente_id", pazienteId)
+    .eq("stato", "attiva")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    alert("Errore nel caricamento della dieta: " + error.message);
+    return;
+  }
+
+  let riga;
+  if (dieteAttive && dieteAttive.length > 0) {
+    riga = dieteAttive[0];
+  } else {
+    const { data: creata, error: erroreCreazione } = await supabaseClient
+      .from("diete")
+      .insert({ paziente_id: pazienteId, stato: "attiva", dati: creaStatoVuoto() })
+      .select()
+      .single();
+    if (erroreCreazione) {
+      alert("Errore nella creazione della dieta: " + erroreCreazione.message);
+      return;
+    }
+    riga = creata;
+  }
+
+  dietaCorrenteId = riga.id;
+  applicaDatiDieta(riga.dati);
+
+  maxKcalInput.value = state.maxKcal || "";
+  sostituzioniInput.value = state.sostituzioni || "";
+  infoStudioInput.value = state.infoStudio || "";
+  validoDalInput.value = state.validoDal || "";
+  validoAlInput.value = state.validoAl || "";
+
+  collapsedGiorni = new Set();
+  draftPasto = [];
+
+  storicoBtn.disabled = false;
+  areaLavoro.classList.remove("hidden");
+
+  renderDraft();
+  renderDieta();
+}
+
+function apriNuovoPaziente() {
+  nuovoPazienteNomeInput.value = "";
+  nuovoPazienteError.classList.add("hidden");
+  nuovoPazienteOverlay.classList.remove("hidden");
+  nuovoPazienteNomeInput.focus();
+}
+
+function chiudiNuovoPaziente() {
+  nuovoPazienteOverlay.classList.add("hidden");
+}
+
+async function confermaNuovoPaziente() {
+  const nome = nuovoPazienteNomeInput.value.trim();
+  if (!nome) {
+    nuovoPazienteError.classList.remove("hidden");
+    return;
+  }
+
+  const { data, error } = await supabaseClient.from("pazienti").insert({ nome }).select().single();
+  if (error) {
+    alert("Errore nella creazione del paziente: " + error.message);
+    return;
+  }
+
+  chiudiNuovoPaziente();
+  await caricaListaPazienti();
+  pazienteSelect.value = data.id;
+  await selezionaPaziente(data.id);
+}
+
+// ---------- Storico diete ----------
+
+async function salvaComeStorico() {
+  if (!dietaCorrenteId || !pazienteCorrente) return;
+  if (!confirm(`Salvare una copia della dieta attuale nello storico di ${pazienteCorrente.nome}? La dieta attiva resterà comunque modificabile.`)) return;
+
+  const dati = {
+    maxKcal: state.maxKcal,
+    dieta: state.dieta,
+    sostituzioni: state.sostituzioni,
+    infoStudio: state.infoStudio,
+    validoDal: state.validoDal,
+    validoAl: state.validoAl
+  };
+
+  const { error } = await supabaseClient.from("diete").insert({
+    paziente_id: pazienteCorrente.id,
+    stato: "archiviata",
+    dati
+  });
+
+  if (error) {
+    alert("Errore nel salvataggio dello storico: " + error.message);
+    return;
+  }
+  alert("Versione salvata nello storico.");
+}
+
+async function apriStorico() {
+  if (!pazienteCorrente) return;
+  storicoPazienteNomeEl.textContent = pazienteCorrente.nome;
+  storicoLista.innerHTML = '<p class="vuoto">Caricamento…</p>';
+  storicoOverlay.classList.remove("hidden");
+
+  const { data, error } = await supabaseClient
+    .from("diete")
+    .select("*")
+    .eq("paziente_id", pazienteCorrente.id)
+    .eq("stato", "archiviata")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    storicoLista.innerHTML = `<p class="error">Errore: ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    storicoLista.innerHTML = '<p class="vuoto">Nessuna versione salvata per questo paziente.</p>';
+    return;
+  }
+
+  storicoLista.innerHTML = data.map(riga => {
+    const dataStr = new Date(riga.created_at).toLocaleString("it-IT", { dateStyle: "medium", timeStyle: "short" });
+    return `
+      <div class="storico-riga">
+        <div class="storico-riga-info">
+          <div class="storico-data">${dataStr}</div>
+        </div>
+        <button type="button" class="secondary storico-apri-btn" data-id="${riga.id}">Apri e stampa</button>
+      </div>
+    `;
+  }).join("");
+}
+
+function chiudiStorico() {
+  storicoOverlay.classList.add("hidden");
+}
+
+async function apriEStampaStorico(dietaId) {
+  const { data, error } = await supabaseClient.from("diete").select("*").eq("id", dietaId).single();
+  if (error) {
+    alert("Errore: " + error.message);
+    return;
+  }
+
+  const backupState = JSON.parse(JSON.stringify(state));
+  applicaDatiDieta(data.dati);
+
+  impostaModalitaStampa("stampa-nutrizionista");
+  renderIntestazioneStampa(`Piano alimentare — versione del ${new Date(data.created_at).toLocaleDateString("it-IT")}`);
+  printContent.innerHTML = costruisciContenutoPrintDieta();
+
+  const ripristina = () => {
+    Object.assign(state, backupState);
+    window.removeEventListener("afterprint", ripristina);
+  };
+  window.addEventListener("afterprint", ripristina);
+
+  chiudiStorico();
+  window.print();
+}
+
 // ---------- Database alimenti (base + personalizzati) ----------
 
 function normalizzaValoriAlimento(a) {
@@ -174,15 +480,22 @@ function normalizzaValoriAlimento(a) {
 function ricostruisciElencoAlimenti() {
   foodMap = new Map();
   baseAlimenti.forEach(a => foodMap.set(a.nome, normalizzaValoriAlimento(a)));
-  state.customFoods.forEach(a => foodMap.set(a.nome, normalizzaValoriAlimento(a)));
+  customFoodsRemoti.forEach(a => foodMap.set(a.nome, normalizzaValoriAlimento(a)));
   foodNames = Array.from(foodMap.keys()).sort((a, b) => a.localeCompare(b, "it"));
 }
 
-async function caricaAlimenti() {
+async function caricaAlimentiBase() {
   const risposta = await fetch("foods.json");
   baseAlimenti = await risposta.json();
-  ricostruisciElencoAlimenti();
-  aggiornaSuggerimenti();
+}
+
+async function caricaAlimentiPersonalizzatiRemoti() {
+  const { data, error } = await supabaseClient.from("alimenti_personalizzati").select("*").order("nome");
+  if (error) {
+    console.warn("Errore nel caricamento alimenti personalizzati:", error);
+    return [];
+  }
+  return data || [];
 }
 
 function apriFormNuovoAlimento() {
@@ -202,7 +515,7 @@ function chiudiFormNuovoAlimento() {
   nuovoCarbInput.value = "";
 }
 
-function salvaNuovoAlimento() {
+async function salvaNuovoAlimento() {
   const nome = nuovoNomeInput.value.trim();
   const kcal = parseFloat(nuovoKcalInput.value);
   const proteine = parseFloat(nuovoProtInput.value);
@@ -228,9 +541,14 @@ function salvaNuovoAlimento() {
     carboidrati: round1(carboidrati)
   };
 
-  state.customFoods = state.customFoods.filter(a => a.nome !== nome);
-  state.customFoods.push(nuovoAlimento);
-  salvaState();
+  const { error } = await supabaseClient.from("alimenti_personalizzati").upsert(nuovoAlimento, { onConflict: "nome" });
+  if (error) {
+    alert("Errore nel salvataggio dell'alimento: " + error.message);
+    return;
+  }
+
+  customFoodsRemoti = customFoodsRemoti.filter(a => a.nome !== nome);
+  customFoodsRemoti.push(nuovoAlimento);
   ricostruisciElencoAlimenti();
 
   chiudiFormNuovoAlimento();
@@ -290,7 +608,7 @@ function mostraSuggerimenti(elenco) {
     suggestions.classList.add("hidden");
     return;
   }
-  const customNames = new Set(state.customFoods.map(a => a.nome));
+  const customNames = new Set(customFoodsRemoti.map(a => a.nome));
   suggestions.innerHTML = elenco
     .map((nome, i) => `<div class="suggestion-item" data-index="${i}">${nome}${customNames.has(nome) ? ' <span class="tag-custom">personalizzato</span>' : ''}</div>`)
     .join("");
@@ -446,7 +764,7 @@ function confermaPasto() {
 
   giorni.forEach(giorno => copiaItemsInPasto(draftPasto, giorno, pasto));
   draftPasto = [];
-  salvaState();
+  salvaStateRemoto();
   renderDraft();
   renderDieta();
 
@@ -484,7 +802,7 @@ function inserisciPastoLibero() {
 
   liberoKcalInput.value = "";
   liberoNotaInput.value = "";
-  salvaState();
+  salvaStateRemoto();
   renderDieta();
 
   const giorniSuperati = giorni.filter(g => controllaLimite(g));
@@ -605,7 +923,7 @@ function confermaDuplica() {
     });
   }
 
-  salvaState();
+  salvaStateRemoto();
   renderDieta();
   chiudiDuplica();
 }
@@ -750,14 +1068,14 @@ function toggleImpostazioniStampa() {
 
 function rimuoviElemento(giorno, pasto, index) {
   state.dieta[giorno][pasto].splice(index, 1);
-  salvaState();
+  salvaStateRemoto();
   renderDieta();
 }
 
 function svuotaDieta() {
   if (!confirm("Vuoi davvero svuotare tutta la dieta? L'operazione non è reversibile.")) return;
   state.dieta = creaDietaVuota();
-  salvaState();
+  salvaStateRemoto();
   renderDieta();
 }
 
@@ -780,10 +1098,6 @@ function calcolaListaSpesa() {
 
 // ---------- Generazione PDF (stampa) ----------
 
-function escapeHtml(testo) {
-  return testo.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 function formattaDataIt(isoDate) {
   const [y, m, d] = isoDate.split("-");
   return `${d}/${m}/${y}`;
@@ -804,7 +1118,7 @@ function impostaModalitaStampa(modalita) {
 
 function renderIntestazioneStampa(titolo) {
   printRunningTitle.textContent = titolo;
-  const paziente = state.paziente || pazienteInput.value || "-";
+  const paziente = pazienteCorrente ? pazienteCorrente.nome : "-";
   printRunningMeta.textContent = `Paziente: ${paziente} · ${formattaValidita()}`;
   printRunningFooter.textContent = (state.infoStudio || "").trim();
 }
@@ -820,7 +1134,7 @@ function costruisciSostituzioniHtml() {
   return `<div class="print-sostituzioni"><h3>Sostituzioni possibili</h3>${corpo}</div>`;
 }
 
-function costruisciRigaPrint(item, giorno, pasto) {
+function costruisciRigaPrint(item) {
   let cellaQta;
   if (item.libero) {
     cellaQta = "—";
@@ -853,7 +1167,7 @@ function costruisciContenutoPrintDieta() {
     const pastiHtml = PASTI.filter(p => state.dieta[giorno][p].length > 0).map(pasto => {
       const items = state.dieta[giorno][pasto];
       const totP = totaliPasto(items);
-      const righe = items.map(item => costruisciRigaPrint(item, giorno, pasto)).join("");
+      const righe = items.map(item => costruisciRigaPrint(item)).join("");
       return `
         <div class="p-pasto">
           <div class="p-pasto-titolo"><span>${pasto}</span><span class="solo-nutrizionista">${formattaTotali(totP)}</span></div>
@@ -923,14 +1237,33 @@ function inizializza() {
   temaChiaroBtn.addEventListener("click", () => impostaTema("chiaro"));
   temaNotteBtn.addEventListener("click", () => impostaTema("notte"));
 
-  caricaState();
+  inizializzaSupabase();
 
-  pazienteInput.value = state.paziente || "";
-  maxKcalInput.value = state.maxKcal || "";
-  sostituzioniInput.value = state.sostituzioni || "";
-  infoStudioInput.value = state.infoStudio || "";
-  validoDalInput.value = state.validoDal || "";
-  validoAlInput.value = state.validoAl || "";
+  loginBtn.addEventListener("click", effettuaLogin);
+  loginPasswordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") effettuaLogin();
+  });
+  logoutBtn.addEventListener("click", effettuaLogout);
+
+  pazienteSelect.addEventListener("change", () => selezionaPaziente(pazienteSelect.value));
+  nuovoPazienteBtn.addEventListener("click", apriNuovoPaziente);
+  nuovoPazienteConfermaBtn.addEventListener("click", confermaNuovoPaziente);
+  nuovoPazienteAnnullaBtn.addEventListener("click", chiudiNuovoPaziente);
+  nuovoPazienteOverlay.addEventListener("click", (e) => {
+    if (e.target === nuovoPazienteOverlay) chiudiNuovoPaziente();
+  });
+
+  storicoBtn.addEventListener("click", apriStorico);
+  storicoChiudiBtn.addEventListener("click", chiudiStorico);
+  storicoOverlay.addEventListener("click", (e) => {
+    if (e.target === storicoOverlay) chiudiStorico();
+  });
+  storicoLista.addEventListener("click", (e) => {
+    const btn = e.target.closest(".storico-apri-btn");
+    if (btn) apriEStampaStorico(btn.dataset.id);
+  });
+
+  salvaStoricoBtn.addEventListener("click", salvaComeStorico);
 
   foodInput.addEventListener("input", () => {
     aggiornaSuggerimenti();
@@ -989,22 +1322,22 @@ function inizializza() {
 
   sostituzioniInput.addEventListener("input", () => {
     state.sostituzioni = sostituzioniInput.value;
-    salvaState();
+    salvaStateRemoto();
   });
 
   infoStudioInput.addEventListener("input", () => {
     state.infoStudio = infoStudioInput.value;
-    salvaState();
+    salvaStateRemoto();
   });
 
   validoDalInput.addEventListener("change", () => {
     state.validoDal = validoDalInput.value;
-    salvaState();
+    salvaStateRemoto();
   });
 
   validoAlInput.addEventListener("change", () => {
     state.validoAl = validoAlInput.value;
-    salvaState();
+    salvaStateRemoto();
   });
 
   pastoLiberoBtn.addEventListener("click", inserisciPastoLibero);
@@ -1051,14 +1384,9 @@ function inizializza() {
   annullaAlimentoBtn.addEventListener("click", chiudiFormNuovoAlimento);
   salvaAlimentoBtn.addEventListener("click", salvaNuovoAlimento);
 
-  pazienteInput.addEventListener("input", () => {
-    state.paziente = pazienteInput.value;
-    salvaState();
-  });
-
   maxKcalInput.addEventListener("input", () => {
     state.maxKcal = maxKcalInput.value;
-    salvaState();
+    salvaStateRemoto();
     renderDieta();
   });
 
@@ -1102,9 +1430,7 @@ function inizializza() {
     document.body.classList.remove("stampa-dieta", "stampa-nutrizionista", "stampa-spesa");
   });
 
-  renderDraft();
-  renderDieta();
-  caricaAlimenti();
+  inizializzaAuth();
 }
 
 // ---------- PWA: registrazione service worker ----------
