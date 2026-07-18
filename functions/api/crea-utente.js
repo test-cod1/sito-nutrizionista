@@ -1,7 +1,6 @@
 // Cloudflare Pages Function: crea/invita un nuovo utente (amministratore o paziente).
-// Equivalente della funzione server già usata su Netlify, adattata al runtime
-// Workers (fetch nativo, nessuna dipendenza da installare).
-// Raggiungibile su /api/crea-utente.
+// Chiama le API REST di Supabase con fetch nativo del runtime Workers,
+// nessuna dipendenza da installare. Raggiungibile su /api/crea-utente.
 
 const SUPABASE_URL = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
