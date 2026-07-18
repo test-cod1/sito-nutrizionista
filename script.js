@@ -213,12 +213,30 @@ const invitoInviaBtn = document.getElementById("invito-invia-btn");
 // Vista paziente (sola lettura)
 const vistaPaziente = document.getElementById("vista-paziente");
 const vistaPazienteNomeEl = document.getElementById("vista-paziente-nome");
-const pazienteProfiloVista = document.getElementById("paziente-profilo-vista");
 const pazienteDietaVista = document.getElementById("paziente-dieta-vista");
 const pazientePdfBtn = document.getElementById("paziente-pdf-btn");
+const pazienteSpesaBtn = document.getElementById("paziente-spesa-btn");
 const pazienteLogoutBtn = document.getElementById("paziente-logout-btn");
 const pzTemaChiaroBtn = document.getElementById("pz-tema-chiaro-btn");
 const pzTemaNotteBtn = document.getElementById("pz-tema-notte-btn");
+
+// Profilo paziente (accordion, sola lettura)
+const profiloFisiciToggle = document.getElementById("profilo-fisici-toggle");
+const profiloFisiciContenuto = document.getElementById("profilo-fisici-contenuto");
+const profiloContattiToggle = document.getElementById("profilo-contatti-toggle");
+const profiloContattiContenuto = document.getElementById("profilo-contatti-contenuto");
+const profiloClinicheToggle = document.getElementById("profilo-cliniche-toggle");
+const profiloClinicheContenuto = document.getElementById("profilo-cliniche-contenuto");
+
+// Progressi peso (paziente)
+const pesoBmiEl = document.getElementById("peso-bmi");
+const pesoGraficoEl = document.getElementById("peso-grafico");
+const pesoFiltroBtns = document.querySelectorAll(".peso-filtro-btn");
+
+let storicoPesoCompleto = [];
+let filtroPesoAttivo = "tutto";
+let pazienteHaDieta = false;
+let profiloPesoOriginale = null;
 
 // ---------- Modalità giorno/notte ----------
 
@@ -450,27 +468,134 @@ async function avviaAppAdmin() {
 
 // ---------- Vista paziente (sola lettura) ----------
 
-function renderProfiloPazienteVista(p) {
-  const campi = [
-    ["Data di nascita", p.data_nascita ? formattaDataIt(p.data_nascita) : null],
-    ["Sesso", p.sesso],
-    ["Altezza", p.altezza_cm ? `${p.altezza_cm} cm` : null],
-    ["Peso attuale", p.peso_kg ? `${p.peso_kg} kg` : null],
-    ["Livello di attività", p.attivita],
-    ["Telefono", p.telefono],
-    ["Email", p.email],
-    ["Allergie / intolleranze", p.allergie],
-    ["Note", p.note]
-  ].filter(([, valore]) => valore);
+const PLACEHOLDER_PROFILO = '<span class="vuoto">Non ancora inserito dal tuo nutrizionista</span>';
 
-  if (campi.length === 0) {
-    pazienteProfiloVista.innerHTML = '<p class="vuoto">Nessun dato disponibile. Contatta lo studio per aggiornare il tuo profilo.</p>';
+function rigaProfiloVista(label, valore) {
+  const testo = (valore === null || valore === undefined || valore === "") ? PLACEHOLDER_PROFILO : escapeHtml(String(valore));
+  return `<p><strong>${escapeHtml(label)}:</strong> ${testo}</p>`;
+}
+
+function renderProfiloPazienteVista(p) {
+  profiloFisiciContenuto.innerHTML =
+    rigaProfiloVista("Sesso", p.sesso) +
+    rigaProfiloVista("Altezza", p.altezza_cm ? `${p.altezza_cm} cm` : null) +
+    rigaProfiloVista("Peso attuale", p.peso_kg ? `${p.peso_kg} kg` : null) +
+    rigaProfiloVista("Livello di attività", p.attivita);
+
+  profiloContattiContenuto.innerHTML =
+    rigaProfiloVista("Telefono", p.telefono) +
+    rigaProfiloVista("Email", p.email);
+
+  profiloClinicheContenuto.innerHTML =
+    rigaProfiloVista("Allergie / intolleranze", p.allergie) +
+    rigaProfiloVista("Note generali", p.note);
+}
+
+function toggleAccordionProfilo(bottone, contenuto, etichetta) {
+  const chiusa = contenuto.classList.toggle("hidden");
+  bottone.textContent = `${chiusa ? "▸" : "▾"} ${etichetta}`;
+}
+
+// ---------- Storico peso, BMI e grafico progressi ----------
+
+async function caricaStoricoPeso(pazienteId) {
+  const { data, error } = await supabaseClient
+    .from("storico_peso")
+    .select("*")
+    .eq("paziente_id", pazienteId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.warn("Errore nel caricamento dello storico peso:", error);
+    return [];
+  }
+  return data || [];
+}
+
+function calcolaBmi(altezzaCm, pesoKg) {
+  if (!altezzaCm || !pesoKg) return null;
+  const altezzaM = altezzaCm / 100;
+  return pesoKg / (altezzaM * altezzaM);
+}
+
+function categoriaBmi(bmi) {
+  if (bmi < 18.5) return "Sottopeso";
+  if (bmi < 25) return "Normopeso";
+  if (bmi < 30) return "Sovrappeso";
+  return "Obesità";
+}
+
+function renderBmi(altezzaCm, ultimoPeso) {
+  const bmi = calcolaBmi(altezzaCm, ultimoPeso);
+  if (bmi === null) {
+    pesoBmiEl.innerHTML = '<p class="vuoto">BMI non calcolabile: mancano altezza o peso nel tuo profilo.</p>';
+    return;
+  }
+  pesoBmiEl.innerHTML = `<p><strong>BMI attuale:</strong> ${round1(bmi)} — ${categoriaBmi(bmi)}</p>`;
+}
+
+const FILTRI_PESO_GIORNI = { "1m": 30, "3m": 90, "6m": 180, "tutto": null };
+
+function filtraStoricoPeso(storico, filtro) {
+  const giorni = FILTRI_PESO_GIORNI[filtro];
+  if (!giorni) return storico;
+  const soglia = Date.now() - giorni * 24 * 60 * 60 * 1000;
+  return storico.filter(r => new Date(r.created_at).getTime() >= soglia);
+}
+
+function renderGraficoPeso(storico) {
+  if (!storico || storico.length === 0) {
+    pesoGraficoEl.innerHTML = '<p class="vuoto">Nessun dato di peso ancora registrato per questo periodo.</p>';
     return;
   }
 
-  pazienteProfiloVista.innerHTML = campi
-    .map(([label, valore]) => `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(String(valore))}</p>`)
-    .join("");
+  const larghezza = 600, altezza = 220;
+  const margine = { top: 16, right: 16, bottom: 28, left: 42 };
+  const larghezzaGrafico = larghezza - margine.left - margine.right;
+  const altezzaGrafico = altezza - margine.top - margine.bottom;
+
+  const pesi = storico.map(r => r.peso_kg);
+  const min = Math.min(...pesi), max = Math.max(...pesi);
+  const range = max - min || 1;
+  const padding = range * 0.2;
+  const yMin = min - padding, yMax = max + padding;
+
+  const x = i => margine.left + (storico.length === 1 ? larghezzaGrafico / 2 : (i / (storico.length - 1)) * larghezzaGrafico);
+  const y = v => margine.top + altezzaGrafico - ((v - yMin) / (yMax - yMin)) * altezzaGrafico;
+
+  const punti = storico.map((r, i) => `${x(i)},${y(r.peso_kg)}`).join(" ");
+  const cerchi = storico.map((r, i) => `<circle cx="${x(i)}" cy="${y(r.peso_kg)}" r="4" class="peso-punto"><title>${new Date(r.created_at).toLocaleDateString("it-IT")}: ${r.peso_kg} kg</title></circle>`).join("");
+
+  const passoEtichette = Math.max(1, Math.ceil(storico.length / 6));
+  const etichetteX = storico.map((r, i) => {
+    if (i % passoEtichette !== 0 && i !== storico.length - 1) return "";
+    return `<text x="${x(i)}" y="${altezza - 6}" class="peso-asse-testo" text-anchor="middle">${new Date(r.created_at).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" })}</text>`;
+  }).join("");
+
+  pesoGraficoEl.innerHTML = `
+    <svg viewBox="0 0 ${larghezza} ${altezza}" class="peso-grafico-svg" role="img" aria-label="Andamento del peso nel tempo">
+      <line x1="${margine.left}" y1="${margine.top}" x2="${margine.left}" y2="${altezza - margine.bottom}" class="peso-asse" />
+      <line x1="${margine.left}" y1="${altezza - margine.bottom}" x2="${larghezza - margine.right}" y2="${altezza - margine.bottom}" class="peso-asse" />
+      <polyline points="${punti}" class="peso-linea" fill="none" />
+      ${cerchi}
+      ${etichetteX}
+    </svg>
+  `;
+}
+
+function aggiornaFiltroPeso(filtro) {
+  filtroPesoAttivo = filtro;
+  pesoFiltroBtns.forEach(b => b.classList.toggle("attivo", b.dataset.filtro === filtro));
+  renderGraficoPeso(filtraStoricoPeso(storicoPesoCompleto, filtro));
+}
+
+function dietaVuota() {
+  return GIORNI.every(g => !giornoHaAlimenti(g));
+}
+
+function aggiornaBottoniPdfPaziente() {
+  pazientePdfBtn.disabled = !pazienteHaDieta;
+  pazienteSpesaBtn.disabled = !pazienteHaDieta;
 }
 
 async function caricaDietaAttivaPaziente(pazienteId) {
@@ -494,6 +619,13 @@ async function avviaVistaPaziente(pazienteRecord) {
   pazienteCorrente = { id: pazienteRecord.id, nome: pazienteRecord.nome };
   renderProfiloPazienteVista(pazienteRecord);
 
+  storicoPesoCompleto = await caricaStoricoPeso(pazienteRecord.id);
+  const ultimoPeso = storicoPesoCompleto.length > 0
+    ? storicoPesoCompleto[storicoPesoCompleto.length - 1].peso_kg
+    : pazienteRecord.peso_kg;
+  renderBmi(pazienteRecord.altezza_cm, ultimoPeso);
+  aggiornaFiltroPeso(filtroPesoAttivo);
+
   const rigaDieta = await caricaDietaAttivaPaziente(pazienteRecord.id);
   if (rigaDieta) {
     dietaCorrenteId = rigaDieta.id;
@@ -503,6 +635,8 @@ async function avviaVistaPaziente(pazienteRecord) {
     state = creaStatoVuoto();
   }
 
+  pazienteHaDieta = !!rigaDieta && !dietaVuota();
+  aggiornaBottoniPdfPaziente();
   pazienteDietaVista.innerHTML = costruisciContenutoPrintDieta();
 }
 
@@ -728,6 +862,7 @@ async function apriProfiloPaziente() {
   profiloEmailInput.value = data.email || "";
   profiloAllergieInput.value = data.allergie || "";
   profiloNoteInput.value = data.note || "";
+  profiloPesoOriginale = data.peso_kg ?? null;
 
   profiloOverlay.classList.remove("hidden");
 }
@@ -758,6 +893,15 @@ async function salvaProfiloPaziente() {
   if (error) {
     alert("Errore nel salvataggio del profilo: " + error.message);
     return;
+  }
+
+  if (aggiornamento.peso_kg !== null && aggiornamento.peso_kg !== profiloPesoOriginale) {
+    const { error: erroreStorico } = await supabaseClient
+      .from("storico_peso")
+      .insert({ paziente_id: pazienteCorrente.id, peso_kg: aggiornamento.peso_kg });
+    if (erroreStorico) {
+      console.error("Errore nel salvataggio dello storico peso:", erroreStorico);
+    }
   }
 
   chiudiProfiloPaziente();
@@ -1657,6 +1801,15 @@ function inizializza() {
   pzTemaChiaroBtn.addEventListener("click", () => impostaTema("chiaro"));
   pzTemaNotteBtn.addEventListener("click", () => impostaTema("notte"));
   pazientePdfBtn.addEventListener("click", generaPdfDieta);
+  pazienteSpesaBtn.addEventListener("click", generaPdfSpesa);
+
+  profiloFisiciToggle.addEventListener("click", () => toggleAccordionProfilo(profiloFisiciToggle, profiloFisiciContenuto, "Dati fisici"));
+  profiloContattiToggle.addEventListener("click", () => toggleAccordionProfilo(profiloContattiToggle, profiloContattiContenuto, "Contatti"));
+  profiloClinicheToggle.addEventListener("click", () => toggleAccordionProfilo(profiloClinicheToggle, profiloClinicheContenuto, "Note cliniche"));
+
+  pesoFiltroBtns.forEach(b => {
+    b.addEventListener("click", () => aggiornaFiltroPeso(b.dataset.filtro));
+  });
 
   gestioneUtentiBtn.addEventListener("click", apriGestioneUtenti);
   gestioneUtentiChiudiBtn.addEventListener("click", chiudiGestioneUtenti);

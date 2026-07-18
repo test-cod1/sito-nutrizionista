@@ -113,14 +113,36 @@
 
     <section class="card no-print">
       <h2>Il mio profilo</h2>
-      <div id="paziente-profilo-vista"></div>
+
+      <button id="profilo-fisici-toggle" class="profilo-accordion-toggle" type="button">▸ Dati fisici</button>
+      <div id="profilo-fisici-contenuto" class="hidden profilo-accordion-contenuto"></div>
+
+      <button id="profilo-contatti-toggle" class="profilo-accordion-toggle" type="button">▸ Contatti</button>
+      <div id="profilo-contatti-contenuto" class="hidden profilo-accordion-contenuto"></div>
+
+      <button id="profilo-cliniche-toggle" class="profilo-accordion-toggle" type="button">▸ Note cliniche</button>
+      <div id="profilo-cliniche-contenuto" class="hidden profilo-accordion-contenuto"></div>
+    </section>
+
+    <section class="card no-print">
+      <h2>I miei progressi</h2>
+      <div id="peso-bmi"></div>
+
+      <div class="peso-filtro-periodo">
+        <button type="button" class="peso-filtro-btn" data-filtro="1m">Ultimo mese</button>
+        <button type="button" class="peso-filtro-btn" data-filtro="3m">3 mesi</button>
+        <button type="button" class="peso-filtro-btn" data-filtro="6m">6 mesi</button>
+        <button type="button" class="peso-filtro-btn attivo" data-filtro="tutto">Tutto</button>
+      </div>
+      <div id="peso-grafico" class="peso-grafico"></div>
     </section>
 
     <section class="card">
       <div class="dieta-header no-print">
         <h2>La mia dieta</h2>
         <div class="pdf-buttons">
-          <button id="paziente-pdf-btn" class="secondary">Scarica PDF</button>
+          <button id="paziente-pdf-btn" class="secondary">Scarica Piano Alimentare</button>
+          <button id="paziente-spesa-btn" class="secondary">Scarica Lista della Spesa</button>
           <button id="paziente-logout-btn" class="danger">Esci</button>
         </div>
       </div>

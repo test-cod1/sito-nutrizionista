@@ -1216,8 +1216,100 @@ textarea:focus {
 
 /* ---------- Vista paziente (sola lettura) ---------- */
 
-#paziente-profilo-vista p {
+.profilo-accordion-toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0;
+  margin-top: 16px;
+  cursor: pointer;
+}
+
+.profilo-accordion-toggle:hover {
+  background: none;
+  color: var(--accent-hover);
+  transform: none;
+}
+
+.profilo-accordion-contenuto {
+  padding-top: 8px;
+}
+
+.profilo-accordion-contenuto p {
   margin: 4px 0;
+}
+
+/* ---------- Progressi peso (paziente) ---------- */
+
+#peso-bmi p {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+}
+
+.peso-filtro-periodo {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.peso-filtro-btn {
+  background: var(--surface-alt);
+  border: 1px solid var(--border-input);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.peso-filtro-btn:hover {
+  background: var(--accent-tint);
+  color: var(--text);
+  transform: none;
+}
+
+.peso-filtro-btn.attivo {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.peso-filtro-btn.attivo:hover {
+  background: var(--accent-hover);
+  color: white;
+}
+
+.peso-grafico-svg {
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+}
+
+.peso-asse {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.peso-linea {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.peso-punto {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.peso-asse-testo {
+  fill: var(--text-muted);
+  font-size: 9px;
 }
 
 #paziente-dieta-vista .p-giorno {
