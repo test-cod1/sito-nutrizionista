@@ -1295,7 +1295,7 @@ function renderDraft() {
   const righe = draftPasto.map((item, index) => `
     <tr>
       <td>${item.alimento}</td>
-      <td>${item.grammi} g${item.mostraPorzione ? ` <em>(${item.porzione || "porzione"})</em>` : ""}</td>
+      <td>${item.mostraPorzione ? `${item.porzione || "porzione"} <em>(${item.grammi} g)</em>` : `${item.grammi} g`}</td>
       <td>${item.nota || "-"}</td>
       <td>${item.kcal} kcal</td>
       <td>${item.proteine} g</td>
@@ -1563,7 +1563,7 @@ function renderDieta() {
           if (item.libero) {
             cellaQta = `<td>—</td>`;
           } else if (item.mostraPorzione) {
-            cellaQta = `<td class="ha-porzione"><span class="solo-non-cliente">${item.grammi} g <em>(${item.porzione || "porzione"})</em></span><span class="solo-cliente">${item.porzione || ""}</span></td>`;
+            cellaQta = `<td class="ha-porzione"><span class="solo-non-cliente">${item.porzione || "porzione"} <em>(${item.grammi} g)</em></span><span class="solo-cliente">${item.porzione || ""}</span></td>`;
           } else {
             cellaQta = `<td>${item.grammi} g</td>`;
           }
@@ -1726,7 +1726,7 @@ function costruisciRigaPrint(item) {
   if (item.libero) {
     cellaQta = "—";
   } else if (item.mostraPorzione) {
-    cellaQta = `<span class="solo-non-cliente">${item.grammi} g <em>(${item.porzione || "porzione"})</em></span><span class="solo-cliente">${item.porzione || ""}</span>`;
+    cellaQta = `<span class="solo-non-cliente">${item.porzione || "porzione"} <em>(${item.grammi} g)</em></span><span class="solo-cliente">${item.porzione || ""}</span>`;
   } else {
     cellaQta = `${item.grammi} g`;
   }

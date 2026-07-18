@@ -1478,6 +1478,16 @@ textarea:focus {
   display: none;
 }
 
+/* Quando è impostata una porzione, il paziente vede solo quella (mai i grammi),
+   come nel PDF cliente */
+#paziente-dieta-vista .ha-porzione .solo-non-cliente {
+  display: none;
+}
+
+#paziente-dieta-vista .ha-porzione .solo-cliente {
+  display: inline;
+}
+
 #paziente-dieta-vista .p-riga-libero td {
   font-style: italic;
   color: var(--accent);
