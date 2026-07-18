@@ -1,4 +1,4 @@
-name = "checkin-notifiche"
+name = "sito-nutrizionista"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
