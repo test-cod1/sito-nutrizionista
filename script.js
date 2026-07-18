@@ -1,3 +1,9 @@
+// Catturati SUBITO, prima di creare il client Supabase: il client "ripulisce"
+// l'URL (hash/query) durante l'inizializzazione, quindi leggerli più tardi
+// restituirebbe sempre stringhe vuote anche per i link di invito/recupero.
+const URL_HASH_INIZIALE = window.location.hash || "";
+const URL_SEARCH_INIZIALE = window.location.search || "";
+
 const GIORNI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
 const GIORNI_FERIALI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
 const GIORNI_WEEKEND = ["Sabato", "Domenica"];
@@ -279,8 +285,19 @@ function escapeHtml(testo) {
 
 // ---------- Login / sessione ----------
 
+let passwordRecoveryEventRicevuto = false;
+
 function inizializzaSupabase() {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  supabaseClient.auth.onAuthStateChange((event) => {
+    if (event === "PASSWORD_RECOVERY") {
+      passwordRecoveryEventRicevuto = true;
+    }
+  });
+}
+
+function urlEraTipo(tipo) {
+  return URL_HASH_INIZIALE.includes(`type=${tipo}`) || URL_SEARCH_INIZIALE.includes(`type=${tipo}`);
 }
 
 function mostraLogin() {
@@ -328,12 +345,6 @@ async function inviaRecuperoPassword() {
   recuperoSuccesso.classList.remove("hidden");
 }
 
-function urlContieneTipo(tipo) {
-  const hash = window.location.hash || "";
-  const search = window.location.search || "";
-  return hash.includes(`type=${tipo}`) || search.includes(`type=${tipo}`);
-}
-
 function mostraImpostaPassword() {
   loginOverlay.classList.add("hidden");
   nuovaPasswordInput.value = "";
@@ -341,18 +352,25 @@ function mostraImpostaPassword() {
   impostaPasswordOverlay.classList.remove("hidden");
 }
 
+function passwordRispettaRequisiti(pw) {
+  return pw.length >= 8 && /[A-Z]/.test(pw) && /[0-9]/.test(pw);
+}
+
 async function confermaImpostaPassword() {
   const nuovaPassword = nuovaPasswordInput.value;
   impostaPasswordError.classList.add("hidden");
 
-  if (!nuovaPassword || nuovaPassword.length < 6) {
-    impostaPasswordError.textContent = "La password deve avere almeno 6 caratteri.";
+  if (!passwordRispettaRequisiti(nuovaPassword)) {
+    impostaPasswordError.textContent = "La password deve avere almeno 8 caratteri, con almeno una lettera maiuscola e un numero.";
     impostaPasswordError.classList.remove("hidden");
     return;
   }
 
   impostaPasswordBtn.disabled = true;
-  const { error } = await supabaseClient.auth.updateUser({ password: nuovaPassword });
+  const { error } = await supabaseClient.auth.updateUser({
+    password: nuovaPassword,
+    data: { password_impostata: true }
+  });
   impostaPasswordBtn.disabled = false;
 
   if (error) {
@@ -362,7 +380,24 @@ async function confermaImpostaPassword() {
   }
 
   impostaPasswordOverlay.classList.add("hidden");
+  passwordRecoveryEventRicevuto = false;
   history.replaceState(null, "", window.location.pathname);
+  await avviaDopoLogin();
+}
+
+// Decide se mostrare "imposta password" invece di far entrare subito:
+// - password_impostata mancante => primo accesso (invito), non ha mai impostato una password
+// - link di tipo "recovery" o evento PASSWORD_RECOVERY => ha chiesto di recuperare la password,
+//   va sempre fatta reimpostare anche se ne aveva già una
+async function gestisciSessioneStabilita() {
+  const passwordGiaImpostata = !!(sessioneUtente.user.user_metadata && sessioneUtente.user.user_metadata.password_impostata);
+  const eRecupero = urlEraTipo("recovery") || passwordRecoveryEventRicevuto;
+
+  if (!passwordGiaImpostata || eRecupero) {
+    mostraImpostaPassword();
+    return;
+  }
+
   await avviaDopoLogin();
 }
 
@@ -370,13 +405,8 @@ async function inizializzaAuth() {
   const { data } = await supabaseClient.auth.getSession();
   sessioneUtente = data.session;
 
-  if (sessioneUtente && (urlContieneTipo("invite") || urlContieneTipo("recovery"))) {
-    mostraImpostaPassword();
-    return;
-  }
-
   if (sessioneUtente) {
-    await avviaDopoLogin();
+    await gestisciSessioneStabilita();
   } else {
     mostraLogin();
   }
@@ -405,7 +435,7 @@ async function effettuaLogin() {
 
   sessioneUtente = data.session;
   loginPasswordInput.value = "";
-  await avviaDopoLogin();
+  await gestisciSessioneStabilita();
 }
 
 async function effettuaLogout() {
