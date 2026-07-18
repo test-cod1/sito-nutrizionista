@@ -92,6 +92,16 @@ body {
   letter-spacing: 0.5px;
 }
 
+@media (max-width: 480px) {
+  .hero {
+    padding-top: 68px;
+  }
+
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+}
+
 .hero-sub {
   margin: 8px 0 0;
   opacity: 0.9;
