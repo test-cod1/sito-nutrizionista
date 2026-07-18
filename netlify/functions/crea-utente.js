@@ -2,8 +2,9 @@
 // Usa la chiave segreta di Supabase (mai esposta al browser) per poter creare
 // account senza compromettere la sessione di chi chiama questa funzione.
 // Può essere invocata solo da un amministratore già autenticato.
-
-const { createClient } = require("@supabase/supabase-js");
+//
+// Chiama le API REST di Supabase direttamente (fetch nativo di Node), senza
+// dipendenze esterne da installare: evita problemi di bundling della funzione.
 
 const SUPABASE_URL = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
@@ -23,20 +24,13 @@ exports.handler = async (event) => {
     return risposta(401, { error: "Sessione mancante." });
   }
 
-  const supabaseAdmin = createClient(SUPABASE_URL, secretKey);
-
-  const { data: chiamante, error: erroreChiamante } = await supabaseAdmin.auth.getUser(token);
-  if (erroreChiamante || !chiamante || !chiamante.user) {
+  const chiamante = await recuperaUtenteDaToken(secretKey, token);
+  if (!chiamante) {
     return risposta(401, { error: "Sessione non valida." });
   }
 
-  const { data: rigaAdmin, error: erroreAdmin } = await supabaseAdmin
-    .from("amministratori")
-    .select("user_id")
-    .eq("user_id", chiamante.user.id)
-    .maybeSingle();
-
-  if (erroreAdmin || !rigaAdmin) {
+  const eAdmin = await verificaAmministratore(secretKey, chiamante.id);
+  if (!eAdmin) {
     return risposta(403, { error: "Solo un amministratore può creare nuovi account." });
   }
 
@@ -58,33 +52,85 @@ exports.handler = async (event) => {
     return risposta(400, { error: "Specifica un paziente esistente oppure il nome del nuovo paziente." });
   }
 
-  const { data: invitato, error: erroreInvito } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
-  if (erroreInvito) {
-    return risposta(400, { error: erroreInvito.message });
+  let nuovoUserId;
+  try {
+    nuovoUserId = await invitaUtente(secretKey, email);
+  } catch (e) {
+    return risposta(400, { error: e.message });
   }
 
-  const nuovoUserId = invitato.user.id;
-
-  if (ruolo === "admin") {
-    const { error } = await supabaseAdmin.from("amministratori").insert({ user_id: nuovoUserId });
-    if (error) return risposta(400, { error: error.message });
-  } else {
-    if (body.pazienteId) {
-      const { error } = await supabaseAdmin
-        .from("pazienti")
-        .update({ user_id: nuovoUserId })
-        .eq("id", body.pazienteId);
-      if (error) return risposta(400, { error: error.message });
+  try {
+    if (ruolo === "admin") {
+      await chiamataRest(secretKey, "POST", "/rest/v1/amministratori", { user_id: nuovoUserId });
+    } else if (body.pazienteId) {
+      await chiamataRest(secretKey, "PATCH", `/rest/v1/pazienti?id=eq.${encodeURIComponent(body.pazienteId)}`, { user_id: nuovoUserId });
     } else {
-      const { error } = await supabaseAdmin
-        .from("pazienti")
-        .insert({ nome: body.nomeNuovoPaziente.trim(), user_id: nuovoUserId });
-      if (error) return risposta(400, { error: error.message });
+      await chiamataRest(secretKey, "POST", "/rest/v1/pazienti", { nome: body.nomeNuovoPaziente.trim(), user_id: nuovoUserId });
     }
+  } catch (e) {
+    return risposta(400, { error: e.message });
   }
 
   return risposta(200, { ok: true });
 };
+
+async function recuperaUtenteDaToken(secretKey, token) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      apikey: secretKey,
+      Authorization: `Bearer ${token}`
+    }
+  });
+  if (!res.ok) return null;
+  const dati = await res.json();
+  return dati && dati.id ? dati : null;
+}
+
+async function verificaAmministratore(secretKey, userId) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/amministratori?user_id=eq.${encodeURIComponent(userId)}&select=user_id`, {
+    headers: {
+      apikey: secretKey,
+      Authorization: `Bearer ${secretKey}`
+    }
+  });
+  if (!res.ok) return false;
+  const righe = await res.json();
+  return Array.isArray(righe) && righe.length > 0;
+}
+
+async function invitaUtente(secretKey, email) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/invite`, {
+    method: "POST",
+    headers: {
+      apikey: secretKey,
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ email })
+  });
+  const dati = await res.json();
+  if (!res.ok) {
+    throw new Error(dati.msg || dati.message || dati.error_description || "Invito non riuscito.");
+  }
+  return dati.id;
+}
+
+async function chiamataRest(secretKey, metodo, percorso, corpo) {
+  const res = await fetch(`${SUPABASE_URL}${percorso}`, {
+    method: metodo,
+    headers: {
+      apikey: secretKey,
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal"
+    },
+    body: JSON.stringify(corpo)
+  });
+  if (!res.ok) {
+    const dati = await res.json().catch(() => ({}));
+    throw new Error(dati.message || dati.error_description || `Errore database (${res.status}).`);
+  }
+}
 
 function risposta(statusCode, corpo) {
   return {
