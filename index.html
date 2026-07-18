@@ -101,6 +101,18 @@
     </div>
   </div>
 
+  <!-- Richiesta consenso notifiche (mostrata automaticamente al primo accesso paziente) -->
+  <div id="notifiche-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3>Promemoria check-in</h3>
+      <p class="duplica-sottotitolo" id="notifiche-testo"></p>
+      <div class="duplica-azioni">
+        <button id="notifiche-attiva-btn">Attiva promemoria</button>
+        <button id="notifiche-rifiuta-btn" class="danger">Non ora</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Vista paziente: profilo e dieta attuale in sola lettura -->
   <div id="vista-paziente" class="hidden">
     <div id="anteprima-banner" class="anteprima-banner no-print hidden">
@@ -143,6 +155,41 @@
         <button type="button" class="peso-filtro-btn attivo" data-filtro="tutto">Tutto</button>
       </div>
       <div id="peso-grafico" class="peso-grafico"></div>
+    </section>
+
+    <section class="card no-print">
+      <h2>Check-in periodico</h2>
+      <p id="checkin-prossima-data" class="hint"></p>
+      <p id="checkin-anticipo-nota" class="hint hidden"></p>
+
+      <div class="griglia-2">
+        <div>
+          <label for="checkin-peso">Peso (kg)</label>
+          <input type="number" id="checkin-peso" min="20" max="300" step="0.1">
+        </div>
+        <div>
+          <label for="checkin-braccio">Circonferenza braccio (cm)</label>
+          <input type="number" id="checkin-braccio" min="10" max="200" step="0.1">
+        </div>
+        <div>
+          <label for="checkin-addome">Circonferenza addome (cm)</label>
+          <input type="number" id="checkin-addome" min="10" max="200" step="0.1">
+        </div>
+        <div>
+          <label for="checkin-petto">Circonferenza petto (cm)</label>
+          <input type="number" id="checkin-petto" min="10" max="200" step="0.1">
+        </div>
+        <div class="griglia-2-full">
+          <label for="checkin-coscia">Circonferenza coscia (cm)</label>
+          <input type="number" id="checkin-coscia" min="10" max="200" step="0.1">
+        </div>
+      </div>
+      <p id="checkin-error" class="error hidden"></p>
+      <p id="checkin-successo" class="hidden"></p>
+      <button id="checkin-invia-btn">Registra check-in</button>
+
+      <button id="checkin-storico-toggle" class="profilo-accordion-toggle" type="button">▸ I miei check-in precedenti</button>
+      <div id="checkin-storico-contenuto" class="hidden profilo-accordion-contenuto"></div>
     </section>
 
     <section class="card">
@@ -218,6 +265,32 @@
               <input type="date" id="valido-al-input">
             </div>
           </div>
+        </div>
+      </section>
+
+      <section id="checkin-admin" class="card no-print">
+        <h2>Check-in periodico</h2>
+        <div id="checkin-badge-stato"></div>
+
+        <div class="tab-strip">
+          <button type="button" class="tab-btn attivo" data-tab="checkin-dati-tab">Dati check-in</button>
+          <button type="button" class="tab-btn" data-tab="checkin-impostazioni-tab">Impostazioni</button>
+        </div>
+
+        <div id="checkin-dati-tab" class="tab-pannello">
+          <div id="checkin-admin-tabella"></div>
+        </div>
+
+        <div id="checkin-impostazioni-tab" class="tab-pannello hidden">
+          <label for="checkin-frequenza-select">Frequenza check-in richiesta al paziente</label>
+          <select id="checkin-frequenza-select">
+            <option value="">— Non impostata —</option>
+            <option value="settimanale">Settimanale</option>
+            <option value="quindicinale">Quindicinale</option>
+            <option value="mensile">Mensile</option>
+          </select>
+          <button id="checkin-frequenza-salva-btn">Salva frequenza</button>
+          <p id="checkin-frequenza-successo" class="hidden"></p>
         </div>
       </section>
 

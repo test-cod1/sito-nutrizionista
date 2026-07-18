@@ -781,6 +781,81 @@ table tfoot .riga-totale td {
   font-weight: 600;
 }
 
+/* ---------- Check-in periodico ---------- */
+
+.tab-strip {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin: 14px 0 16px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin: 0 0 -2px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  background: var(--accent-tint);
+  color: var(--text);
+  transform: none;
+}
+
+.tab-btn.attivo {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-pannello.hidden {
+  display: none;
+}
+
+.variazione {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.tabella-checkin {
+  table-layout: fixed;
+}
+
+.tabella-checkin th:nth-child(1), .tabella-checkin td:nth-child(1) { width: 16%; }
+.tabella-checkin th:nth-child(2), .tabella-checkin td:nth-child(2) { width: 17%; }
+.tabella-checkin th:nth-child(3), .tabella-checkin td:nth-child(3) { width: 17%; }
+.tabella-checkin th:nth-child(4), .tabella-checkin td:nth-child(4) { width: 17%; }
+.tabella-checkin th:nth-child(5), .tabella-checkin td:nth-child(5) { width: 17%; }
+.tabella-checkin th:nth-child(6), .tabella-checkin td:nth-child(6) { width: 16%; }
+
+.badge-checkin {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.badge-checkin.in-ritardo {
+  background: var(--danger-tint);
+  color: var(--danger-text);
+  border: 1px solid var(--danger);
+}
+
+.badge-checkin.in-linea {
+  background: var(--accent-tint);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
 .duplica-overlay {
   position: fixed;
   top: 0;

@@ -167,6 +167,34 @@ const anteprimaBanner = document.getElementById("anteprima-banner");
 const anteprimaTornaBtn = document.getElementById("anteprima-torna-btn");
 const logoutBtn = document.getElementById("logout-btn");
 
+// Check-in periodico (paziente)
+const checkinProssimaData = document.getElementById("checkin-prossima-data");
+const checkinAnticipoNota = document.getElementById("checkin-anticipo-nota");
+const checkinPesoInput = document.getElementById("checkin-peso");
+const checkinBraccioInput = document.getElementById("checkin-braccio");
+const checkinAddomeInput = document.getElementById("checkin-addome");
+const checkinPettoInput = document.getElementById("checkin-petto");
+const checkinCosciaInput = document.getElementById("checkin-coscia");
+const checkinError = document.getElementById("checkin-error");
+const checkinSuccesso = document.getElementById("checkin-successo");
+const checkinInviaBtn = document.getElementById("checkin-invia-btn");
+const checkinStoricoToggle = document.getElementById("checkin-storico-toggle");
+const checkinStoricoContenuto = document.getElementById("checkin-storico-contenuto");
+let checkinCompletiPaziente = [];
+
+// Check-in periodico (admin)
+const checkinBadgeStato = document.getElementById("checkin-badge-stato");
+const checkinAdminTabella = document.getElementById("checkin-admin-tabella");
+const checkinFrequenzaSelect = document.getElementById("checkin-frequenza-select");
+const checkinFrequenzaSalvaBtn = document.getElementById("checkin-frequenza-salva-btn");
+const checkinFrequenzaSuccesso = document.getElementById("checkin-frequenza-successo");
+
+// Notifiche push
+const notificheOverlay = document.getElementById("notifiche-overlay");
+const notificheTesto = document.getElementById("notifiche-testo");
+const notificheAttivaBtn = document.getElementById("notifiche-attiva-btn");
+const notificheRifiutaBtn = document.getElementById("notifiche-rifiuta-btn");
+
 const nuovoPazienteOverlay = document.getElementById("nuovo-paziente-overlay");
 const nuovoPazienteNomeInput = document.getElementById("nuovo-paziente-nome");
 const nuovoPazienteError = document.getElementById("nuovo-paziente-error");
@@ -651,7 +679,7 @@ async function avviaVistaPaziente(pazienteRecord) {
   vistaPaziente.classList.remove("hidden");
   vistaPazienteNomeEl.textContent = pazienteRecord.nome;
 
-  pazienteCorrente = { id: pazienteRecord.id, nome: pazienteRecord.nome };
+  pazienteCorrente = { id: pazienteRecord.id, nome: pazienteRecord.nome, frequenza_checkin: pazienteRecord.frequenza_checkin };
   renderProfiloPazienteVista(pazienteRecord);
 
   storicoPesoCompleto = await caricaStoricoPeso(pazienteRecord.id);
@@ -675,6 +703,11 @@ async function avviaVistaPaziente(pazienteRecord) {
   pazienteDietaVista.innerHTML = costruisciContenutoPrintDieta();
   collapsedGiorniPaziente = new Set(GIORNI);
   applicaStatoCollassoPaziente();
+
+  await ricaricaCheckinPaziente();
+  if (dovrebbeChiedereNotifiche(pazienteRecord)) {
+    mostraRichiestaNotifiche();
+  }
 }
 
 // ---------- Anteprima vista paziente (dal pannello amministratore) ----------
@@ -699,6 +732,7 @@ async function apriAnteprimaPaziente() {
 
   vistaPazienteNomeEl.textContent = data.nome;
   renderProfiloPazienteVista(data);
+  pazienteCorrente.frequenza_checkin = data.frequenza_checkin;
 
   storicoPesoCompleto = await caricaStoricoPeso(data.id);
   const ultimoPeso = storicoPesoCompleto.length > 0
@@ -712,6 +746,7 @@ async function apriAnteprimaPaziente() {
   pazienteDietaVista.innerHTML = costruisciContenutoPrintDieta();
   collapsedGiorniPaziente = new Set(GIORNI);
   applicaStatoCollassoPaziente();
+  await ricaricaCheckinPaziente();
 
   anteprimaBanner.classList.remove("hidden");
   pazienteLogoutBtn.classList.add("hidden");
@@ -727,6 +762,295 @@ function chiudiAnteprimaPaziente() {
   appShell.classList.remove("hidden");
   renderDieta();
   window.scrollTo(0, 0);
+}
+
+// ---------- Check-in periodico: dati condivisi tra vista paziente e admin ----------
+
+async function caricaCheckin(pazienteId) {
+  const { data, error } = await supabaseClient
+    .from("checkin")
+    .select("*")
+    .eq("paziente_id", pazienteId)
+    .order("data_rilevazione", { ascending: false });
+
+  if (error) {
+    console.warn("Errore nel caricamento dei check-in:", error);
+    return [];
+  }
+  return data || [];
+}
+
+function calcolaProssimoCheckin(ultimaData, frequenza) {
+  if (!ultimaData || !frequenza) return null;
+  const d = new Date(ultimaData);
+  if (frequenza === "settimanale") d.setDate(d.getDate() + 7);
+  else if (frequenza === "quindicinale") d.setDate(d.getDate() + 14);
+  else if (frequenza === "mensile") d.setMonth(d.getMonth() + 1);
+  else return null;
+  return d;
+}
+
+function formattaVariazioneBreve(attuale, precedente, unita) {
+  if (precedente === null || precedente === undefined) return "";
+  const diff = round1(attuale - precedente);
+  if (diff === 0) return "invariato";
+  return `${diff > 0 ? "+" : ""}${diff} ${unita}`;
+}
+
+function costruisciTabellaCheckin(righe) {
+  if (righe.length === 0) {
+    return '<p class="vuoto">Nessun check-in registrato.</p>';
+  }
+
+  const corpo = righe.map((r, i) => {
+    const precedente = righe[i + 1];
+    const celle = [
+      ["peso", "kg"],
+      ["circonferenza_braccio", "cm"],
+      ["circonferenza_addome", "cm"],
+      ["circonferenza_petto", "cm"],
+      ["circonferenza_coscia", "cm"]
+    ].map(([campo, unita]) => {
+      const variazione = formattaVariazioneBreve(r[campo], precedente?.[campo], unita);
+      return `<td>${r[campo]} ${unita}${variazione ? `<span class="variazione">${escapeHtml(variazione)}</span>` : ""}</td>`;
+    }).join("");
+
+    return `<tr><td>${new Date(r.data_rilevazione).toLocaleDateString("it-IT")}</td>${celle}</tr>`;
+  }).join("");
+
+  return `
+    <table class="tabella-checkin">
+      <thead><tr><th>Data</th><th>Peso</th><th>Braccio</th><th>Addome</th><th>Petto</th><th>Coscia</th></tr></thead>
+      <tbody>${corpo}</tbody>
+    </table>
+  `;
+}
+
+// ---------- Check-in periodico: vista paziente ----------
+
+function renderProssimoCheckinPaziente(checkins, frequenza) {
+  checkinAnticipoNota.classList.add("hidden");
+
+  if (checkins.length === 0) {
+    checkinProssimaData.textContent = "Primo check-in da compilare.";
+    return;
+  }
+
+  const prossima = calcolaProssimoCheckin(checkins[0].data_rilevazione, frequenza);
+  if (!prossima) {
+    checkinProssimaData.textContent = `Ultimo check-in registrato: ${new Date(checkins[0].data_rilevazione).toLocaleDateString("it-IT")}.`;
+    return;
+  }
+
+  checkinProssimaData.textContent = `Prossimo check-in previsto: ${prossima.toLocaleDateString("it-IT")}.`;
+  if (new Date() < prossima) {
+    checkinAnticipoNota.textContent = "Non è ancora il momento del prossimo check-in, ma puoi comunque registrarne uno adesso se vuoi.";
+    checkinAnticipoNota.classList.remove("hidden");
+  }
+}
+
+async function ricaricaCheckinPaziente() {
+  if (!pazienteCorrente) return;
+  checkinCompletiPaziente = await caricaCheckin(pazienteCorrente.id);
+  renderProssimoCheckinPaziente(checkinCompletiPaziente, pazienteCorrente.frequenza_checkin);
+  checkinStoricoContenuto.innerHTML = costruisciTabellaCheckin(checkinCompletiPaziente);
+}
+
+function validaCheckinInput() {
+  const valori = {
+    peso: parseFloat(checkinPesoInput.value),
+    circonferenza_braccio: parseFloat(checkinBraccioInput.value),
+    circonferenza_addome: parseFloat(checkinAddomeInput.value),
+    circonferenza_petto: parseFloat(checkinPettoInput.value),
+    circonferenza_coscia: parseFloat(checkinCosciaInput.value)
+  };
+
+  if (isNaN(valori.peso) || valori.peso < 20 || valori.peso > 300) {
+    return { errore: "Inserisci un peso valido, tra 20 e 300 kg." };
+  }
+
+  const circonferenze = [
+    ["circonferenza_braccio", "braccio"],
+    ["circonferenza_addome", "addome"],
+    ["circonferenza_petto", "petto"],
+    ["circonferenza_coscia", "coscia"]
+  ];
+  for (const [campo, nome] of circonferenze) {
+    const v = valori[campo];
+    if (isNaN(v) || v < 10 || v > 200) {
+      return { errore: `Inserisci una circonferenza ${nome} valida, tra 10 e 200 cm.` };
+    }
+  }
+
+  return { valori };
+}
+
+async function inviaCheckin() {
+  checkinError.classList.add("hidden");
+  checkinSuccesso.classList.add("hidden");
+
+  if (!pazienteCorrente) return;
+
+  const { errore, valori } = validaCheckinInput();
+  if (errore) {
+    checkinError.textContent = errore;
+    checkinError.classList.remove("hidden");
+    return;
+  }
+
+  checkinInviaBtn.disabled = true;
+  const { error } = await supabaseClient.from("checkin").insert({
+    paziente_id: pazienteCorrente.id,
+    ...valori
+  });
+  checkinInviaBtn.disabled = false;
+
+  if (error) {
+    checkinError.textContent = "Errore nel salvataggio: " + error.message;
+    checkinError.classList.remove("hidden");
+    return;
+  }
+
+  checkinSuccesso.textContent = "Check-in registrato correttamente.";
+  checkinSuccesso.classList.remove("hidden");
+  checkinPesoInput.value = "";
+  checkinBraccioInput.value = "";
+  checkinAddomeInput.value = "";
+  checkinPettoInput.value = "";
+  checkinCosciaInput.value = "";
+
+  await ricaricaCheckinPaziente();
+}
+
+// ---------- Check-in periodico: vista admin ----------
+
+function renderBadgeStatoCheckin(righe, frequenza) {
+  if (righe.length === 0) {
+    checkinBadgeStato.innerHTML = '<span class="badge-checkin in-linea">Nessun check-in ancora ricevuto</span>';
+    return;
+  }
+  if (!frequenza) {
+    checkinBadgeStato.innerHTML = "";
+    return;
+  }
+
+  const prossima = calcolaProssimoCheckin(righe[0].data_rilevazione, frequenza);
+  if (prossima && new Date() > prossima) {
+    checkinBadgeStato.innerHTML = `<span class="badge-checkin in-ritardo">In ritardo (previsto per il ${prossima.toLocaleDateString("it-IT")})</span>`;
+  } else {
+    checkinBadgeStato.innerHTML = '<span class="badge-checkin in-linea">In linea con la cadenza prevista</span>';
+  }
+}
+
+async function caricaEMostraCheckinAdmin(pazienteRecord) {
+  const righe = await caricaCheckin(pazienteRecord.id);
+  checkinAdminTabella.innerHTML = costruisciTabellaCheckin(righe);
+  checkinFrequenzaSelect.value = pazienteRecord.frequenza_checkin || "";
+  checkinFrequenzaSuccesso.classList.add("hidden");
+  renderBadgeStatoCheckin(righe, pazienteRecord.frequenza_checkin);
+}
+
+async function salvaFrequenzaCheckin() {
+  if (!pazienteCorrente) return;
+
+  const frequenza = checkinFrequenzaSelect.value || null;
+  checkinFrequenzaSuccesso.classList.add("hidden");
+
+  const { error } = await supabaseClient.from("pazienti").update({ frequenza_checkin: frequenza }).eq("id", pazienteCorrente.id);
+  if (error) {
+    alert("Errore nel salvataggio della frequenza: " + error.message);
+    return;
+  }
+
+  pazienteCorrente.frequenza_checkin = frequenza;
+  checkinFrequenzaSuccesso.textContent = "Frequenza aggiornata.";
+  checkinFrequenzaSuccesso.classList.remove("hidden");
+
+  const righe = await caricaCheckin(pazienteCorrente.id);
+  renderBadgeStatoCheckin(righe, frequenza);
+}
+
+function apriTabCheckin(tabId) {
+  document.querySelectorAll("#checkin-admin .tab-btn").forEach(b => b.classList.toggle("attivo", b.dataset.tab === tabId));
+  document.querySelectorAll("#checkin-admin .tab-pannello").forEach(p => p.classList.toggle("hidden", p.id !== tabId));
+}
+
+// ---------- Notifiche push: consenso e subscription ----------
+
+function rilevaIosNonStandalone() {
+  const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const standalone = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  return iOS && !standalone;
+}
+
+function dovrebbeChiedereNotifiche(pazienteRecord) {
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+  if (Notification.permission !== "default") return false;
+  if (pazienteRecord.notifiche_richieste) return false;
+  return true;
+}
+
+function mostraRichiestaNotifiche() {
+  if (rilevaIosNonStandalone()) {
+    notificheTesto.textContent = 'Puoi ricevere un promemoria quando è ora del tuo check-in periodico (peso e circonferenze). Su iPhone/iPad devi prima aggiungere questo sito alla schermata Home (tasto Condividi → "Aggiungi a Home"), poi riaprirlo da lì per poter attivare i promemoria.';
+    notificheAttivaBtn.classList.add("hidden");
+  } else {
+    notificheTesto.textContent = "Puoi ricevere un promemoria quando è ora del tuo check-in periodico (peso e circonferenze). Vuoi attivarlo?";
+    notificheAttivaBtn.classList.remove("hidden");
+  }
+  notificheOverlay.classList.remove("hidden");
+}
+
+function chiudiRichiestaNotifiche() {
+  notificheOverlay.classList.add("hidden");
+}
+
+async function segnaNotificheRichieste() {
+  if (!pazienteCorrente) return;
+  await supabaseClient.from("pazienti").update({ notifiche_richieste: true }).eq("id", pazienteCorrente.id);
+}
+
+async function rifiutaNotifiche() {
+  chiudiRichiestaNotifiche();
+  await segnaNotificheRichieste();
+}
+
+function base64UrlToUint8Array(base64Url) {
+  const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
+  const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const array = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) array[i] = raw.charCodeAt(i);
+  return array;
+}
+
+async function attivaNotifiche() {
+  chiudiRichiestaNotifiche();
+  await segnaNotificheRichieste();
+
+  const permesso = await Notification.requestPermission();
+  if (permesso !== "granted") return;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: base64UrlToUint8Array(VAPID_PUBLIC_KEY)
+    });
+
+    const json = subscription.toJSON();
+    const { error } = await supabaseClient.from("push_subscriptions").upsert({
+      paziente_id: pazienteCorrente.id,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth
+    }, { onConflict: "endpoint" });
+
+    if (error) console.warn("Errore nel salvataggio della subscription:", error);
+  } catch (e) {
+    console.warn("Errore nell'attivazione delle notifiche:", e);
+  }
 }
 
 // ---------- Vista paziente: giorni collassabili (vista più compatta) ----------
@@ -904,7 +1228,7 @@ async function selezionaPaziente(pazienteId) {
 
   const p = listaPazienti.find(p => p.id === pazienteId);
   if (!p) return;
-  pazienteCorrente = { id: p.id, nome: p.nome };
+  pazienteCorrente = { id: p.id, nome: p.nome, frequenza_checkin: p.frequenza_checkin };
 
   const { data: dieteAttive, error } = await supabaseClient
     .from("diete")
@@ -954,6 +1278,7 @@ async function selezionaPaziente(pazienteId) {
 
   renderDraft();
   renderDieta();
+  caricaEMostraCheckinAdmin(p);
 }
 
 function apriNuovoPaziente() {
@@ -1967,6 +2292,17 @@ function inizializza() {
   pesoFiltroBtns.forEach(b => {
     b.addEventListener("click", () => aggiornaFiltroPeso(b.dataset.filtro));
   });
+
+  checkinStoricoToggle.addEventListener("click", () => toggleAccordionProfilo(checkinStoricoToggle, checkinStoricoContenuto, "I miei check-in precedenti"));
+  checkinInviaBtn.addEventListener("click", inviaCheckin);
+
+  checkinFrequenzaSalvaBtn.addEventListener("click", salvaFrequenzaCheckin);
+  document.querySelectorAll("#checkin-admin .tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => apriTabCheckin(btn.dataset.tab));
+  });
+
+  notificheAttivaBtn.addEventListener("click", attivaNotifiche);
+  notificheRifiutaBtn.addEventListener("click", rifiutaNotifiche);
 
   gestioneUtentiBtn.addEventListener("click", apriGestioneUtenti);
   gestioneUtentiChiudiBtn.addEventListener("click", chiudiGestioneUtenti);

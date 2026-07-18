@@ -1,0 +1,8 @@
+name = "checkin-notifiche"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Ogni giorno alle 06:00 UTC (~07-08 in Italia a seconda dell'ora legale).
+[triggers]
+crons = ["0 6 * * *"]
