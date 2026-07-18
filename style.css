@@ -378,6 +378,26 @@ button.danger:hover {
   display: none;
 }
 
+.login-recupero-riga {
+  text-align: center;
+  margin-top: 14px;
+}
+
+.login-recupero-riga a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-recupero-riga a:hover {
+  text-decoration: underline;
+}
+
+#recupero-successo {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .conferma-riga {
   margin-top: 18px;
   padding-top: 18px;

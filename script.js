@@ -181,6 +181,15 @@ const profiloNoteInput = document.getElementById("profilo-note");
 const profiloSalvaBtn = document.getElementById("profilo-salva-btn");
 const profiloAnnullaBtn = document.getElementById("profilo-annulla-btn");
 
+// Recupero password
+const recuperoPasswordLink = document.getElementById("recupero-password-link");
+const recuperoPasswordOverlay = document.getElementById("recupero-password-overlay");
+const recuperoEmailInput = document.getElementById("recupero-email-input");
+const recuperoError = document.getElementById("recupero-error");
+const recuperoSuccesso = document.getElementById("recupero-successo");
+const recuperoInviaBtn = document.getElementById("recupero-invia-btn");
+const recuperoAnnullaBtn = document.getElementById("recupero-annulla-btn");
+
 // Imposta password (primo accesso dopo invito)
 const impostaPasswordOverlay = document.getElementById("imposta-password-overlay");
 const nuovaPasswordInput = document.getElementById("nuova-password-input");
@@ -258,8 +267,46 @@ function inizializzaSupabase() {
 function mostraLogin() {
   loginOverlay.classList.remove("hidden");
   impostaPasswordOverlay.classList.add("hidden");
+  recuperoPasswordOverlay.classList.add("hidden");
   appShell.classList.add("hidden");
   vistaPaziente.classList.add("hidden");
+}
+
+function apriRecuperoPassword() {
+  recuperoEmailInput.value = loginEmailInput.value.trim();
+  recuperoError.classList.add("hidden");
+  recuperoSuccesso.classList.add("hidden");
+  recuperoPasswordOverlay.classList.remove("hidden");
+  recuperoEmailInput.focus();
+}
+
+function chiudiRecuperoPassword() {
+  recuperoPasswordOverlay.classList.add("hidden");
+}
+
+async function inviaRecuperoPassword() {
+  const email = recuperoEmailInput.value.trim();
+  recuperoError.classList.add("hidden");
+  recuperoSuccesso.classList.add("hidden");
+
+  if (!email) {
+    recuperoError.textContent = "Inserisci un'email.";
+    recuperoError.classList.remove("hidden");
+    return;
+  }
+
+  recuperoInviaBtn.disabled = true;
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+  recuperoInviaBtn.disabled = false;
+
+  if (error) {
+    recuperoError.textContent = "Errore: " + error.message;
+    recuperoError.classList.remove("hidden");
+    return;
+  }
+
+  recuperoSuccesso.textContent = "Se l'email è registrata, riceverai a breve un'email con il link per reimpostare la password.";
+  recuperoSuccesso.classList.remove("hidden");
 }
 
 function urlContieneTipo(tipo) {
@@ -1582,6 +1629,19 @@ function inizializza() {
   });
   logoutBtn.addEventListener("click", effettuaLogout);
   pazienteLogoutBtn.addEventListener("click", effettuaLogout);
+
+  recuperoPasswordLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    apriRecuperoPassword();
+  });
+  recuperoInviaBtn.addEventListener("click", inviaRecuperoPassword);
+  recuperoAnnullaBtn.addEventListener("click", chiudiRecuperoPassword);
+  recuperoEmailInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") inviaRecuperoPassword();
+  });
+  recuperoPasswordOverlay.addEventListener("click", (e) => {
+    if (e.target === recuperoPasswordOverlay) chiudiRecuperoPassword();
+  });
 
   impostaPasswordBtn.addEventListener("click", confermaImpostaPassword);
   nuovaPasswordInput.addEventListener("keydown", (e) => {
