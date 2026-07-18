@@ -108,19 +108,21 @@ body {
 }
 
 .esci-header-btn {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--danger);
   border: none;
-  color: rgba(255, 255, 255, 0.85);
+  color: white;
   font-size: 0.8rem;
   font-weight: 700;
   padding: 0 14px;
-  height: 32px;
+  height: 38px;
+  display: flex;
+  align-items: center;
   border-radius: 999px;
   cursor: pointer;
 }
 
 .esci-header-btn:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--danger-hover);
   color: white;
   transform: none;
 }
