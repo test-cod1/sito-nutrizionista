@@ -511,7 +511,7 @@ async function inviaInvito() {
   invitoInviaBtn.disabled = true;
   let risposta;
   try {
-    risposta = await fetch("/.netlify/functions/crea-utente", {
+    risposta = await fetch("/api/crea-utente", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
