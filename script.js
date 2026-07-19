@@ -708,6 +708,26 @@ async function avviaVistaPaziente(pazienteRecord) {
   await ricaricaCheckinPaziente();
   if (dovrebbeChiedereNotifiche(pazienteRecord)) {
     mostraRichiestaNotifiche();
+  } else if (Notification.permission === "granted") {
+    verificaESincronizzaSubscription();
+  }
+}
+
+// Se il permesso è già stato concesso in passato, il popup di richiesta non
+// ricompare più (dovrebbeChiedereNotifiche lo esclude). Ma se nel frattempo la
+// subscription si è persa (app disinstallata e reinstallata, dati del browser
+// cancellati, nuovo dispositivo), il paziente resterebbe silenziosamente senza
+// promemoria. Qui la ricreiamo in automatico, senza mostrare nulla, dato che
+// il permesso del browser è già stato dato in precedenza.
+async function verificaESincronizzaSubscription() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) return;
+    await attivaNotifiche();
+  } catch (e) {
+    console.warn("Errore nella verifica della subscription push:", e);
   }
 }
 
