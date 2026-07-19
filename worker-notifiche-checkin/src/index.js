@@ -6,7 +6,10 @@
 //
 // SUPABASE_SECRET_KEY e VAPID_PRIVATE_KEY vanno impostati come secret
 // cifrati nel pannello del Worker (Settings → Variables and secrets).
-// (build rilanciato dopo un build precedente rimasto bloccato)
+// Il pannello da solo non basta a farli arrivare al runtime: il comando
+// di deploy (Settings → Build configuration → Deploy command) li ripassa
+// esplicitamente con "wrangler secret put" leggendoli dalle Build variables
+// prima di eseguire "wrangler deploy".
 
 import webpush from "web-push";
 
