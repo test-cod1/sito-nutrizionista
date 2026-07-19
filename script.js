@@ -1034,6 +1034,9 @@ async function attivaNotifiche() {
 
   try {
     const registration = await navigator.serviceWorker.ready;
+    const subscriptionEsistente = await registration.pushManager.getSubscription();
+    if (subscriptionEsistente) await subscriptionEsistente.unsubscribe();
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: base64UrlToUint8Array(VAPID_PUBLIC_KEY)

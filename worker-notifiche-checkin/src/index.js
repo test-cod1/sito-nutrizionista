@@ -10,8 +10,14 @@
 // di deploy (Settings → Build configuration → Deploy command) li ripassa
 // esplicitamente con "wrangler secret put" leggendoli dalle Build variables
 // prima di eseguire "wrangler deploy".
+//
+// Si usa @pushforge/builder (basato su Web Crypto, nativo dei Workers) al
+// posto della libreria "web-push": quest'ultima usa https.request di Node,
+// non implementato dal runtime dei Cloudflare Workers ("[unenv] https.request
+// is not implemented yet!"). VAPID_PRIVATE_KEY qui è una chiave JWK (stringa
+// JSON), non più il formato base64url usato da web-push.
 
-import webpush from "web-push";
+import { buildPushHTTPRequest } from "@pushforge/builder";
 
 const SUPABASE_URL = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
@@ -28,7 +34,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/diagnostica") {
-      const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL"];
+      const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL"];
       const dettaglio = {};
       for (const nome of richieste) {
         const v = env[nome];
@@ -59,17 +65,13 @@ export default {
 };
 
 async function inviaPromemoriaCheckin(env) {
-  const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL"];
+  const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL"];
   const mancanti = richieste.filter((nome) => !env[nome]);
   if (mancanti.length > 0) {
     throw new Error(`Variabili/secret mancanti sul Worker: ${mancanti.join(", ")}. Aggiungile in Settings → Variables and secrets, poi rifai un deploy.`);
   }
 
-  webpush.setVapidDetails(
-    "mailto:" + env.VAPID_CONTACT_EMAIL,
-    env.VAPID_PUBLIC_KEY,
-    env.VAPID_PRIVATE_KEY
-  );
+  const privateJWK = JSON.parse(env.VAPID_PRIVATE_KEY);
 
   const pazienti = await chiamataRest(env, "GET", "/rest/v1/pazienti?frequenza_checkin=not.is.null&select=id,frequenza_checkin");
 
@@ -87,27 +89,35 @@ async function inviaPromemoriaCheckin(env) {
 
     for (const sub of subscriptions) {
       try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify({
-            title: "È ora del tuo check-in periodico",
-            body: "Registra peso e circonferenze nella tua area personale."
-          })
-        );
-        notificheInviate++;
-      } catch (e) {
-        if (e.statusCode === 404 || e.statusCode === 410) {
+        const { endpoint, headers, body } = await buildPushHTTPRequest({
+          privateJWK,
+          subscription: { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          message: {
+            payload: {
+              title: "È ora del tuo check-in periodico",
+              body: "Registra peso e circonferenze nella tua area personale."
+            },
+            adminContact: "mailto:" + env.VAPID_CONTACT_EMAIL
+          }
+        });
+
+        const risposta = await fetch(endpoint, { method: "POST", headers, body });
+
+        if (risposta.ok) {
+          notificheInviate++;
+        } else if (risposta.status === 404 || risposta.status === 410) {
           await rimuoviSubscription(env, sub.endpoint);
           subscriptionRimosse++;
         } else {
-          console.error("Errore invio notifica push:", e);
+          const corpo = await risposta.text();
+          console.error("Errore invio notifica push:", risposta.status, corpo);
           errori++;
-          dettagliErrori.push({
-            statusCode: e.statusCode || null,
-            messaggio: e.message || String(e),
-            corpo: e.body || null
-          });
+          dettagliErrori.push({ statusCode: risposta.status, messaggio: corpo || null, corpo: null });
         }
+      } catch (e) {
+        console.error("Errore invio notifica push:", e);
+        errori++;
+        dettagliErrori.push({ statusCode: null, messaggio: e.message || String(e), corpo: null });
       }
     }
   }

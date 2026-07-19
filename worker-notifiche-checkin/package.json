@@ -2,6 +2,6 @@
   "name": "checkin-notifiche-worker",
   "private": true,
   "dependencies": {
-    "web-push": "^3.6.7"
+    "@pushforge/builder": "^2.0.5"
   }
 }

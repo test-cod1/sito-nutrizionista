@@ -18,5 +18,5 @@ crons = ["0 6 * * *"]
 # SUPABASE_SECRET_KEY e VAPID_PRIVATE_KEY restano invece solo come secret nel
 # pannello del Worker, perché sono sensibili e non vanno mai versionati.
 [vars]
-VAPID_PUBLIC_KEY = "BIEBCyDIMbT8zbhfdcQFXAsbcbWBhtD2cX5QB0uhr7i8tTtINB4Ii8w3xKN-1No8HqeHCmo5bKltmFz0Ve1_B9k"
+VAPID_PUBLIC_KEY = "BHyHOci-J4N4PzeWkF8tkFXoRQoHhfvMhEGZcLnoqq-qePusl38LU-Hpr6hp8hqWQt4sEdz8I9J-Ob2uVYJl9Qc"
 VAPID_CONTACT_EMAIL = "jacopo.ravaiolicri@gmail.com"
