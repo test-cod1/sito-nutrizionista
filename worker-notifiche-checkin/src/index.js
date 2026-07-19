@@ -76,6 +76,7 @@ async function inviaPromemoriaCheckin(env) {
   let notificheInviate = 0;
   let subscriptionRimosse = 0;
   let errori = 0;
+  const dettagliErrori = [];
 
   for (const paziente of pazienti) {
     const ultimoCheckin = await recuperaUltimoCheckin(env, paziente.id);
@@ -101,6 +102,11 @@ async function inviaPromemoriaCheckin(env) {
         } else {
           console.error("Errore invio notifica push:", e);
           errori++;
+          dettagliErrori.push({
+            statusCode: e.statusCode || null,
+            messaggio: e.message || String(e),
+            corpo: e.body || null
+          });
         }
       }
     }
@@ -110,6 +116,7 @@ async function inviaPromemoriaCheckin(env) {
     pazienti_con_frequenza: pazienti.length,
     notifiche_inviate: notificheInviate,
     subscription_rimosse: subscriptionRimosse,
+    dettagli_errori: dettagliErrori,
     errori
   };
 }
