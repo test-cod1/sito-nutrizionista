@@ -678,6 +678,8 @@ async function caricaDietaAttivaPaziente(pazienteId) {
 async function avviaVistaPaziente(pazienteRecord) {
   appShell.classList.add("hidden");
   vistaPaziente.classList.remove("hidden");
+  anteprimaBanner.classList.add("hidden");
+  pazienteLogoutBtn.classList.remove("hidden");
   vistaPazienteNomeEl.textContent = pazienteRecord.nome;
 
   pazienteCorrente = { id: pazienteRecord.id, nome: pazienteRecord.nome, frequenza_checkin: pazienteRecord.frequenza_checkin };
