@@ -194,6 +194,7 @@ const notificheOverlay = document.getElementById("notifiche-overlay");
 const notificheTesto = document.getElementById("notifiche-testo");
 const notificheAttivaBtn = document.getElementById("notifiche-attiva-btn");
 const notificheRifiutaBtn = document.getElementById("notifiche-rifiuta-btn");
+const notificheOkBtn = document.getElementById("notifiche-ok-btn");
 
 const nuovoPazienteOverlay = document.getElementById("nuovo-paziente-overlay");
 const nuovoPazienteNomeInput = document.getElementById("nuovo-paziente-nome");
@@ -984,6 +985,18 @@ function rilevaIosNonStandalone() {
   return iOS && !standalone;
 }
 
+// Su Android, l'app installata sulla schermata Home (WebAPK) ha un permesso di
+// notifica di sistema separato da quello del browser: il sito può vedere il
+// permesso come "concesso" anche se le notifiche restano disattivate a
+// livello di sistema per quell'app specifica. Non esiste modo, da pagina web,
+// di leggere o forzare quello stato: l'unico rimedio è avvisare l'utente.
+function rilevaAndroidStandalone() {
+  const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const standalone = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  return standalone && !iOS;
+}
+
 function dovrebbeChiedereNotifiche(pazienteRecord) {
   if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return false;
   if (Notification.permission !== "default") return false;
@@ -1004,6 +1017,14 @@ function mostraRichiestaNotifiche() {
 
 function chiudiRichiestaNotifiche() {
   notificheOverlay.classList.add("hidden");
+}
+
+function mostraSuggerimentoAndroidPWA() {
+  notificheTesto.textContent = 'Promemoria attivati. Se in futuro non dovessi ricevere i promemoria: apri Impostazioni del telefono → App → cerca "NutriPlan" → Notifiche, e controlla che siano attive per questa app (è un permesso separato da quello del browser, capita che resti disattivato di default).';
+  notificheAttivaBtn.classList.add("hidden");
+  notificheRifiutaBtn.classList.add("hidden");
+  notificheOkBtn.classList.remove("hidden");
+  notificheOverlay.classList.remove("hidden");
 }
 
 async function segnaNotificheRichieste() {
@@ -1051,6 +1072,7 @@ async function attivaNotifiche() {
     }, { onConflict: "endpoint" });
 
     if (error) console.warn("Errore nel salvataggio della subscription:", error);
+    else if (rilevaAndroidStandalone()) mostraSuggerimentoAndroidPWA();
   } catch (e) {
     console.warn("Errore nell'attivazione delle notifiche:", e);
   }
@@ -2306,6 +2328,7 @@ function inizializza() {
 
   notificheAttivaBtn.addEventListener("click", attivaNotifiche);
   notificheRifiutaBtn.addEventListener("click", rifiutaNotifiche);
+  notificheOkBtn.addEventListener("click", chiudiRichiestaNotifiche);
 
   gestioneUtentiBtn.addEventListener("click", apriGestioneUtenti);
   gestioneUtentiChiudiBtn.addEventListener("click", chiudiGestioneUtenti);
