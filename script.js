@@ -3494,7 +3494,11 @@ function inizializza() {
   pazientePillBtn.addEventListener("click", () => {
     const eraAperto = !pazientePannello.classList.contains("hidden");
     pazientePannello.classList.toggle("hidden", eraAperto);
-    if (!eraAperto) pazienteSearchInput.focus();
+    if (!eraAperto) {
+      pazienteSearchInput.focus();
+      pazienteSearchInput.select();
+      aggiornaSuggerimentiPazienti(true);
+    }
   });
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".shell-paziente-pill-wrap")) {
