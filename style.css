@@ -964,6 +964,43 @@ table tfoot .riga-totale td {
   font-weight: 600;
 }
 
+.off-suggestions {
+  border: 1.5px solid var(--border-input);
+  border-radius: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 6px;
+}
+
+.off-suggestion-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border-2);
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.off-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.off-suggestion-item:hover {
+  background: var(--accent-tint-2);
+  color: var(--accent-hover);
+  transform: none;
+}
+
+.off-torna-elenco-btn {
+  margin-bottom: 12px;
+}
+
 .off-attribuzione {
   font-size: 0.78rem;
   color: var(--text-muted);

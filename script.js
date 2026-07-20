@@ -1307,15 +1307,52 @@ function renderSchedaProdottoOFF(p) {
   `;
 }
 
+// Con più di un risultato si mostra prima un elenco compatto (nome + marca)
+// tra cui scegliere, invece di scaricare in pagina tutte le schede intere:
+// i prodotti vengono tenuti in memoria sull'elemento contenitore stesso, così
+// "torna all'elenco" non deve rifare la ricerca.
 function renderRisultatiOFF(container, erroreEl, risultato) {
   erroreEl.classList.add("hidden");
+  container._prodottiOFF = null;
+
   if (risultato.errore) {
     erroreEl.textContent = risultato.errore;
     erroreEl.classList.remove("hidden");
     container.innerHTML = "";
     return;
   }
-  container.innerHTML = risultato.prodotti.map(renderSchedaProdottoOFF).join("");
+
+  if (risultato.prodotti.length <= 1) {
+    container.innerHTML = risultato.prodotti.map(renderSchedaProdottoOFF).join("");
+    return;
+  }
+
+  container._prodottiOFF = risultato.prodotti;
+  renderElencoOFF(container);
+}
+
+function renderElencoOFF(container) {
+  const prodotti = container._prodottiOFF || [];
+  container.innerHTML = `
+    <p class="hint">${prodotti.length} risultati: scegli quello che ti interessa.</p>
+    <div class="off-suggestions">
+      ${prodotti.map((p, i) => `
+        <button type="button" class="off-suggestion-item" data-index="${i}">
+          <strong>${escapeHtml(p.nome || "Prodotto senza nome")}</strong>
+          <span class="hint">${escapeHtml(p.marca || "Marca non indicata")}</span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function selezionaRisultatoOFF(container, index) {
+  const prodotti = container._prodottiOFF;
+  if (!prodotti || !prodotti[index]) return;
+  container.innerHTML = `
+    <button type="button" class="secondary off-torna-elenco-btn">← Torna all'elenco</button>
+    ${renderSchedaProdottoOFF(prodotti[index])}
+  `;
 }
 
 function apriFotoProdotto(url) {
@@ -3136,12 +3173,24 @@ function inizializza() {
   offScannerStopBtn.addEventListener("click", fermaScannerBarcode);
   offBarcodeManualeBtn.addEventListener("click", cercaOFFBarcodeManuale);
 
-  const apriFotoSeCliccata = (e) => {
-    const img = e.target.closest(".off-foto-prodotto");
-    if (img) apriFotoProdotto(img.dataset.full);
+  const gestisciClickRisultatiOFF = (e) => {
+    const foto = e.target.closest(".off-foto-prodotto");
+    if (foto) {
+      apriFotoProdotto(foto.dataset.full);
+      return;
+    }
+    const suggerimento = e.target.closest(".off-suggestion-item");
+    if (suggerimento) {
+      selezionaRisultatoOFF(e.currentTarget, parseInt(suggerimento.dataset.index, 10));
+      return;
+    }
+    const tornaBtn = e.target.closest(".off-torna-elenco-btn");
+    if (tornaBtn) {
+      renderElencoOFF(e.currentTarget);
+    }
   };
-  offAdminRisultati.addEventListener("click", apriFotoSeCliccata);
-  offPazienteRisultati.addEventListener("click", apriFotoSeCliccata);
+  offAdminRisultati.addEventListener("click", gestisciClickRisultatiOFF);
+  offPazienteRisultati.addEventListener("click", gestisciClickRisultatiOFF);
   offFotoChiudiBtn.addEventListener("click", chiudiFotoProdotto);
   offFotoOverlay.addEventListener("click", (e) => {
     if (e.target === offFotoOverlay) chiudiFotoProdotto();
