@@ -10,7 +10,7 @@
 // stesso prodotto (richiesto dalle linee guida d'uso dell'API).
 
 const USER_AGENT = "NutriPlan - Calcolatore Piano Alimentare - Contatto: jacopo.ravaiolicri@gmail.com";
-const CAMPI = "code,product_name,product_name_it,brands,quantity,nutriments,ingredients_text,ingredients_text_it,allergens,nutriscore_grade,nova_group";
+const CAMPI = "code,product_name,product_name_it,brands,quantity,nutriments,ingredients_text,ingredients_text_it,allergens,nutriscore_grade,nova_group,image_front_small_url,image_small_url";
 
 export async function onRequestGet(context) {
   const { request } = context;
@@ -107,7 +107,8 @@ function normalizzaProdotto(p) {
     ingredienti: p.ingredients_text_it || p.ingredients_text || null,
     allergeni: p.allergens || null,
     nutriscore: (p.nutriscore_grade || "").toLowerCase() || null,
-    nova: p.nova_group || null
+    nova: p.nova_group || null,
+    immagine: p.image_front_small_url || p.image_small_url || null
   };
 }
 

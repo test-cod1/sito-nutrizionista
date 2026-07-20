@@ -1275,11 +1275,20 @@ function renderSchedaProdottoOFF(p) {
     : "";
   const badgeNova = p.nova ? `<span class="off-badge-nova">NOVA ${escapeHtml(String(p.nova))}</span>` : "";
 
+  const foto = p.immagine
+    ? `<img src="${escapeHtml(p.immagine)}" alt="Foto prodotto" class="off-foto-prodotto" loading="lazy" onerror="this.remove()">`
+    : "";
+
   return `
     <article class="off-scheda-prodotto">
-      <h3>${escapeHtml(p.nome || "Prodotto senza nome")}</h3>
-      <p class="hint">${escapeHtml(p.marca || "Marca non indicata")}${p.quantita ? " · " + escapeHtml(p.quantita) : ""}</p>
-      <div class="off-badge-riga">${badgeNutriscore}${badgeNova}</div>
+      <div class="off-scheda-intestazione">
+        ${foto}
+        <div>
+          <h3>${escapeHtml(p.nome || "Prodotto senza nome")}</h3>
+          <p class="hint">${escapeHtml(p.marca || "Marca non indicata")}${p.quantita ? " · " + escapeHtml(p.quantita) : ""}</p>
+          <div class="off-badge-riga">${badgeNutriscore}${badgeNova}</div>
+        </div>
+      </div>
       <table class="off-tabella-nutrienti">
         <tbody>
           <tr><td>Energia</td><td>${p.kcal100g != null ? round1(p.kcal100g) + " kcal" : "—"}</td></tr>

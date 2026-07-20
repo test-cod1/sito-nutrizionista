@@ -871,6 +871,22 @@ table tfoot .riga-totale td {
   margin-top: 14px;
 }
 
+.off-scheda-intestazione {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.off-foto-prodotto {
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
 .off-badge-riga {
   display: flex;
   gap: 8px;
