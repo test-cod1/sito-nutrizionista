@@ -54,18 +54,43 @@ async function cercaPerBarcode(barcode) {
   return { statusCode: 200, corpo: { prodotti: [normalizzaProdotto(dati.product)] } };
 }
 
+// La ricerca testuale di Open Food Facts si è dimostrata poco affidabile su
+// un solo endpoint (sia il motore "search-a-licious" nuovo che il vecchio
+// /cgi/search.pl danno saltuariamente 502/503): proviamo prima quello nuovo
+// e, solo se fallisce, ripieghiamo sul vecchio, prima di arrendersi.
 async function cercaPerTesto(query) {
+  let grezzi;
+  try {
+    grezzi = await risultatiSearchALicious(query);
+  } catch (e) {
+    grezzi = await risultatiRicercaLegacy(query);
+  }
+
+  if (grezzi.length === 0) {
+    return { statusCode: 404, corpo: { errore: "Nessun prodotto trovato per questa ricerca." } };
+  }
+  return { statusCode: 200, corpo: { prodotti: grezzi.map(normalizzaProdotto) } };
+}
+
+async function risultatiSearchALicious(query) {
+  const r = await fetch(
+    `https://search.openfoodfacts.org/search?q=${encodeURIComponent(query)}&page_size=15&fields=${CAMPI}`,
+    { headers: { "User-Agent": USER_AGENT } }
+  );
+  if (!r.ok) throw new Error("search-a-licious non disponibile");
+  const dati = await r.json();
+  if (!Array.isArray(dati.hits)) throw new Error("Formato di risposta inatteso");
+  return dati.hits;
+}
+
+async function risultatiRicercaLegacy(query) {
   const r = await fetch(
     `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&fields=${CAMPI}`,
     { headers: { "User-Agent": USER_AGENT } }
   );
-  if (!r.ok) throw new Error("Errore rete Open Food Facts");
+  if (!r.ok) throw new Error("Ricerca legacy non disponibile");
   const dati = await r.json();
-  const prodotti = Array.isArray(dati.products) ? dati.products : [];
-  if (prodotti.length === 0) {
-    return { statusCode: 404, corpo: { errore: "Nessun prodotto trovato per questa ricerca." } };
-  }
-  return { statusCode: 200, corpo: { prodotti: prodotti.map(normalizzaProdotto) } };
+  return Array.isArray(dati.products) ? dati.products : [];
 }
 
 function normalizzaProdotto(p) {
