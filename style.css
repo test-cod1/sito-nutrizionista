@@ -183,7 +183,8 @@ body {
   gap: 8px;
 }
 
-#gestione-utenti-btn {
+#gestione-utenti-btn,
+#sicurezza-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -191,6 +192,7 @@ body {
   background: white;
   color: #2f6d4f;
   font-size: 1.05rem;
+  line-height: 1;
   padding: 0;
   margin: 0;
   display: flex;
@@ -200,7 +202,8 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
-#gestione-utenti-btn:hover {
+#gestione-utenti-btn:hover,
+#sicurezza-btn:hover {
   background: #eef4f0;
   transform: none;
 }
