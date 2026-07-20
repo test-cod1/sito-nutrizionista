@@ -294,6 +294,9 @@ const offBarcodeManualeInput = document.getElementById("off-barcode-manuale-inpu
 const offBarcodeManualeBtn = document.getElementById("off-barcode-manuale-btn");
 const offPazienteErrore = document.getElementById("off-paziente-error");
 const offPazienteRisultati = document.getElementById("off-paziente-risultati");
+const offFotoOverlay = document.getElementById("off-foto-overlay");
+const offFotoGrande = document.getElementById("off-foto-grande");
+const offFotoChiudiBtn = document.getElementById("off-foto-chiudi-btn");
 
 // Agenda appuntamenti (admin)
 const agendaListaEl = document.getElementById("agenda-lista");
@@ -1276,7 +1279,7 @@ function renderSchedaProdottoOFF(p) {
   const badgeNova = p.nova ? `<span class="off-badge-nova">NOVA ${escapeHtml(String(p.nova))}</span>` : "";
 
   const foto = p.immagine
-    ? `<img src="${escapeHtml(p.immagine)}" alt="Foto prodotto" class="off-foto-prodotto" loading="lazy" onerror="this.remove()">`
+    ? `<img src="${escapeHtml(p.immagine)}" data-full="${escapeHtml(p.immagineGrande || p.immagine)}" alt="Foto prodotto (clicca per ingrandire)" class="off-foto-prodotto" loading="lazy" onerror="this.remove()">`
     : "";
 
   return `
@@ -1313,6 +1316,17 @@ function renderRisultatiOFF(container, erroreEl, risultato) {
     return;
   }
   container.innerHTML = risultato.prodotti.map(renderSchedaProdottoOFF).join("");
+}
+
+function apriFotoProdotto(url) {
+  if (!url) return;
+  offFotoGrande.src = url;
+  offFotoOverlay.classList.remove("hidden");
+}
+
+function chiudiFotoProdotto() {
+  offFotoOverlay.classList.add("hidden");
+  offFotoGrande.src = "";
 }
 
 async function cercaOFFAdmin() {
@@ -3121,6 +3135,17 @@ function inizializza() {
   offScannerAvviaBtn.addEventListener("click", avviaScannerBarcode);
   offScannerStopBtn.addEventListener("click", fermaScannerBarcode);
   offBarcodeManualeBtn.addEventListener("click", cercaOFFBarcodeManuale);
+
+  const apriFotoSeCliccata = (e) => {
+    const img = e.target.closest(".off-foto-prodotto");
+    if (img) apriFotoProdotto(img.dataset.full);
+  };
+  offAdminRisultati.addEventListener("click", apriFotoSeCliccata);
+  offPazienteRisultati.addEventListener("click", apriFotoSeCliccata);
+  offFotoChiudiBtn.addEventListener("click", chiudiFotoProdotto);
+  offFotoOverlay.addEventListener("click", (e) => {
+    if (e.target === offFotoOverlay) chiudiFotoProdotto();
+  });
 
   notificheAttivaBtn.addEventListener("click", attivaNotifiche);
   notificheRifiutaBtn.addEventListener("click", rifiutaNotifiche);
