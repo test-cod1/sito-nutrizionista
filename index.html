@@ -27,6 +27,9 @@
       } catch (e) {}
     })();
   </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -116,7 +119,7 @@
   </div>
 
   <!-- Vista paziente: profilo e dieta attuale in sola lettura -->
-  <div id="vista-paziente" class="hidden">
+  <div id="vista-paziente" class="hidden contenitore-stretto">
     <div id="anteprima-banner" class="anteprima-banner no-print hidden">
       <span>Anteprima: stai vedendo il sito come lo vede il paziente.</span>
       <button type="button" id="anteprima-torna-btn">Torna all'amministrazione</button>
@@ -233,258 +236,426 @@
   </div>
 
   <div id="app-shell" class="hidden">
-    <header class="hero no-print">
-      <div class="gestione-utenti-fisso">
-        <button type="button" id="gestione-utenti-btn" title="Gestione utenti" aria-label="Gestione utenti">👤</button>
-        <button type="button" id="sicurezza-btn" title="Sicurezza account" aria-label="Sicurezza account">🔒</button>
-      </div>
-      <div class="header-azioni-destra">
-        <button type="button" id="logout-btn" class="esci-header-btn">Esci</button>
-        <div class="tema-toggle">
-          <button type="button" id="tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
-          <button type="button" id="tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
-        </div>
-      </div>
-      <h1>Calcolatore Piano Alimentare</h1>
-      <p class="hero-sub">Crea, calcola e stampa il piano alimentare del paziente</p>
-    </header>
+    <div class="shell-app">
+      <div class="shell-riquadro">
 
-    <section id="paziente-bar" class="card no-print">
-      <div class="paziente-bar-riga">
-        <div class="paziente-selettore">
-          <div class="paziente-selettore-testa">
-            <label for="paziente-search-input">Paziente in lavorazione</label>
-            <button type="button" id="anteprima-paziente-btn" class="vista-paziente-btn" disabled>Vista paziente</button>
+        <!-- top bar -->
+        <div class="shell-topbar no-print">
+          <div class="shell-logo">
+            <span class="shell-logo-riquadro">N</span>
+            <span>NutriPlan</span>
           </div>
-          <div class="autocomplete-wrapper paziente-combo">
-            <input type="text" id="paziente-search-input" placeholder="Cerca o scegli un paziente..." autocomplete="off">
-            <span class="combo-caret" aria-hidden="true">▾</span>
-            <div id="paziente-suggestions" class="suggestions hidden"></div>
-          </div>
-        </div>
-        <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>
-        <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
-        <button type="button" id="storico-btn" class="secondary" disabled>Storico piani alimentari</button>
-      </div>
-    </section>
+          <button type="button" id="gestione-utenti-btn" class="shell-icona-btn" title="Gestione utenti" aria-label="Gestione utenti">👤</button>
+          <button type="button" id="sicurezza-btn" class="shell-icona-btn" title="Sicurezza account" aria-label="Sicurezza account">🔒</button>
 
-    <section id="agenda-admin" class="card no-print">
-      <div class="paziente-bar-riga">
-        <h2>Agenda appuntamenti</h2>
-        <button type="button" id="agenda-nuovo-btn" class="secondary">+ Nuovo appuntamento</button>
-      </div>
-      <label for="agenda-filtro-paziente">Filtra per paziente</label>
-      <select id="agenda-filtro-paziente">
-        <option value="">Tutti i pazienti</option>
-      </select>
-      <div id="agenda-lista"></div>
-    </section>
+          <div class="shell-topbar-spazio"></div>
 
-    <div id="area-lavoro" class="hidden">
-      <section id="impostazioni" class="card no-print">
-        <h2>Dati piano alimentare</h2>
-        <label for="max-kcal-input">Calorie massime giornaliere</label>
-        <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
-
-        <button id="impostazioni-stampa-toggle" class="impostazioni-stampa-toggle" type="button">⚙ Impostazioni di stampa ▸</button>
-        <div id="impostazioni-stampa-contenuto" class="hidden">
-          <label for="sostituzioni-input">Sostituzioni possibili (stampate in fondo al PDF cliente)</label>
-          <textarea id="sostituzioni-input" rows="3" placeholder="es. Il petto di pollo può essere sostituito con tacchino o pesce bianco; la pasta con riso o farro…"></textarea>
-
-          <label for="info-studio-input">Informazioni studio (a piè di pagina nei PDF)</label>
-          <input type="text" id="info-studio-input" placeholder="es. Dott.ssa Nome Cognome · Tel. 000 000000 · email@studio.it">
-
-          <label>Validità del piano (opzionale, stampata in ogni PDF)</label>
-          <div class="riga-validita">
-            <div>
-              <label for="valido-dal-input" class="sotto-etichetta">Dal</label>
-              <input type="date" id="valido-dal-input">
-            </div>
-            <div>
-              <label for="valido-al-input" class="sotto-etichetta">Al</label>
-              <input type="date" id="valido-al-input">
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="checkin-admin" class="card no-print">
-        <h2>Check-in periodico</h2>
-        <div id="checkin-badge-stato"></div>
-
-        <div class="tab-strip">
-          <button type="button" class="tab-btn attivo" data-tab="checkin-dati-tab">Dati check-in</button>
-          <button type="button" class="tab-btn" data-tab="checkin-impostazioni-tab">Impostazioni</button>
-        </div>
-
-        <div id="checkin-dati-tab" class="tab-pannello">
-          <div id="checkin-admin-tabella"></div>
-        </div>
-
-        <div id="checkin-impostazioni-tab" class="tab-pannello hidden">
-          <label for="checkin-frequenza-select">Frequenza check-in richiesta al paziente</label>
-          <select id="checkin-frequenza-select">
-            <option value="">— Non impostata —</option>
-            <option value="settimanale">Settimanale</option>
-            <option value="quindicinale">Quindicinale</option>
-            <option value="mensile">Mensile</option>
-          </select>
-          <button id="checkin-frequenza-salva-btn">Salva frequenza</button>
-          <p id="checkin-frequenza-successo" class="hidden"></p>
-        </div>
-      </section>
-
-      <section id="off-ricerca-admin" class="card no-print">
-        <h2>Ricerca prodotti (Open Food Facts)</h2>
-        <p class="hint">Consulta i valori nutrizionali di un prodotto confezionato, senza uscire dal sito. Solo consultazione: non viene importato nulla nel calcolatore.</p>
-        <div class="griglia-2">
-          <div>
-            <label for="off-admin-query-input">Nome prodotto o marca</label>
-            <input type="text" id="off-admin-query-input" placeholder="es. Nutella, Barilla penne...">
-          </div>
-          <div>
-            <label for="off-admin-barcode-input">Oppure codice a barre</label>
-            <input type="text" id="off-admin-barcode-input" placeholder="es. 3017620422003" inputmode="numeric">
-          </div>
-        </div>
-        <button id="off-admin-cerca-btn">Cerca</button>
-        <p id="off-admin-error" class="error hidden"></p>
-        <div id="off-admin-risultati"></div>
-        <p class="off-attribuzione">Dati nutrizionali forniti da <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, disponibili sotto licenza <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License (ODbL)</a>.</p>
-      </section>
-
-      <section id="calcolatore" class="card no-print">
-        <h2>Calcolatore alimento</h2>
-
-        <label for="food-input">Alimento</label>
-        <div class="riga-alimento">
-          <div class="autocomplete-wrapper">
-            <input type="text" id="food-input" placeholder="Inizia a scrivere il nome dell'alimento..." autocomplete="off">
-            <div id="suggestions" class="suggestions hidden"></div>
-          </div>
-          <button id="nuovo-alimento-btn" class="secondary btn-plus" title="Aggiungi un nuovo alimento al database">+</button>
-        </div>
-        <p id="food-error" class="error hidden">Alimento non trovato. Selezionalo dall'elenco suggerito mentre scrivi.</p>
-
-        <div id="nuovo-alimento-form" class="nuovo-alimento-form hidden">
-          <h3>Nuovo alimento</h3>
-          <label for="nuovo-nome">Nome alimento</label>
-          <input type="text" id="nuovo-nome" placeholder="es. PANE INTEGRALE">
-
-          <div class="griglia-4">
-            <div>
-              <label for="nuovo-kcal">Calorie (per 100g)</label>
-              <input type="number" id="nuovo-kcal" min="0" step="0.1">
-            </div>
-            <div>
-              <label for="nuovo-prot">Proteine (per 100g)</label>
-              <input type="number" id="nuovo-prot" min="0" step="0.1">
-            </div>
-            <div>
-              <label for="nuovo-fat">Grassi (per 100g)</label>
-              <input type="number" id="nuovo-fat" min="0" step="0.1">
-            </div>
-            <div>
-              <label for="nuovo-carb">Carboidrati (per 100g)</label>
-              <input type="number" id="nuovo-carb" min="0" step="0.1">
-            </div>
-          </div>
-          <p id="nuovo-alimento-error" class="error hidden">Compila nome e tutti i valori nutrizionali (numeri, anche 0).</p>
-          <div>
-            <button id="salva-alimento-btn">Salva alimento</button>
-            <button id="annulla-alimento-btn" class="danger">Annulla</button>
-          </div>
-        </div>
-
-        <label for="grams-input">Peso (g)</label>
-        <input type="number" id="grams-input" min="0" step="1" placeholder="es. 100">
-
-        <label for="nota-input">Note (opzionale)</label>
-        <input type="text" id="nota-input" placeholder="es. cotto al vapore, sostituibile con...">
-
-        <label class="check-inline">
-          <input type="checkbox" id="porzione-check">
-          Mostra porzione al posto dei grammi nel PDF cliente
-        </label>
-        <input type="text" id="porzione-input" class="hidden" placeholder="es. 3 cucchiai, 1 vasetto, q.b.">
-
-        <div id="preview" class="preview hidden">
-          <p>Calorie: <strong><span id="preview-kcal"></span> kcal</strong></p>
-          <p>Proteine: <span id="preview-prot"></span> g</p>
-          <p>Grassi: <span id="preview-fat"></span> g</p>
-          <p>Carboidrati: <span id="preview-carb"></span> g</p>
-        </div>
-
-        <button id="add-draft-btn" disabled>Aggiungi al pasto in corso</button>
-      </section>
-
-      <section id="pasto-corrente" class="card no-print">
-        <h2>Pasto in corso</h2>
-        <div id="draft-container">
-          <p class="vuoto">Nessun alimento aggiunto al pasto in corso.</p>
-        </div>
-
-        <div class="conferma-riga">
-          <label>In quali giorni inserire questo pasto?</label>
-          <div class="giorni-dropdown">
-            <button type="button" id="giorni-dropdown-btn" class="giorni-dropdown-btn">Seleziona giorni ▾</button>
-            <div id="giorni-dropdown-panel" class="giorni-dropdown-panel hidden">
-              <div class="giorni-preset">
-                <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="tutti" title="Clicca di nuovo per deselezionare">Tutti i giorni</button>
-                <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="feriali" title="Clicca di nuovo per deselezionare">Lun–Ven</button>
-                <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="weekend" title="Clicca di nuovo per deselezionare">Weekend</button>
+          <div class="shell-paziente-pill-wrap">
+            <button type="button" id="paziente-pill-btn" class="shell-paziente-pill">
+              <span class="shell-paziente-pill-avatar"></span>
+              <span class="shell-paziente-pill-nome" id="paziente-pill-nome">Nessun paziente</span>
+              <span class="shell-paziente-pill-caret">▾</span>
+            </button>
+            <div id="paziente-pannello" class="shell-paziente-pannello hidden">
+              <label for="paziente-search-input">Paziente in lavorazione</label>
+              <div class="autocomplete-wrapper paziente-combo">
+                <input type="text" id="paziente-search-input" placeholder="Cerca o scegli un paziente..." autocomplete="off">
+                <span class="combo-caret" aria-hidden="true">▾</span>
+                <div id="paziente-suggestions" class="suggestions hidden"></div>
               </div>
-              <div id="conferma-giorni-checkbox" class="giorni-checkbox-griglia"></div>
+              <div class="shell-paziente-pannello-azioni">
+                <button type="button" id="anteprima-paziente-btn" class="vista-paziente-btn secondary" disabled>Vista paziente</button>
+              </div>
             </div>
           </div>
 
-          <label for="pasto-select">Pasto</label>
-          <select id="pasto-select">
-            <option>Colazione</option>
-            <option>Spuntino mattina</option>
-            <option>Pranzo</option>
-            <option>Merenda</option>
-            <option>Cena</option>
-          </select>
-
-          <button id="conferma-pasto-btn" disabled>Conferma pasto e aggiungi ai giorni selezionati</button>
-          <button id="svuota-pasto-btn" class="danger">Svuota pasto in corso</button>
-        </div>
-
-        <div class="pasto-libero-blocco">
-          <label>Pasto libero</label>
-          <p class="hint">Segna il pasto e i giorni selezionati qui sopra come "Pasto libero" (sostituisce eventuali alimenti già presenti in quel pasto).</p>
-          <div class="pasto-libero-campi">
-            <input type="number" id="libero-kcal-input" min="0" placeholder="kcal stimate (opzionale)">
-            <input type="text" id="libero-nota-input" placeholder="nota (opzionale, es. cena fuori)">
+          <button type="button" id="logout-btn" class="esci-header-btn">Esci</button>
+          <div class="tema-toggle">
+            <button type="button" id="tema-chiaro-btn" class="tema-btn" title="Modalità giorno" aria-label="Modalità giorno">☀</button>
+            <button type="button" id="tema-notte-btn" class="tema-btn" title="Modalità notte" aria-label="Modalità notte">☾</button>
           </div>
-          <button id="pasto-libero-btn" class="secondary" disabled>Segna come pasto libero</button>
-        </div>
-      </section>
 
-      <section id="panoramica" class="card no-print">
-        <button id="panoramica-toggle" class="panoramica-toggle" type="button">▸ Panoramica settimanale</button>
-        <div id="panoramica-contenuto" class="hidden">
-          <div class="panoramica-scroll">
-            <div id="panoramica-griglia" class="panoramica-griglia"></div>
-          </div>
-          <p class="hint">Vista riassuntiva di sola consultazione: per modificare usa l'elenco qui sotto.</p>
+          <!-- Elementi delle vecchie sezioni "Profilo"/"Storico" rimasti agganciati
+               dal codice esistente ma senza più un pulsante visibile: restano nel
+               DOM (nascosti) solo perché script.js li referenzia ancora. -->
+          <button type="button" id="profilo-btn" class="hidden" disabled>Profilo paziente</button>
+          <button type="button" id="storico-btn" class="hidden" disabled>Storico piani alimentari</button>
         </div>
-      </section>
 
-      <section id="dieta" class="card">
-        <div class="dieta-header no-print">
-          <h2>Piano alimentare settimanale</h2>
-          <div class="pdf-buttons">
-            <button id="salva-storico-btn" class="secondary">Salva come versione storica</button>
-            <button id="pdf-dieta-btn" class="secondary">PDF Piano alimentare (cliente)</button>
-            <button id="pdf-spesa-btn" class="secondary">PDF Lista della spesa</button>
-            <button id="pdf-nutrizionista-btn" class="secondary">PDF Scheda nutrizionista</button>
-            <button id="reset-btn" class="danger">Svuota piano alimentare</button>
+        <div class="shell-corpo">
+          <!-- sidebar -->
+          <nav id="shell-sidebar-nav" class="shell-sidebar no-print">
+            <div class="shell-nav-gruppo-titolo">Costruzione</div>
+            <button type="button" class="shell-nav-voce attivo" data-sezione="piano"><span class="shell-nav-icona"></span>Piano alimentare</button>
+            <button type="button" class="shell-nav-voce" data-sezione="ricerca-prodotti"><span class="shell-nav-icona tonda"></span>Ricerca prodotti</button>
+            <button type="button" class="shell-nav-voce" data-sezione="storico"><span class="shell-nav-icona tonda"></span>Storico piani</button>
+
+            <div class="shell-nav-gruppo-titolo">Paziente</div>
+            <button type="button" class="shell-nav-voce" data-sezione="anagrafica"><span class="shell-nav-icona tonda"></span>Anagrafica &amp; profilo</button>
+            <button type="button" class="shell-nav-voce" data-sezione="checkin"><span class="shell-nav-icona ruotata"></span>Check-in &amp; progressi</button>
+            <button type="button" class="shell-nav-voce" data-sezione="agenda"><span class="shell-nav-icona tonda"></span>Agenda appuntamenti</button>
+
+            <div class="shell-nav-gruppo-titolo">Sistema</div>
+            <button type="button" class="shell-nav-voce" data-sezione="stampa"><span class="shell-nav-icona tonda"></span>Impostazioni stampa</button>
+
+            <div class="shell-sidebar-fondo">
+              <button type="button" id="nuovo-paziente-btn" class="shell-nuovo-paziente-btn">+ Nuovo paziente</button>
+            </div>
+          </nav>
+
+          <!-- area principale: una sola sezione visibile alla volta -->
+          <div class="shell-main">
+
+            <!-- ===== Piano alimentare ===== -->
+            <div id="sezione-piano" class="shell-pagina">
+              <div class="shell-pagina-header no-print">
+                <div>
+                  <h2>Piano alimentare</h2>
+                  <div class="shell-pagina-sottotitolo">Componi i pasti e monitora le calorie</div>
+                </div>
+                <div class="shell-pagina-header-spazio"></div>
+                <div class="shell-chip">Obiettivo · <span id="piano-obiettivo-valore">non impostato</span></div>
+              </div>
+
+              <p id="piano-vuoto" class="shell-vuoto">Scegli o crea un paziente per comporre il suo piano alimentare.</p>
+
+              <div id="piano-contenuto" class="hidden">
+                <section id="impostazioni" class="card no-print">
+                  <h2>Dati piano alimentare</h2>
+                  <label for="max-kcal-input">Calorie massime giornaliere</label>
+                  <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
+                </section>
+
+                <section id="calcolatore" class="card no-print">
+                  <h2>Calcolatore alimento</h2>
+
+                  <label for="food-input">Alimento</label>
+                  <div class="riga-alimento">
+                    <div class="autocomplete-wrapper">
+                      <input type="text" id="food-input" placeholder="Inizia a scrivere il nome dell'alimento..." autocomplete="off">
+                      <div id="suggestions" class="suggestions hidden"></div>
+                    </div>
+                    <button id="nuovo-alimento-btn" class="secondary btn-plus" title="Aggiungi un nuovo alimento al database">+</button>
+                  </div>
+                  <p id="food-error" class="error hidden">Alimento non trovato. Selezionalo dall'elenco suggerito mentre scrivi.</p>
+
+                  <div id="nuovo-alimento-form" class="nuovo-alimento-form hidden">
+                    <h3>Nuovo alimento</h3>
+                    <label for="nuovo-nome">Nome alimento</label>
+                    <input type="text" id="nuovo-nome" placeholder="es. PANE INTEGRALE">
+
+                    <div class="griglia-4">
+                      <div>
+                        <label for="nuovo-kcal">Calorie (per 100g)</label>
+                        <input type="number" id="nuovo-kcal" min="0" step="0.1">
+                      </div>
+                      <div>
+                        <label for="nuovo-prot">Proteine (per 100g)</label>
+                        <input type="number" id="nuovo-prot" min="0" step="0.1">
+                      </div>
+                      <div>
+                        <label for="nuovo-fat">Grassi (per 100g)</label>
+                        <input type="number" id="nuovo-fat" min="0" step="0.1">
+                      </div>
+                      <div>
+                        <label for="nuovo-carb">Carboidrati (per 100g)</label>
+                        <input type="number" id="nuovo-carb" min="0" step="0.1">
+                      </div>
+                    </div>
+                    <p id="nuovo-alimento-error" class="error hidden">Compila nome e tutti i valori nutrizionali (numeri, anche 0).</p>
+                    <div>
+                      <button id="salva-alimento-btn">Salva alimento</button>
+                      <button id="annulla-alimento-btn" class="danger">Annulla</button>
+                    </div>
+                  </div>
+
+                  <label for="grams-input">Peso (g)</label>
+                  <input type="number" id="grams-input" min="0" step="1" placeholder="es. 100">
+
+                  <label for="nota-input">Note (opzionale)</label>
+                  <input type="text" id="nota-input" placeholder="es. cotto al vapore, sostituibile con...">
+
+                  <label class="check-inline">
+                    <input type="checkbox" id="porzione-check">
+                    Mostra porzione al posto dei grammi nel PDF cliente
+                  </label>
+                  <input type="text" id="porzione-input" class="hidden" placeholder="es. 3 cucchiai, 1 vasetto, q.b.">
+
+                  <div id="preview" class="hidden">
+                    <div class="badge-macro-griglia">
+                      <div class="badge-macro badge-macro-kcal"><div class="badge-macro-valore" id="preview-kcal"></div><div class="badge-macro-label">kcal</div></div>
+                      <div class="badge-macro"><div class="badge-macro-valore" id="preview-prot"></div><div class="badge-macro-label">prot g</div></div>
+                      <div class="badge-macro"><div class="badge-macro-valore" id="preview-fat"></div><div class="badge-macro-label">gras g</div></div>
+                      <div class="badge-macro"><div class="badge-macro-valore" id="preview-carb"></div><div class="badge-macro-label">carb g</div></div>
+                    </div>
+                  </div>
+
+                  <button id="add-draft-btn" disabled>Aggiungi al pasto in corso</button>
+                </section>
+
+                <section id="pasto-corrente" class="card no-print">
+                  <h2>Pasto in corso</h2>
+                  <div id="draft-container">
+                    <p class="vuoto">Nessun alimento aggiunto al pasto in corso.</p>
+                  </div>
+
+                  <div class="conferma-riga">
+                    <label>In quali giorni inserire questo pasto?</label>
+                    <div class="giorni-dropdown">
+                      <button type="button" id="giorni-dropdown-btn" class="giorni-dropdown-btn">Seleziona giorni ▾</button>
+                      <div id="giorni-dropdown-panel" class="giorni-dropdown-panel hidden">
+                        <div class="giorni-preset">
+                          <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="tutti" title="Clicca di nuovo per deselezionare">Tutti i giorni</button>
+                          <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="feriali" title="Clicca di nuovo per deselezionare">Lun–Ven</button>
+                          <button type="button" class="preset-btn" data-target="conferma-giorni-checkbox" data-preset="weekend" title="Clicca di nuovo per deselezionare">Weekend</button>
+                        </div>
+                        <div id="conferma-giorni-checkbox" class="giorni-checkbox-griglia"></div>
+                      </div>
+                    </div>
+
+                    <label for="pasto-select">Pasto</label>
+                    <select id="pasto-select">
+                      <option>Colazione</option>
+                      <option>Spuntino mattina</option>
+                      <option>Pranzo</option>
+                      <option>Merenda</option>
+                      <option>Cena</option>
+                    </select>
+
+                    <button id="conferma-pasto-btn" disabled>Conferma pasto e aggiungi ai giorni selezionati</button>
+                    <button id="svuota-pasto-btn" class="danger">Svuota pasto in corso</button>
+                  </div>
+
+                  <div class="pasto-libero-blocco">
+                    <label>Pasto libero</label>
+                    <p class="hint">Segna il pasto e i giorni selezionati qui sopra come "Pasto libero" (sostituisce eventuali alimenti già presenti in quel pasto).</p>
+                    <div class="pasto-libero-campi">
+                      <input type="number" id="libero-kcal-input" min="0" placeholder="kcal stimate (opzionale)">
+                      <input type="text" id="libero-nota-input" placeholder="nota (opzionale, es. cena fuori)">
+                    </div>
+                    <button id="pasto-libero-btn" class="secondary" disabled>Segna come pasto libero</button>
+                  </div>
+                </section>
+
+                <section id="panoramica" class="card no-print">
+                  <button id="panoramica-toggle" class="panoramica-toggle" type="button">▸ Panoramica settimanale</button>
+                  <div id="panoramica-contenuto" class="hidden">
+                    <div class="panoramica-scroll">
+                      <div id="panoramica-griglia" class="panoramica-griglia"></div>
+                    </div>
+                    <p class="hint">Vista riassuntiva di sola consultazione: per modificare usa l'elenco qui sotto.</p>
+                  </div>
+                </section>
+
+                <section id="dieta" class="card">
+                  <div class="dieta-header no-print">
+                    <h2>Piano alimentare settimanale</h2>
+                    <div class="pdf-buttons">
+                      <button id="salva-storico-btn" class="secondary">Salva come versione storica</button>
+                      <button id="pdf-dieta-btn" class="secondary">PDF Piano alimentare (cliente)</button>
+                      <button id="pdf-spesa-btn" class="secondary">PDF Lista della spesa</button>
+                      <button id="pdf-nutrizionista-btn" class="secondary">PDF Scheda nutrizionista</button>
+                      <button id="reset-btn" class="danger">Svuota piano alimentare</button>
+                    </div>
+                  </div>
+                  <div id="dieta-container"></div>
+                </section>
+              </div>
+            </div>
+
+            <!-- ===== Ricerca prodotti (Open Food Facts) ===== -->
+            <div id="sezione-ricerca-prodotti" class="shell-pagina hidden">
+              <section id="off-ricerca-admin" class="card no-print">
+                <h2>Ricerca prodotti (Open Food Facts)</h2>
+                <p class="hint">Consulta i valori nutrizionali di un prodotto confezionato, senza uscire dal sito. Solo consultazione: non viene importato nulla nel calcolatore.</p>
+                <div class="griglia-2">
+                  <div>
+                    <label for="off-admin-query-input">Nome prodotto o marca</label>
+                    <input type="text" id="off-admin-query-input" placeholder="es. Nutella, Barilla penne...">
+                  </div>
+                  <div>
+                    <label for="off-admin-barcode-input">Oppure codice a barre</label>
+                    <input type="text" id="off-admin-barcode-input" placeholder="es. 3017620422003" inputmode="numeric">
+                  </div>
+                </div>
+                <button id="off-admin-cerca-btn">Cerca</button>
+                <p id="off-admin-error" class="error hidden"></p>
+                <div id="off-admin-risultati"></div>
+                <p class="off-attribuzione">Dati nutrizionali forniti da <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, disponibili sotto licenza <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License (ODbL)</a>.</p>
+              </section>
+            </div>
+
+            <!-- ===== Storico piani ===== -->
+            <div id="sezione-storico" class="shell-pagina hidden">
+              <div class="shell-pagina-header no-print">
+                <div>
+                  <h2>Storico piani</h2>
+                  <div class="shell-pagina-sottotitolo">Versioni salvate del piano di <span id="storico-paziente-nome"></span></div>
+                </div>
+              </div>
+              <p id="storico-vuoto" class="shell-vuoto">Scegli o crea un paziente per vedere il suo storico piani.</p>
+              <div id="storico-contenuto" class="hidden">
+                <section class="card no-print">
+                  <p class="duplica-sottotitolo">Aprine una per vederla e stamparla; il piano alimentare attivo non viene modificato.</p>
+                  <div id="storico-lista"></div>
+                </section>
+              </div>
+              <button type="button" id="storico-chiudi-btn" class="hidden">Chiudi</button>
+            </div>
+
+            <!-- ===== Anagrafica & profilo ===== -->
+            <div id="sezione-anagrafica" class="shell-pagina hidden">
+              <div class="shell-pagina-header no-print">
+                <div>
+                  <h2>Anagrafica &amp; profilo</h2>
+                  <div class="shell-pagina-sottotitolo">Dati fisici, contatti e note cliniche — <span id="profilo-paziente-nome"></span></div>
+                </div>
+              </div>
+              <p id="anagrafica-vuoto" class="shell-vuoto">Scegli o crea un paziente per vedere e modificare il suo profilo.</p>
+              <div id="anagrafica-contenuto" class="hidden">
+                <section class="card no-print">
+                  <div class="griglia-2">
+                    <div>
+                      <label for="profilo-data-nascita">Data di nascita</label>
+                      <input type="date" id="profilo-data-nascita">
+                    </div>
+                    <div>
+                      <label for="profilo-sesso">Sesso</label>
+                      <select id="profilo-sesso">
+                        <option value="">—</option>
+                        <option value="F">Femmina</option>
+                        <option value="M">Maschio</option>
+                        <option value="Altro">Altro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="profilo-altezza">Altezza (cm)</label>
+                      <input type="number" id="profilo-altezza" min="0" step="0.1">
+                    </div>
+                    <div>
+                      <label for="profilo-peso">Peso attuale (kg)</label>
+                      <input type="number" id="profilo-peso" min="0" step="0.1">
+                    </div>
+                    <div class="griglia-2-full">
+                      <label for="profilo-attivita">Livello di attività fisica</label>
+                      <select id="profilo-attivita">
+                        <option value="">—</option>
+                        <option value="Sedentario">Sedentario</option>
+                        <option value="Leggero">Leggero (1-3 giorni/sett.)</option>
+                        <option value="Moderato">Moderato (3-5 giorni/sett.)</option>
+                        <option value="Intenso">Intenso (6-7 giorni/sett.)</option>
+                        <option value="Molto intenso">Molto intenso (lavoro fisico + sport)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="profilo-telefono">Telefono</label>
+                      <input type="tel" id="profilo-telefono">
+                    </div>
+                    <div>
+                      <label for="profilo-email">Email</label>
+                      <input type="email" id="profilo-email">
+                    </div>
+                    <div class="griglia-2-full">
+                      <label for="profilo-allergie">Allergie / intolleranze</label>
+                      <input type="text" id="profilo-allergie" placeholder="es. lattosio, glutine, frutta a guscio...">
+                    </div>
+                    <div class="griglia-2-full">
+                      <label for="profilo-note">Note generali</label>
+                      <textarea id="profilo-note" rows="3" placeholder="Patologie, obiettivi, altre annotazioni..."></textarea>
+                    </div>
+                  </div>
+                  <p id="profilo-reset-msg" class="hidden"></p>
+                  <div class="duplica-azioni">
+                    <button id="profilo-salva-btn">Salva profilo</button>
+                    <button id="profilo-reset-password-btn" class="secondary">Resetta password paziente</button>
+                  </div>
+                </section>
+              </div>
+              <button type="button" id="profilo-annulla-btn" class="hidden">Chiudi</button>
+            </div>
+
+            <!-- ===== Check-in & progressi ===== -->
+            <div id="sezione-checkin" class="shell-pagina hidden">
+              <p id="checkin-vuoto" class="shell-vuoto">Scegli o crea un paziente per vedere i suoi check-in.</p>
+              <div id="checkin-contenuto" class="hidden">
+                <section id="checkin-admin" class="card no-print">
+                  <h2>Check-in &amp; progressi</h2>
+                  <div id="checkin-badge-stato"></div>
+
+                  <div class="tab-strip">
+                    <button type="button" class="tab-btn attivo" data-tab="checkin-dati-tab">Dati check-in</button>
+                    <button type="button" class="tab-btn" data-tab="checkin-impostazioni-tab">Impostazioni</button>
+                  </div>
+
+                  <div id="checkin-dati-tab" class="tab-pannello">
+                    <div id="checkin-admin-tabella"></div>
+                  </div>
+
+                  <div id="checkin-impostazioni-tab" class="tab-pannello hidden">
+                    <label for="checkin-frequenza-select">Frequenza check-in richiesta al paziente</label>
+                    <select id="checkin-frequenza-select">
+                      <option value="">— Non impostata —</option>
+                      <option value="settimanale">Settimanale</option>
+                      <option value="quindicinale">Quindicinale</option>
+                      <option value="mensile">Mensile</option>
+                    </select>
+                    <button id="checkin-frequenza-salva-btn">Salva frequenza</button>
+                    <p id="checkin-frequenza-successo" class="hidden"></p>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <!-- ===== Agenda appuntamenti ===== -->
+            <div id="sezione-agenda" class="shell-pagina hidden">
+              <section id="agenda-admin" class="card no-print">
+                <div class="paziente-bar-riga">
+                  <h2>Agenda appuntamenti</h2>
+                  <button type="button" id="agenda-nuovo-btn" class="secondary">+ Nuovo appuntamento</button>
+                </div>
+                <label for="agenda-filtro-paziente">Filtra per paziente</label>
+                <select id="agenda-filtro-paziente">
+                  <option value="">Tutti i pazienti</option>
+                </select>
+                <div id="agenda-lista"></div>
+              </section>
+            </div>
+
+            <!-- ===== Impostazioni stampa ===== -->
+            <div id="sezione-stampa" class="shell-pagina hidden">
+              <div class="shell-pagina-header no-print">
+                <div>
+                  <h2>Impostazioni stampa</h2>
+                  <div class="shell-pagina-sottotitolo">Cosa compare nei PDF generati per il paziente in lavorazione</div>
+                </div>
+              </div>
+              <p id="stampa-vuoto" class="shell-vuoto">Scegli o crea un paziente per impostare le opzioni di stampa del suo piano.</p>
+              <div id="stampa-contenuto" class="hidden">
+                <section class="card no-print">
+                  <label for="sostituzioni-input">Sostituzioni possibili (stampate in fondo al PDF cliente)</label>
+                  <textarea id="sostituzioni-input" rows="3" placeholder="es. Il petto di pollo può essere sostituito con tacchino o pesce bianco; la pasta con riso o farro…"></textarea>
+
+                  <label for="info-studio-input">Informazioni studio (a piè di pagina nei PDF)</label>
+                  <input type="text" id="info-studio-input" placeholder="es. Dott.ssa Nome Cognome · Tel. 000 000000 · email@studio.it">
+
+                  <label>Validità del piano (opzionale, stampata in ogni PDF)</label>
+                  <div class="riga-validita">
+                    <div>
+                      <label for="valido-dal-input" class="sotto-etichetta">Dal</label>
+                      <input type="date" id="valido-dal-input">
+                    </div>
+                    <div>
+                      <label for="valido-al-input" class="sotto-etichetta">Al</label>
+                      <input type="date" id="valido-al-input">
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+
           </div>
         </div>
-        <div id="dieta-container"></div>
-      </section>
+      </div>
     </div>
   </div>
 
@@ -643,80 +814,6 @@
     </div>
   </div>
 
-  <!-- Profilo paziente -->
-  <div id="profilo-overlay" class="duplica-overlay hidden no-print">
-    <div class="duplica-modal duplica-modal-larga">
-      <h3>Profilo — <span id="profilo-paziente-nome"></span></h3>
-      <div class="griglia-2">
-        <div>
-          <label for="profilo-data-nascita">Data di nascita</label>
-          <input type="date" id="profilo-data-nascita">
-        </div>
-        <div>
-          <label for="profilo-sesso">Sesso</label>
-          <select id="profilo-sesso">
-            <option value="">—</option>
-            <option value="F">Femmina</option>
-            <option value="M">Maschio</option>
-            <option value="Altro">Altro</option>
-          </select>
-        </div>
-        <div>
-          <label for="profilo-altezza">Altezza (cm)</label>
-          <input type="number" id="profilo-altezza" min="0" step="0.1">
-        </div>
-        <div>
-          <label for="profilo-peso">Peso attuale (kg)</label>
-          <input type="number" id="profilo-peso" min="0" step="0.1">
-        </div>
-        <div class="griglia-2-full">
-          <label for="profilo-attivita">Livello di attività fisica</label>
-          <select id="profilo-attivita">
-            <option value="">—</option>
-            <option value="Sedentario">Sedentario</option>
-            <option value="Leggero">Leggero (1-3 giorni/sett.)</option>
-            <option value="Moderato">Moderato (3-5 giorni/sett.)</option>
-            <option value="Intenso">Intenso (6-7 giorni/sett.)</option>
-            <option value="Molto intenso">Molto intenso (lavoro fisico + sport)</option>
-          </select>
-        </div>
-        <div>
-          <label for="profilo-telefono">Telefono</label>
-          <input type="tel" id="profilo-telefono">
-        </div>
-        <div>
-          <label for="profilo-email">Email</label>
-          <input type="email" id="profilo-email">
-        </div>
-        <div class="griglia-2-full">
-          <label for="profilo-allergie">Allergie / intolleranze</label>
-          <input type="text" id="profilo-allergie" placeholder="es. lattosio, glutine, frutta a guscio...">
-        </div>
-        <div class="griglia-2-full">
-          <label for="profilo-note">Note generali</label>
-          <textarea id="profilo-note" rows="3" placeholder="Patologie, obiettivi, altre annotazioni..."></textarea>
-        </div>
-      </div>
-      <p id="profilo-reset-msg" class="hidden"></p>
-      <div class="duplica-azioni">
-        <button id="profilo-salva-btn">Salva profilo</button>
-        <button id="profilo-reset-password-btn" class="secondary">Resetta password paziente</button>
-        <button id="profilo-annulla-btn" class="danger">Chiudi</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Storico diete -->
-  <div id="storico-overlay" class="duplica-overlay hidden no-print">
-    <div class="duplica-modal duplica-modal-larga">
-      <h3>Storico piani alimentari — <span id="storico-paziente-nome"></span></h3>
-      <p class="duplica-sottotitolo">Versioni salvate in precedenza per questo paziente. Aprine una per vederla e stamparla; il piano alimentare attivo non viene modificato.</p>
-      <div id="storico-lista"></div>
-      <div class="duplica-azioni">
-        <button id="storico-chiudi-btn" class="danger">Chiudi</button>
-      </div>
-    </div>
-  </div>
 
   <div id="duplica-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal">

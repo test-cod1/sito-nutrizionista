@@ -1,21 +1,29 @@
 :root {
-  --bg-gradient: linear-gradient(180deg, #eef6f1 0%, #f4f6f5 220px);
+  --bg-gradient: #e9ebe6;
+  --bg-shell: #e9ebe6;
   --surface: #ffffff;
-  --surface-alt: #fbfdfc;
-  --surface-alt-2: #f6faf7;
-  --text: #223229;
-  --text-muted: #7a8a82;
-  --border: #e2e9e5;
-  --border-2: #eceff0;
-  --border-input: #cdd9d2;
+  --surface-alt: #fafbf9;
+  --surface-alt-2: #f5f7f3;
+  --surface-alt-3: #f2f4f0;
+  --text: #1c211d;
+  --text-body: #3a403b;
+  --text-muted: #6b726c;
+  --text-faint: #8a908a;
+  --text-eyebrow: #9aa09a;
+  --border: #eceee9;
+  --border-2: #f0f1ed;
+  --border-card: #e6e9e3;
+  --border-input: #e0e4dd;
+  --border-shell: #d8dcd4;
+  --nav-icon-inactive: #aab0aa;
   --accent: #2f6d4f;
-  --accent-hover: #24573f;
+  --accent-hover: #245a40;
   --accent-gradient: linear-gradient(135deg, #2f6d4f, #3f9068);
-  --accent-tint: #eef4f0;
-  --accent-tint-2: #eef8f1;
-  --accent-tint-strong: #dcece2;
-  --accent-border: #bcd0c4;
-  --preview-gradient: linear-gradient(135deg, #eef8f1, #e4f2ea);
+  --accent-tint: #eaf1ec;
+  --accent-tint-2: #f4f9f5;
+  --accent-tint-strong: #cfe0d4;
+  --accent-border: #cfe0d4;
+  --preview-gradient: linear-gradient(135deg, #eaf1ec, #f4f9f5);
   --danger: #a33a3a;
   --danger-hover: #822d2d;
   --danger-tint: #fdeaea;
@@ -25,21 +33,30 @@
   --shadow: rgba(40, 80, 60, 0.06);
   --shadow-strong: rgba(40, 80, 60, 0.1);
   --shadow-modal: rgba(0, 0, 0, 0.25);
+  --shadow-shell: rgba(20, 30, 22, 0.16);
   --overlay: rgba(20, 35, 27, 0.45);
   --disabled: #b7c3bd;
   --focus-ring: rgba(63, 144, 104, 0.15);
 }
 
 :root.tema-notte {
-  --bg-gradient: linear-gradient(180deg, #142019 0%, #0f1712 220px);
+  --bg-gradient: #141a16;
+  --bg-shell: #141a16;
   --surface: #1c2b23;
   --surface-alt: #182720;
-  --surface-alt-2: #17251e;
+  --surface-alt-2: #1c2b23;
+  --surface-alt-3: #223028;
   --text: #e8f0ea;
+  --text-body: #cfdbd2;
   --text-muted: #92a89b;
+  --text-faint: #7e9488;
+  --text-eyebrow: #71877a;
   --border: #2c4237;
   --border-2: #26392f;
+  --border-card: #2c4237;
   --border-input: #35503f;
+  --border-shell: #263a30;
+  --nav-icon-inactive: #567064;
   --accent: #5ea37a;
   --accent-hover: #74b58c;
   --accent-gradient: linear-gradient(135deg, #26543e, #35714f);
@@ -57,6 +74,7 @@
   --shadow: rgba(0, 0, 0, 0.35);
   --shadow-strong: rgba(0, 0, 0, 0.5);
   --shadow-modal: rgba(0, 0, 0, 0.55);
+  --shadow-shell: rgba(0, 0, 0, 0.5);
   --overlay: rgba(0, 0, 0, 0.6);
   --disabled: #3d4a43;
   --focus-ring: rgba(94, 163, 122, 0.25);
@@ -67,13 +85,18 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 20px 40px;
+  font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg-gradient);
   color: var(--text);
   line-height: 1.5;
+}
+
+/* Contenitore centrato "classico": usato dalla vista paziente e dagli schermi
+   fuori dalla shell admin (login, ecc.), che non hanno bisogno della sidebar. */
+.contenitore-stretto {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
 }
 
 .hero {
@@ -175,57 +198,19 @@ body {
   color: #2f6d4f;
 }
 
-.gestione-utenti-fisso {
-  position: absolute;
-  top: 16px;
-  left: 20px;
-  display: flex;
-  gap: 8px;
-}
-
-#gestione-utenti-btn,
-#sicurezza-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: white;
-  color: #2f6d4f;
-  font-size: 1.05rem;
-  line-height: 1;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-}
-
-#gestione-utenti-btn:hover,
-#sicurezza-btn:hover {
-  background: #eef4f0;
-  transform: none;
-}
-
 h2 {
-  color: var(--accent);
-  font-size: 1.2rem;
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 700;
   margin-top: 0;
 }
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
-  padding: 22px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 10px var(--shadow);
-  transition: box-shadow 0.2s ease;
-}
-
-.card:hover {
-  box-shadow: 0 4px 16px var(--shadow-strong);
+  padding: 18px;
+  margin-bottom: 18px;
 }
 
 label {
@@ -288,11 +273,15 @@ button:disabled {
 }
 
 button.secondary {
-  background: var(--secondary);
+  background: var(--surface);
+  color: var(--text-body);
+  border: 1.5px solid var(--border-input);
 }
 
 button.secondary:hover {
-  background: var(--secondary-hover);
+  background: var(--surface-alt-2);
+  color: var(--accent-hover);
+  transform: none;
 }
 
 button.danger {
@@ -1236,6 +1225,420 @@ table tfoot .riga-totale td {
 
 .duplica-azioni button {
   flex: 1;
+}
+
+/* ==================== Shell amministratore (sidebar) ==================== */
+
+.shell-app {
+  min-height: 100vh;
+  background: var(--bg-shell);
+  padding: 24px;
+}
+
+@media (max-width: 720px) {
+  .shell-app {
+    padding: 0;
+  }
+}
+
+.shell-riquadro {
+  max-width: 1260px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border-shell);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px -30px var(--shadow-shell);
+}
+
+@media (max-width: 720px) {
+  .shell-riquadro {
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+  }
+}
+
+.shell-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.shell-logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.shell-logo-riquadro {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.shell-topbar-spazio {
+  flex: 1;
+}
+
+.shell-icona-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-input);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.shell-icona-btn:hover {
+  background: var(--surface-alt-2);
+  color: var(--accent-hover);
+  transform: none;
+}
+
+.shell-topbar .esci-header-btn {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.shell-topbar .tema-toggle {
+  background: var(--surface-alt-3);
+  flex-shrink: 0;
+}
+
+.shell-topbar .tema-btn {
+  color: var(--text-muted);
+}
+
+/* Pill selettore paziente: al click apre un pannello di ricerca sotto */
+.shell-paziente-pill-wrap {
+  position: relative;
+}
+
+.shell-paziente-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.shell-paziente-pill:hover {
+  background: var(--surface-alt-2);
+}
+
+.shell-paziente-pill-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-tint-strong);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.shell-paziente-pill-nome {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-paziente-pill-caret {
+  color: var(--text-faint);
+}
+
+.shell-paziente-pannello {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  width: 300px;
+  background: var(--surface);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 8px 20px var(--shadow-strong);
+}
+
+@media (max-width: 480px) {
+  .shell-paziente-pannello {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: 64px;
+    width: auto;
+  }
+}
+
+.shell-paziente-pannello .autocomplete-wrapper {
+  margin-bottom: 4px;
+}
+
+.shell-paziente-pannello-azioni {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.shell-paziente-pannello-azioni button {
+  flex: 1;
+  margin-top: 0;
+}
+
+.shell-corpo {
+  display: flex;
+  min-height: 640px;
+}
+
+@media (max-width: 900px) {
+  .shell-corpo {
+    flex-direction: column;
+  }
+}
+
+.shell-sidebar {
+  width: 238px;
+  flex: 0 0 auto;
+  border-right: 1px solid var(--border);
+  padding: 18px 14px;
+  background: var(--surface-alt);
+}
+
+@media (max-width: 900px) {
+  .shell-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.shell-nav-gruppo-titolo {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-eyebrow);
+  font-weight: 600;
+  padding: 14px 10px 8px;
+}
+
+.shell-nav-gruppo-titolo:first-child {
+  padding-top: 0;
+}
+
+.shell-nav-voce {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-body);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.shell-nav-voce:hover {
+  background: var(--surface-alt-2);
+  transform: none;
+}
+
+.shell-nav-voce.attivo {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.shell-nav-voce.attivo:hover {
+  background: var(--accent);
+}
+
+.shell-nav-icona {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--nav-icon-inactive);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.shell-nav-voce.attivo .shell-nav-icona {
+  border-color: #fff;
+}
+
+.shell-nav-icona.tonda {
+  border-radius: 50%;
+}
+
+.shell-nav-icona.ruotata {
+  transform: rotate(45deg);
+  border-radius: 0;
+}
+
+.shell-sidebar-fondo {
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.shell-nuovo-paziente-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px dashed var(--border-shell);
+  background: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0;
+}
+
+.shell-nuovo-paziente-btn:hover {
+  background: var(--accent-tint-2);
+  transform: none;
+}
+
+.shell-main {
+  flex: 1;
+  min-width: 0;
+  padding: 22px 26px;
+}
+
+@media (max-width: 640px) {
+  .shell-main {
+    padding: 16px;
+  }
+}
+
+.shell-pagina-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.shell-pagina-header h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.shell-pagina-sottotitolo {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.shell-pagina-header-spazio {
+  flex: 1;
+}
+
+.shell-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.shell-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-eyebrow);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.shell-vuoto {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  padding: 14px 0;
+}
+
+.badge-macro-griglia {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+
+@media (max-width: 480px) {
+  .badge-macro-griglia {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.badge-macro {
+  background: var(--surface-alt-2);
+  border-radius: 8px;
+  padding: 9px 8px;
+  text-align: center;
+}
+
+.badge-macro.badge-macro-kcal {
+  background: var(--accent-tint);
+}
+
+.badge-macro-valore {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.badge-macro-kcal .badge-macro-valore {
+  color: var(--accent);
+}
+
+.badge-macro-label {
+  font-size: 10px;
+  color: var(--text-faint);
 }
 
 .print-shell {

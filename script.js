@@ -120,8 +120,7 @@ const temaChiaroBtn = document.getElementById("tema-chiaro-btn");
 const temaNotteBtn = document.getElementById("tema-notte-btn");
 
 const maxKcalInput = document.getElementById("max-kcal-input");
-const impostazioniStampaToggle = document.getElementById("impostazioni-stampa-toggle");
-const impostazioniStampaContenuto = document.getElementById("impostazioni-stampa-contenuto");
+const pianoObiettivoValore = document.getElementById("piano-obiettivo-valore");
 const sostituzioniInput = document.getElementById("sostituzioni-input");
 const infoStudioInput = document.getElementById("info-studio-input");
 const validoDalInput = document.getElementById("valido-dal-input");
@@ -155,7 +154,6 @@ const loginError = document.getElementById("login-error");
 const loginBtn = document.getElementById("login-btn");
 
 const appShell = document.getElementById("app-shell");
-const areaLavoro = document.getElementById("area-lavoro");
 const pazienteSearchInput = document.getElementById("paziente-search-input");
 const pazienteSuggestions = document.getElementById("paziente-suggestions");
 let pazienteSuggestionIndex = -1;
@@ -163,6 +161,23 @@ const nuovoPazienteBtn = document.getElementById("nuovo-paziente-btn");
 const storicoBtn = document.getElementById("storico-btn");
 const profiloBtn = document.getElementById("profilo-btn");
 const anteprimaPazienteBtn = document.getElementById("anteprima-paziente-btn");
+
+// Shell a sidebar (vista nutrizionista)
+const shellSidebarNav = document.getElementById("shell-sidebar-nav");
+const shellSezioni = document.querySelectorAll(".shell-pagina");
+const pazientePillBtn = document.getElementById("paziente-pill-btn");
+const pazientePillNome = document.getElementById("paziente-pill-nome");
+const pazientePannello = document.getElementById("paziente-pannello");
+const SEZIONI_CHE_RICHIEDONO_PAZIENTE = ["piano", "storico", "anagrafica", "checkin", "stampa"];
+let sezioneAttiva = "piano";
+
+const gatingPaziente = {
+  piano: { vuoto: document.getElementById("piano-vuoto"), contenuto: document.getElementById("piano-contenuto") },
+  storico: { vuoto: document.getElementById("storico-vuoto"), contenuto: document.getElementById("storico-contenuto") },
+  anagrafica: { vuoto: document.getElementById("anagrafica-vuoto"), contenuto: document.getElementById("anagrafica-contenuto") },
+  checkin: { vuoto: document.getElementById("checkin-vuoto"), contenuto: document.getElementById("checkin-contenuto") },
+  stampa: { vuoto: document.getElementById("stampa-vuoto"), contenuto: document.getElementById("stampa-contenuto") }
+};
 const anteprimaBanner = document.getElementById("anteprima-banner");
 const anteprimaTornaBtn = document.getElementById("anteprima-torna-btn");
 const logoutBtn = document.getElementById("logout-btn");
@@ -202,12 +217,10 @@ const nuovoPazienteError = document.getElementById("nuovo-paziente-error");
 const nuovoPazienteConfermaBtn = document.getElementById("nuovo-paziente-conferma-btn");
 const nuovoPazienteAnnullaBtn = document.getElementById("nuovo-paziente-annulla-btn");
 
-const storicoOverlay = document.getElementById("storico-overlay");
 const storicoPazienteNomeEl = document.getElementById("storico-paziente-nome");
 const storicoLista = document.getElementById("storico-lista");
 const storicoChiudiBtn = document.getElementById("storico-chiudi-btn");
 
-const profiloOverlay = document.getElementById("profilo-overlay");
 const profiloPazienteNomeEl = document.getElementById("profilo-paziente-nome");
 const profiloDataNascitaInput = document.getElementById("profilo-data-nascita");
 const profiloSessoInput = document.getElementById("profilo-sesso");
@@ -682,6 +695,10 @@ async function confermaBackupLogin() {
 async function avviaAppAdmin() {
   vistaPaziente.classList.add("hidden");
   appShell.classList.remove("hidden");
+
+  mostraSezione("piano");
+  aggiornaPillPaziente();
+  applicaGatingPaziente();
 
   await caricaAlimentiBase();
   customFoodsRemoti = await caricaAlimentiPersonalizzatiRemoti();
@@ -1895,7 +1912,17 @@ async function selezionaPazienteDaRicerca(id) {
   if (!p) return;
   pazienteSearchInput.value = p.nome;
   nascondiSuggerimentiPazienti();
+  pazientePannello.classList.add("hidden");
   await selezionaPaziente(id);
+}
+
+function aggiornaPillPaziente() {
+  pazientePillNome.textContent = pazienteCorrente ? pazienteCorrente.nome : "Nessun paziente";
+}
+
+function aggiornaObiettivoChip() {
+  const max = parseFloat(maxKcalInput.value);
+  pianoObiettivoValore.textContent = max > 0 ? `${round1(max)} kcal` : "non impostato";
 }
 
 async function selezionaPaziente(pazienteId) {
@@ -1905,7 +1932,8 @@ async function selezionaPaziente(pazienteId) {
     storicoBtn.disabled = true;
     profiloBtn.disabled = true;
     anteprimaPazienteBtn.disabled = true;
-    areaLavoro.classList.add("hidden");
+    aggiornaPillPaziente();
+    applicaGatingPaziente();
     return;
   }
 
@@ -1950,6 +1978,7 @@ async function selezionaPaziente(pazienteId) {
   infoStudioInput.value = state.infoStudio || "";
   validoDalInput.value = state.validoDal || "";
   validoAlInput.value = state.validoAl || "";
+  aggiornaObiettivoChip();
 
   collapsedGiorni = new Set();
   draftPasto = [];
@@ -1957,11 +1986,41 @@ async function selezionaPaziente(pazienteId) {
   storicoBtn.disabled = false;
   profiloBtn.disabled = false;
   anteprimaPazienteBtn.disabled = false;
-  areaLavoro.classList.remove("hidden");
+  aggiornaPillPaziente();
+  applicaGatingPaziente();
 
   renderDraft();
   renderDieta();
   caricaEMostraCheckinAdmin(p);
+}
+
+// Mostra/nasconde le sezioni della sidebar che richiedono un paziente in
+// lavorazione (Piano alimentare, Storico, Anagrafica, Check-in, Stampa), e
+// se una di queste è la sezione attualmente aperta ne ricarica il contenuto
+// per il paziente appena selezionato.
+function applicaGatingPaziente() {
+  const haPaziente = !!pazienteCorrente;
+  Object.values(gatingPaziente).forEach(el => {
+    if (!el.vuoto || !el.contenuto) return;
+    el.vuoto.classList.toggle("hidden", haPaziente);
+    el.contenuto.classList.toggle("hidden", !haPaziente);
+  });
+
+  if (!haPaziente) return;
+  if (sezioneAttiva === "storico") apriStorico();
+  if (sezioneAttiva === "anagrafica") apriProfiloPaziente();
+}
+
+function mostraSezione(chiave) {
+  sezioneAttiva = chiave;
+  shellSezioni.forEach(sez => sez.classList.toggle("hidden", sez.id !== `sezione-${chiave}`));
+  shellSidebarNav.querySelectorAll(".shell-nav-voce").forEach(voce => {
+    voce.classList.toggle("attivo", voce.dataset.sezione === chiave);
+  });
+
+  if (!pazienteCorrente) return;
+  if (chiave === "storico") apriStorico();
+  if (chiave === "anagrafica") apriProfiloPaziente();
 }
 
 function apriNuovoPaziente() {
@@ -2177,12 +2236,10 @@ async function apriProfiloPaziente() {
   profiloNoteInput.value = data.note || "";
   profiloPesoOriginale = data.peso_kg ?? null;
   profiloResetMsg.classList.add("hidden");
-
-  profiloOverlay.classList.remove("hidden");
 }
 
 function chiudiProfiloPaziente() {
-  profiloOverlay.classList.add("hidden");
+  mostraSezione("piano");
 }
 
 async function salvaProfiloPaziente() {
@@ -2281,7 +2338,6 @@ async function apriStorico() {
   if (!pazienteCorrente) return;
   storicoPazienteNomeEl.textContent = pazienteCorrente.nome;
   storicoLista.innerHTML = '<p class="vuoto">Caricamento…</p>';
-  storicoOverlay.classList.remove("hidden");
 
   const { data, error } = await supabaseClient
     .from("diete")
@@ -2314,7 +2370,7 @@ async function apriStorico() {
 }
 
 function chiudiStorico() {
-  storicoOverlay.classList.add("hidden");
+  mostraSezione("piano");
 }
 
 async function apriEStampaStorico(dietaId) {
@@ -2937,11 +2993,6 @@ function togglePanoramica() {
   panoramicaToggle.textContent = `${chiusa ? "▸" : "▾"} Panoramica settimanale`;
 }
 
-function toggleImpostazioniStampa() {
-  const chiusa = impostazioniStampaContenuto.classList.toggle("hidden");
-  impostazioniStampaToggle.textContent = `⚙ Impostazioni di stampa ${chiusa ? "▸" : "▾"}`;
-}
-
 function rimuoviElemento(giorno, pasto, index) {
   state.dieta[giorno][pasto].splice(index, 1);
   salvaStateRemoto();
@@ -3298,23 +3349,13 @@ function inizializza() {
     if (e.target === appuntamentoOverlay) chiudiAppuntamento();
   });
 
-  storicoBtn.addEventListener("click", apriStorico);
-  storicoChiudiBtn.addEventListener("click", chiudiStorico);
-  storicoOverlay.addEventListener("click", (e) => {
-    if (e.target === storicoOverlay) chiudiStorico();
-  });
   storicoLista.addEventListener("click", (e) => {
     const btn = e.target.closest(".storico-apri-btn");
     if (btn) apriEStampaStorico(btn.dataset.id);
   });
 
-  profiloBtn.addEventListener("click", apriProfiloPaziente);
   profiloSalvaBtn.addEventListener("click", salvaProfiloPaziente);
   profiloResetPasswordBtn.addEventListener("click", resettaPasswordPaziente);
-  profiloAnnullaBtn.addEventListener("click", chiudiProfiloPaziente);
-  profiloOverlay.addEventListener("click", (e) => {
-    if (e.target === profiloOverlay) chiudiProfiloPaziente();
-  });
 
   salvaStoricoBtn.addEventListener("click", salvaComeStorico);
 
@@ -3398,8 +3439,6 @@ function inizializza() {
 
   pastoLiberoBtn.addEventListener("click", inserisciPastoLibero);
   panoramicaToggle.addEventListener("click", togglePanoramica);
-  impostazioniStampaToggle.addEventListener("click", toggleImpostazioniStampa);
-
   draftContainer.addEventListener("click", (e) => {
     if (e.target.classList.contains("remove-btn")) {
       rimuoviDaDraft(parseInt(e.target.dataset.draftIndex, 10));
@@ -3444,6 +3483,23 @@ function inizializza() {
     state.maxKcal = maxKcalInput.value;
     salvaStateRemoto();
     renderDieta();
+    aggiornaObiettivoChip();
+  });
+
+  shellSidebarNav.addEventListener("click", (e) => {
+    const voce = e.target.closest(".shell-nav-voce");
+    if (voce) mostraSezione(voce.dataset.sezione);
+  });
+
+  pazientePillBtn.addEventListener("click", () => {
+    const eraAperto = !pazientePannello.classList.contains("hidden");
+    pazientePannello.classList.toggle("hidden", eraAperto);
+    if (!eraAperto) pazienteSearchInput.focus();
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".shell-paziente-pill-wrap")) {
+      pazientePannello.classList.add("hidden");
+    }
   });
 
   dietaContainer.addEventListener("click", (e) => {
