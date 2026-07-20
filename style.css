@@ -199,7 +199,7 @@ body {
 }
 
 h2 {
-  color: var(--text);
+  color: var(--accent);
   font-size: 1.15rem;
   font-weight: 700;
   margin-top: 0;
