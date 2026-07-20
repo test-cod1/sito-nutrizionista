@@ -179,6 +179,8 @@ body {
   position: absolute;
   top: 16px;
   left: 20px;
+  display: flex;
+  gap: 8px;
 }
 
 #gestione-utenti-btn {
@@ -854,6 +856,153 @@ table tfoot .riga-totale td {
   background: var(--accent-tint);
   color: var(--accent);
   border: 1px solid var(--accent-border);
+}
+
+/* ---------- Open Food Facts (ricerca admin + scanner paziente) ---------- */
+
+.off-scheda-prodotto {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 14px;
+}
+
+.off-badge-riga {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0 12px;
+}
+
+.off-badge-nutriscore,
+.off-badge-nova {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.off-nutriscore-a { background: #e3f5df; color: #1f6d2f; border-color: #b9e2b0; }
+.off-nutriscore-b { background: #eef5d8; color: #5a7a1f; border-color: #d6e5a8; }
+.off-nutriscore-c { background: #fdf1cf; color: #8a6a1f; border-color: #f0d896; }
+.off-nutriscore-d { background: #fbe3d3; color: #9a4f1f; border-color: #f0bd96; }
+.off-nutriscore-e { background: #fbdada; color: #9a2f2f; border-color: #f0a3a3; }
+
+.off-tabella-nutrienti {
+  width: 100%;
+  max-width: 320px;
+  border-collapse: collapse;
+  margin: 6px 0;
+}
+
+.off-tabella-nutrienti td {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.off-tabella-nutrienti td:last-child {
+  text-align: right;
+  font-weight: 600;
+}
+
+.off-attribuzione {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 16px;
+}
+
+#off-scanner-viewport {
+  max-width: 400px;
+  margin: 12px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+#off-scanner-viewport video {
+  border-radius: 12px;
+}
+
+/* ---------- Agenda appuntamenti ---------- */
+
+#agenda-admin .paziente-bar-riga {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+#agenda-admin .paziente-bar-riga h2 {
+  margin: 0;
+}
+
+#agenda-filtro-paziente {
+  margin-bottom: 12px;
+}
+
+.agenda-riga {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.agenda-riga:last-child {
+  border-bottom: none;
+}
+
+.agenda-riga-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agenda-passato {
+  opacity: 0.7;
+}
+
+#sicurezza-backup-lista {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin: 12px 0;
+}
+
+#sicurezza-backup-lista code {
+  display: block;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+#sicurezza-qr-contenitore {
+  margin: 12px 0;
+  max-width: 220px;
+}
+
+#sicurezza-qr-contenitore svg {
+  width: 100%;
+  height: auto;
+}
+
+.prossimo-appuntamento-riga {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .duplica-overlay {

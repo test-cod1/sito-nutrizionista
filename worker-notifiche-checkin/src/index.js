@@ -16,6 +16,13 @@
 // non implementato dal runtime dei Cloudflare Workers ("[unenv] https.request
 // is not implemented yet!"). VAPID_PRIVATE_KEY qui è una chiave JWK (stringa
 // JSON), non più il formato base64url usato da web-push.
+//
+// Lo stesso cron giornaliero invia anche i promemoria email per gli
+// appuntamenti in arrivo (circa 24-48h prima, per compensare la granularità
+// giornaliera), tramite l'API HTTP di Brevo (BREVO_API_KEY, secret opzionale:
+// i Worker non possono aprire connessioni SMTP dirette). Finché
+// BREVO_API_KEY non è configurata l'invio viene saltato esplicitamente,
+// senza errori.
 
 import { buildPushHTTPRequest } from "@pushforge/builder";
 
@@ -24,6 +31,7 @@ const SUPABASE_URL = "https://scckmrmgbpvqqcungrsj.supabase.co";
 export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(inviaPromemoriaCheckin(env));
+    ctx.waitUntil(inviaPromemoriaAppuntamenti(env));
   },
 
   // GET su "/" esegue lo stesso controllo su richiesta manuale, utile per
@@ -34,7 +42,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/diagnostica") {
-      const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL"];
+      const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL", "BREVO_API_KEY"];
       const dettaglio = {};
       for (const nome of richieste) {
         const v = env[nome];
@@ -51,8 +59,9 @@ export default {
     }
 
     try {
-      const risultato = await inviaPromemoriaCheckin(env);
-      return new Response(JSON.stringify(risultato, null, 2), {
+      const checkin = await inviaPromemoriaCheckin(env);
+      const appuntamenti = await inviaPromemoriaAppuntamenti(env);
+      return new Response(JSON.stringify({ checkin, appuntamenti }, null, 2), {
         headers: { "Content-Type": "application/json" }
       });
     } catch (e) {
@@ -131,6 +140,89 @@ async function inviaPromemoriaCheckin(env) {
   };
 }
 
+// ---------- Promemoria email appuntamenti ----------
+// Finestra larga (oggi → +2 giorni) per compensare la granularità giornaliera
+// del cron: "promemoria_inviato" evita che lo stesso appuntamento riceva più
+// di un'email anche se il worker gira più volte nella finestra.
+
+async function inviaPromemoriaAppuntamenti(env) {
+  if (!env.BREVO_API_KEY) {
+    return { brevo_non_configurato: true, promemoria_inviati: 0, promemoria_errori: 0, dettagli_errori_appuntamenti: [] };
+  }
+
+  const ora = new Date();
+  const finestraFine = new Date(ora.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const appuntamenti = await chiamataRest(
+    env,
+    "GET",
+    `/rest/v1/appuntamenti?promemoria_inviato=eq.false&data_ora=gte.${encodeURIComponent(ora.toISOString())}&data_ora=lte.${encodeURIComponent(finestraFine.toISOString())}&select=id,data_ora,tipologia,note,pazienti(nome,email)`
+  );
+
+  let inviati = 0;
+  let errori = 0;
+  const dettagliErrori = [];
+
+  for (const app of appuntamenti) {
+    const email = app.pazienti && app.pazienti.email;
+    if (!email) {
+      errori++;
+      dettagliErrori.push({ appuntamentoId: app.id, messaggio: "Paziente senza email registrata nel profilo: promemoria non inviato." });
+      continue;
+    }
+
+    try {
+      await inviaEmailBrevo(env, {
+        destinatarioEmail: email,
+        destinatarioNome: (app.pazienti && app.pazienti.nome) || "",
+        oggetto: "Promemoria appuntamento",
+        testo: testoPromemoriaAppuntamento(app)
+      });
+      await chiamataRest(env, "PATCH", `/rest/v1/appuntamenti?id=eq.${app.id}`, { promemoria_inviato: true });
+      inviati++;
+    } catch (e) {
+      console.error("Errore invio promemoria appuntamento:", e);
+      errori++;
+      dettagliErrori.push({ appuntamentoId: app.id, messaggio: e.message || String(e) });
+    }
+  }
+
+  return {
+    appuntamenti_in_finestra: appuntamenti.length,
+    promemoria_inviati: inviati,
+    promemoria_errori: errori,
+    dettagli_errori_appuntamenti: dettagliErrori
+  };
+}
+
+function testoPromemoriaAppuntamento(app) {
+  const dataOra = new Date(app.data_ora);
+  const dataFormattata = dataOra.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric", timeZone: "Europe/Rome" });
+  const oraFormattata = dataOra.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" });
+  const tipologiaLabel = app.tipologia === "remoto" ? "da remoto" : "in studio";
+  let testo = `Ti ricordiamo il tuo appuntamento ${tipologiaLabel} di ${dataFormattata} alle ${oraFormattata}.`;
+  if (app.note) testo += `\n\nNote dello studio: ${app.note}`;
+  return testo;
+}
+
+async function inviaEmailBrevo(env, { destinatarioEmail, destinatarioNome, oggetto, testo }) {
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": env.BREVO_API_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      sender: { email: env.VAPID_CONTACT_EMAIL, name: "NutriPlan" },
+      to: [{ email: destinatarioEmail, name: destinatarioNome || undefined }],
+      subject: oggetto,
+      textContent: testo
+    })
+  });
+  if (!res.ok) {
+    throw new Error(`Errore invio email Brevo (${res.status}): ${await res.text()}`);
+  }
+}
+
 function calcolaProssimoCheckin(ultimaData, frequenza) {
   if (!ultimaData || !frequenza) return null;
   const d = new Date(ultimaData);
@@ -168,17 +260,22 @@ async function rimuoviSubscription(env, endpoint) {
   }
 }
 
-async function chiamataRest(env, metodo, percorso) {
+async function chiamataRest(env, metodo, percorso, corpo) {
+  const headers = {
+    apikey: env.SUPABASE_SECRET_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+    "Content-Type": "application/json"
+  };
+  if (corpo !== undefined) headers.Prefer = "return=minimal";
+
   const res = await fetch(`${SUPABASE_URL}${percorso}`, {
     method: metodo,
-    headers: {
-      apikey: env.SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-      "Content-Type": "application/json"
-    }
+    headers,
+    body: corpo !== undefined ? JSON.stringify(corpo) : undefined
   });
   if (!res.ok) {
     throw new Error(`Errore chiamata Supabase (${res.status}): ${await res.text()}`);
   }
+  if (corpo !== undefined) return null;
   return res.json();
 }

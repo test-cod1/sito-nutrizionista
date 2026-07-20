@@ -29,6 +29,7 @@
   </script>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
 
@@ -132,6 +133,11 @@
       <p class="hero-sub" id="vista-paziente-nome"></p>
     </header>
 
+    <section id="prossimo-appuntamento" class="card no-print">
+      <h2>Prossimo appuntamento</h2>
+      <div id="prossimo-appuntamento-contenuto"></div>
+    </section>
+
     <section class="card no-print">
       <h2>Il mio profilo</h2>
 
@@ -193,6 +199,27 @@
       <div id="checkin-storico-contenuto" class="hidden profilo-accordion-contenuto"></div>
     </section>
 
+    <section class="card no-print">
+      <h2>Scansiona un prodotto</h2>
+      <p class="hint">Inquadra il codice a barre di un prodotto per vedere i valori nutrizionali. Il prodotto non viene salvato nel tuo profilo: è solo una consultazione al momento.</p>
+      <button id="off-scanner-avvia-btn" class="secondary">📷 Scansiona codice a barre</button>
+      <p id="off-scanner-permesso-nota" class="hint hidden">Per scansionare serve il permesso della fotocamera: verrà richiesto solo per leggere il codice a barre del prodotto.</p>
+      <div id="off-scanner-viewport" class="hidden"></div>
+      <button id="off-scanner-stop-btn" class="secondary hidden">Chiudi fotocamera</button>
+
+      <div class="griglia-2">
+        <div class="griglia-2-full">
+          <label for="off-barcode-manuale-input">Oppure inserisci il codice a barre manualmente</label>
+          <input type="text" id="off-barcode-manuale-input" placeholder="es. 3017620422003" inputmode="numeric">
+        </div>
+      </div>
+      <button id="off-barcode-manuale-btn" class="secondary">Cerca</button>
+
+      <p id="off-paziente-error" class="error hidden"></p>
+      <div id="off-paziente-risultati"></div>
+      <p class="off-attribuzione">Dati nutrizionali forniti da <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, disponibili sotto licenza <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License (ODbL)</a>.</p>
+    </section>
+
     <section class="card">
       <div class="dieta-header no-print">
         <h2>Il mio piano alimentare</h2>
@@ -209,6 +236,7 @@
     <header class="hero no-print">
       <div class="gestione-utenti-fisso">
         <button type="button" id="gestione-utenti-btn" title="Gestione utenti" aria-label="Gestione utenti">⚙</button>
+        <button type="button" id="sicurezza-btn" title="Sicurezza account" aria-label="Sicurezza account">🔒</button>
       </div>
       <div class="header-azioni-destra">
         <button type="button" id="logout-btn" class="esci-header-btn">Esci</button>
@@ -240,6 +268,17 @@
       </div>
     </section>
 
+    <section id="agenda-admin" class="card no-print">
+      <div class="paziente-bar-riga">
+        <h2>Agenda appuntamenti</h2>
+        <button type="button" id="agenda-nuovo-btn" class="secondary">+ Nuovo appuntamento</button>
+      </div>
+      <label for="agenda-filtro-paziente">Filtra per paziente</label>
+      <select id="agenda-filtro-paziente">
+        <option value="">Tutti i pazienti</option>
+      </select>
+      <div id="agenda-lista"></div>
+    </section>
 
     <div id="area-lavoro" class="hidden">
       <section id="impostazioni" class="card no-print">
@@ -293,6 +332,25 @@
           <button id="checkin-frequenza-salva-btn">Salva frequenza</button>
           <p id="checkin-frequenza-successo" class="hidden"></p>
         </div>
+      </section>
+
+      <section id="off-ricerca-admin" class="card no-print">
+        <h2>Ricerca prodotti (Open Food Facts)</h2>
+        <p class="hint">Consulta i valori nutrizionali di un prodotto confezionato, senza uscire dal sito. Solo consultazione: non viene importato nulla nel calcolatore.</p>
+        <div class="griglia-2">
+          <div>
+            <label for="off-admin-query-input">Nome prodotto o marca</label>
+            <input type="text" id="off-admin-query-input" placeholder="es. Nutella, Barilla penne...">
+          </div>
+          <div>
+            <label for="off-admin-barcode-input">Oppure codice a barre</label>
+            <input type="text" id="off-admin-barcode-input" placeholder="es. 3017620422003" inputmode="numeric">
+          </div>
+        </div>
+        <button id="off-admin-cerca-btn">Cerca</button>
+        <p id="off-admin-error" class="error hidden"></p>
+        <div id="off-admin-risultati"></div>
+        <p class="off-attribuzione">Dati nutrizionali forniti da <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, disponibili sotto licenza <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License (ODbL)</a>.</p>
       </section>
 
       <section id="calcolatore" class="card no-print">
@@ -465,6 +523,68 @@
     </div>
   </div>
 
+  <!-- Sicurezza account (2FA amministratore) -->
+  <div id="sicurezza-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3>Sicurezza account</h3>
+      <p id="sicurezza-stato" class="hint"></p>
+
+      <button id="sicurezza-attiva-btn" class="hidden">Attiva autenticazione a due fattori</button>
+
+      <div id="sicurezza-setup-blocco" class="hidden">
+        <p class="duplica-sottotitolo">Inquadra questo codice QR con un'app authenticator (es. Google Authenticator, Authy), oppure inserisci manualmente il codice sotto.</p>
+        <div id="sicurezza-qr-contenitore"></div>
+        <p class="hint" id="sicurezza-secret-testo"></p>
+        <label for="sicurezza-setup-codice-input">Codice a 6 cifre dall'app</label>
+        <input type="text" id="sicurezza-setup-codice-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+        <p id="sicurezza-setup-errore" class="error hidden"></p>
+        <div class="duplica-azioni">
+          <button id="sicurezza-setup-conferma-btn">Conferma attivazione</button>
+          <button id="sicurezza-setup-annulla-btn" class="danger">Annulla</button>
+        </div>
+      </div>
+
+      <div id="sicurezza-backup-blocco" class="hidden">
+        <p class="duplica-sottotitolo"><strong>Salva questi codici di backup in un posto sicuro.</strong> Ti servono per accedere se perdi l'accesso all'app authenticator: ognuno è utilizzabile una sola volta e non verranno mostrati di nuovo.</p>
+        <div id="sicurezza-backup-lista"></div>
+        <div class="duplica-azioni">
+          <button id="sicurezza-backup-chiudi-btn">Li ho salvati, chiudi</button>
+        </div>
+      </div>
+
+      <div id="sicurezza-disattiva-blocco" class="hidden">
+        <label for="sicurezza-disattiva-codice-input">Per disattivare, inserisci un codice attuale dall'app (o un codice di backup)</label>
+        <input type="text" id="sicurezza-disattiva-codice-input" autocomplete="one-time-code">
+        <p id="sicurezza-disattiva-errore" class="error hidden"></p>
+        <button id="sicurezza-disattiva-conferma-btn" class="danger">Disattiva 2FA</button>
+      </div>
+
+      <div class="duplica-azioni">
+        <button id="sicurezza-chiudi-btn" class="danger">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verifica 2FA al login (amministratore) -->
+  <div id="verifica-2fa-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3>Verifica in due passaggi</h3>
+      <p class="duplica-sottotitolo">Inserisci il codice generato dalla tua app authenticator.</p>
+      <label for="verifica-2fa-codice-input">Codice a 6 cifre</label>
+      <input type="text" id="verifica-2fa-codice-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+      <p id="verifica-2fa-errore" class="error hidden"></p>
+      <div class="duplica-azioni">
+        <button id="verifica-2fa-conferma-btn">Verifica</button>
+      </div>
+      <p><a href="#" id="verifica-2fa-backup-link">Usa un codice di backup</a></p>
+      <div id="verifica-2fa-backup-blocco" class="hidden">
+        <label for="verifica-2fa-backup-input">Codice di backup</label>
+        <input type="text" id="verifica-2fa-backup-input" autocomplete="one-time-code">
+        <button id="verifica-2fa-backup-btn">Verifica codice di backup</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Nuovo paziente -->
   <div id="nuovo-paziente-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal">
@@ -475,6 +595,42 @@
       <div class="duplica-azioni">
         <button id="nuovo-paziente-conferma-btn">Crea</button>
         <button id="nuovo-paziente-annulla-btn" class="danger">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appuntamento (nuovo o modifica) -->
+  <div id="appuntamento-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3 id="appuntamento-titolo">Nuovo appuntamento</h3>
+      <label for="appuntamento-paziente-select">Paziente</label>
+      <select id="appuntamento-paziente-select"></select>
+
+      <div class="griglia-2">
+        <div>
+          <label for="appuntamento-data-input">Data</label>
+          <input type="date" id="appuntamento-data-input">
+        </div>
+        <div>
+          <label for="appuntamento-ora-input">Ora</label>
+          <input type="time" id="appuntamento-ora-input">
+        </div>
+      </div>
+
+      <label for="appuntamento-tipologia-select">Tipologia</label>
+      <select id="appuntamento-tipologia-select">
+        <option value="studio">In studio</option>
+        <option value="remoto">Da remoto</option>
+      </select>
+
+      <label for="appuntamento-note-input">Note (opzionale)</label>
+      <textarea id="appuntamento-note-input" rows="3"></textarea>
+
+      <p id="appuntamento-error" class="error hidden"></p>
+      <div class="duplica-azioni">
+        <button id="appuntamento-salva-btn">Salva</button>
+        <button id="appuntamento-elimina-btn" class="danger hidden">Elimina</button>
+        <button id="appuntamento-annulla-btn" class="danger">Annulla</button>
       </div>
     </div>
   </div>
@@ -533,8 +689,10 @@
           <textarea id="profilo-note" rows="3" placeholder="Patologie, obiettivi, altre annotazioni..."></textarea>
         </div>
       </div>
+      <p id="profilo-reset-msg" class="hidden"></p>
       <div class="duplica-azioni">
         <button id="profilo-salva-btn">Salva profilo</button>
+        <button id="profilo-reset-password-btn" class="secondary">Resetta password paziente</button>
         <button id="profilo-annulla-btn" class="danger">Chiudi</button>
       </div>
     </div>

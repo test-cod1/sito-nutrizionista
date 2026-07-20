@@ -17,6 +17,10 @@ crons = ["0 6 * * *"]
 # sono sempre presenti a ogni deploy, senza dipendere dal pannello Cloudflare.
 # SUPABASE_SECRET_KEY e VAPID_PRIVATE_KEY restano invece solo come secret nel
 # pannello del Worker, perché sono sensibili e non vanno mai versionati.
+#
+# BREVO_API_KEY (secret opzionale, stesso trattamento di SUPABASE_SECRET_KEY):
+# se non impostata, i promemoria email per gli appuntamenti vengono saltati
+# esplicitamente (nessun errore) finché non viene configurato un account Brevo.
 [vars]
 VAPID_PUBLIC_KEY = "BHyHOci-J4N4PzeWkF8tkFXoRQoHhfvMhEGZcLnoqq-qePusl38LU-Hpr6hp8hqWQt4sEdz8I9J-Ob2uVYJl9Qc"
 VAPID_CONTACT_EMAIL = "jacopo.ravaiolicri@gmail.com"

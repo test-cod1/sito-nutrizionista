@@ -278,6 +278,81 @@ let filtroPesoAttivo = "tutto";
 let pazienteHaDieta = false;
 let profiloPesoOriginale = null;
 
+// Open Food Facts (admin)
+const offAdminQueryInput = document.getElementById("off-admin-query-input");
+const offAdminBarcodeInput = document.getElementById("off-admin-barcode-input");
+const offAdminCercaBtn = document.getElementById("off-admin-cerca-btn");
+const offAdminErrore = document.getElementById("off-admin-error");
+const offAdminRisultati = document.getElementById("off-admin-risultati");
+
+// Open Food Facts (paziente, scanner barcode)
+const offScannerAvviaBtn = document.getElementById("off-scanner-avvia-btn");
+const offScannerPermessoNota = document.getElementById("off-scanner-permesso-nota");
+const offScannerViewport = document.getElementById("off-scanner-viewport");
+const offScannerStopBtn = document.getElementById("off-scanner-stop-btn");
+const offBarcodeManualeInput = document.getElementById("off-barcode-manuale-input");
+const offBarcodeManualeBtn = document.getElementById("off-barcode-manuale-btn");
+const offPazienteErrore = document.getElementById("off-paziente-error");
+const offPazienteRisultati = document.getElementById("off-paziente-risultati");
+
+// Agenda appuntamenti (admin)
+const agendaListaEl = document.getElementById("agenda-lista");
+const agendaNuovoBtn = document.getElementById("agenda-nuovo-btn");
+const agendaFiltroPazienteSelect = document.getElementById("agenda-filtro-paziente");
+const appuntamentoOverlay = document.getElementById("appuntamento-overlay");
+const appuntamentoTitolo = document.getElementById("appuntamento-titolo");
+const appuntamentoPazienteSelect = document.getElementById("appuntamento-paziente-select");
+const appuntamentoDataInput = document.getElementById("appuntamento-data-input");
+const appuntamentoOraInput = document.getElementById("appuntamento-ora-input");
+const appuntamentoTipologiaSelect = document.getElementById("appuntamento-tipologia-select");
+const appuntamentoNoteInput = document.getElementById("appuntamento-note-input");
+const appuntamentoErrore = document.getElementById("appuntamento-error");
+const appuntamentoSalvaBtn = document.getElementById("appuntamento-salva-btn");
+const appuntamentoEliminaBtn = document.getElementById("appuntamento-elimina-btn");
+const appuntamentoAnnullaBtn = document.getElementById("appuntamento-annulla-btn");
+let appuntamentoInModifica = null;
+
+// Prossimo appuntamento (paziente)
+const prossimoAppuntamentoContenuto = document.getElementById("prossimo-appuntamento-contenuto");
+let prossimoAppuntamentoCorrente = null;
+
+// Reset password paziente (admin)
+const profiloResetPasswordBtn = document.getElementById("profilo-reset-password-btn");
+const profiloResetMsg = document.getElementById("profilo-reset-msg");
+
+// Sicurezza / 2FA (admin)
+const sicurezzaBtn = document.getElementById("sicurezza-btn");
+const sicurezzaOverlay = document.getElementById("sicurezza-overlay");
+const sicurezzaChiudiBtn = document.getElementById("sicurezza-chiudi-btn");
+const sicurezzaStatoEl = document.getElementById("sicurezza-stato");
+const sicurezzaAttivaBtn = document.getElementById("sicurezza-attiva-btn");
+const sicurezzaDisattivaBlocco = document.getElementById("sicurezza-disattiva-blocco");
+const sicurezzaDisattivaCodiceInput = document.getElementById("sicurezza-disattiva-codice-input");
+const sicurezzaDisattivaConfermaBtn = document.getElementById("sicurezza-disattiva-conferma-btn");
+const sicurezzaDisattivaErrore = document.getElementById("sicurezza-disattiva-errore");
+const sicurezzaSetupBlocco = document.getElementById("sicurezza-setup-blocco");
+const sicurezzaQrContenitore = document.getElementById("sicurezza-qr-contenitore");
+const sicurezzaSecretTesto = document.getElementById("sicurezza-secret-testo");
+const sicurezzaSetupCodiceInput = document.getElementById("sicurezza-setup-codice-input");
+const sicurezzaSetupConfermaBtn = document.getElementById("sicurezza-setup-conferma-btn");
+const sicurezzaSetupAnnullaBtn = document.getElementById("sicurezza-setup-annulla-btn");
+const sicurezzaSetupErrore = document.getElementById("sicurezza-setup-errore");
+const sicurezzaBackupBlocco = document.getElementById("sicurezza-backup-blocco");
+const sicurezzaBackupLista = document.getElementById("sicurezza-backup-lista");
+const sicurezzaBackupChiudiBtn = document.getElementById("sicurezza-backup-chiudi-btn");
+let mfaFactorIdCorrente = null;
+
+// Verifica 2FA al login (admin)
+const verifica2faOverlay = document.getElementById("verifica-2fa-overlay");
+const verifica2faCodiceInput = document.getElementById("verifica-2fa-codice-input");
+const verifica2faConfermaBtn = document.getElementById("verifica-2fa-conferma-btn");
+const verifica2faErrore = document.getElementById("verifica-2fa-errore");
+const verifica2faBackupLink = document.getElementById("verifica-2fa-backup-link");
+const verifica2faBackupBlocco = document.getElementById("verifica-2fa-backup-blocco");
+const verifica2faBackupInput = document.getElementById("verifica-2fa-backup-input");
+const verifica2faBackupBtn = document.getElementById("verifica-2fa-backup-btn");
+let mfaFactorIdLogin = null;
+
 // ---------- Modalità giorno/notte ----------
 
 function applicaTema(tema) {
@@ -503,6 +578,8 @@ async function determinaRuolo() {
 async function avviaDopoLogin() {
   loginOverlay.classList.add("hidden");
 
+  if (await verificaSeServe2FA()) return;
+
   const ruoloInfo = await determinaRuolo();
 
   if (ruoloInfo.ruolo === "admin") {
@@ -516,6 +593,89 @@ async function avviaDopoLogin() {
   }
 }
 
+// ---------- Verifica 2FA al login ----------
+// Si attiva solo se l'amministratore ha attivato la 2FA nelle impostazioni:
+// se nessun fattore è registrato, getAuthenticatorAssuranceLevel() riporta
+// currentLevel === nextLevel e questo blocco non fa nulla (login invariato).
+
+async function verificaSeServe2FA() {
+  const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error || !data) return false;
+  if (data.currentLevel !== "aal1" || data.nextLevel !== "aal2") return false;
+
+  const { data: fattori } = await supabaseClient.auth.mfa.listFactors();
+  const totp = fattori && fattori.totp ? fattori.totp.find(f => f.status === "verified") : null;
+  if (!totp) return false;
+
+  mfaFactorIdLogin = totp.id;
+  mostraVerifica2FA();
+  return true;
+}
+
+function mostraVerifica2FA() {
+  verifica2faCodiceInput.value = "";
+  verifica2faErrore.classList.add("hidden");
+  verifica2faBackupBlocco.classList.add("hidden");
+  verifica2faBackupInput.value = "";
+  verifica2faOverlay.classList.remove("hidden");
+  verifica2faCodiceInput.focus();
+}
+
+function chiudiVerifica2FA() {
+  verifica2faOverlay.classList.add("hidden");
+}
+
+async function confermaVerifica2FA() {
+  const codice = verifica2faCodiceInput.value.trim();
+  verifica2faErrore.classList.add("hidden");
+  if (!codice) {
+    verifica2faErrore.textContent = "Inserisci il codice generato dall'app.";
+    verifica2faErrore.classList.remove("hidden");
+    return;
+  }
+
+  verifica2faConfermaBtn.disabled = true;
+  const { data: challenge, error: erroreChallenge } = await supabaseClient.auth.mfa.challenge({ factorId: mfaFactorIdLogin });
+  if (erroreChallenge) {
+    verifica2faConfermaBtn.disabled = false;
+    verifica2faErrore.textContent = "Errore: " + erroreChallenge.message;
+    verifica2faErrore.classList.remove("hidden");
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.mfa.verify({ factorId: mfaFactorIdLogin, challengeId: challenge.id, code: codice });
+  verifica2faConfermaBtn.disabled = false;
+
+  if (error) {
+    verifica2faErrore.textContent = "Codice non valido. Riprova.";
+    verifica2faErrore.classList.remove("hidden");
+    return;
+  }
+
+  chiudiVerifica2FA();
+  await avviaDopoLogin();
+}
+
+async function confermaBackupLogin() {
+  const codice = verifica2faBackupInput.value.trim();
+  verifica2faErrore.classList.add("hidden");
+  if (!codice) {
+    verifica2faErrore.textContent = "Inserisci un codice di backup.";
+    verifica2faErrore.classList.remove("hidden");
+    return;
+  }
+
+  const valido = await consumaCodiceBackup(codice);
+  if (!valido) {
+    verifica2faErrore.textContent = "Codice di backup non valido o già usato.";
+    verifica2faErrore.classList.remove("hidden");
+    return;
+  }
+
+  chiudiVerifica2FA();
+  await avviaDopoLogin();
+}
+
 async function avviaAppAdmin() {
   vistaPaziente.classList.add("hidden");
   appShell.classList.remove("hidden");
@@ -525,6 +685,7 @@ async function avviaAppAdmin() {
   ricostruisciElencoAlimenti();
 
   await caricaListaPazienti();
+  await caricaAppuntamenti();
 
   renderDraft();
   renderDieta();
@@ -675,6 +836,87 @@ async function caricaDietaAttivaPaziente(pazienteId) {
   return data[0];
 }
 
+// ---------- Prossimo appuntamento (paziente) ----------
+// RLS scopa già la lettura al proprio paziente_id: qui prendiamo solo il primo
+// appuntamento futuro. "Aggiungi al calendario" genera un file .ics lato
+// client (nessun server coinvolto): data_ora è già un timestamptz, quindi
+// convertirlo a UTC con toISOString() dà l'orario corretto in ogni fuso.
+
+async function caricaProssimoAppuntamento(pazienteId) {
+  const { data, error } = await supabaseClient
+    .from("appuntamenti")
+    .select("*")
+    .eq("paziente_id", pazienteId)
+    .gte("data_ora", new Date().toISOString())
+    .order("data_ora", { ascending: true })
+    .limit(1);
+
+  prossimoAppuntamentoCorrente = (!error && data && data.length > 0) ? data[0] : null;
+  renderProssimoAppuntamento();
+}
+
+function renderProssimoAppuntamento() {
+  if (!prossimoAppuntamentoCorrente) {
+    prossimoAppuntamentoContenuto.innerHTML = '<p class="vuoto">Nessun appuntamento programmato.</p>';
+    return;
+  }
+
+  const a = prossimoAppuntamentoCorrente;
+  const dataOra = new Date(a.data_ora);
+  const tipologiaLabel = a.tipologia === "remoto" ? "Da remoto" : "In studio";
+
+  prossimoAppuntamentoContenuto.innerHTML = `
+    <div class="prossimo-appuntamento-riga">
+      <div>
+        <strong>${dataOra.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</strong>
+        <p>${dataOra.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })} · ${tipologiaLabel}</p>
+        ${a.note ? `<p class="hint">${escapeHtml(a.note)}</p>` : ""}
+      </div>
+      <button type="button" id="appuntamento-calendario-btn" class="secondary">Aggiungi al calendario</button>
+    </div>
+  `;
+
+  document.getElementById("appuntamento-calendario-btn").addEventListener("click", scaricaIcsAppuntamento);
+}
+
+function formattaDataIcs(data) {
+  return data.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
+
+function scaricaIcsAppuntamento() {
+  if (!prossimoAppuntamentoCorrente) return;
+  const a = prossimoAppuntamentoCorrente;
+  const inizio = new Date(a.data_ora);
+  const fine = new Date(inizio.getTime() + 60 * 60 * 1000); // durata di default: 1 ora
+  const tipologiaLabel = a.tipologia === "remoto" ? "Da remoto" : "In studio";
+  const note = (a.note || "").replace(/\n/g, "\\n");
+
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//NutriPlan//Appuntamento//IT",
+    "BEGIN:VEVENT",
+    `UID:appuntamento-${a.id}@nutriplan`,
+    `DTSTAMP:${formattaDataIcs(new Date())}`,
+    `DTSTART:${formattaDataIcs(inizio)}`,
+    `DTEND:${formattaDataIcs(fine)}`,
+    `SUMMARY:Appuntamento nutrizionista (${tipologiaLabel})`,
+    note ? `DESCRIPTION:${note}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR"
+  ].filter(Boolean).join("\r\n");
+
+  const blob = new Blob([ics], { type: "text/calendar" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "appuntamento-nutriplan.ics";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 async function avviaVistaPaziente(pazienteRecord) {
   appShell.classList.add("hidden");
   vistaPaziente.classList.remove("hidden");
@@ -684,6 +926,7 @@ async function avviaVistaPaziente(pazienteRecord) {
 
   pazienteCorrente = { id: pazienteRecord.id, nome: pazienteRecord.nome, frequenza_checkin: pazienteRecord.frequenza_checkin };
   renderProfiloPazienteVista(pazienteRecord);
+  await caricaProssimoAppuntamento(pazienteRecord.id);
 
   storicoPesoCompleto = await caricaStoricoPeso(pazienteRecord.id);
   const ultimoPeso = storicoPesoCompleto.length > 0
@@ -756,6 +999,7 @@ async function apriAnteprimaPaziente() {
   vistaPazienteNomeEl.textContent = data.nome;
   renderProfiloPazienteVista(data);
   pazienteCorrente.frequenza_checkin = data.frequenza_checkin;
+  await caricaProssimoAppuntamento(data.id);
 
   storicoPesoCompleto = await caricaStoricoPeso(data.id);
   const ultimoPeso = storicoPesoCompleto.length > 0
@@ -998,6 +1242,146 @@ function apriTabCheckin(tabId) {
   document.querySelectorAll("#checkin-admin .tab-pannello").forEach(p => p.classList.toggle("hidden", p.id !== tabId));
 }
 
+// ---------- Open Food Facts: consultazione prodotti (admin + paziente) ----------
+// Solo consultazione: nessun dato viene salvato nel calcolatore né nel profilo
+// del paziente. La ricerca passa sempre dalla nostra Pages Function
+// (/api/openfoodfacts), che aggiunge lo User-Agent richiesto da Open Food
+// Facts e mette in cache i risultati per non interrogarlo ripetutamente.
+
+async function cercaOpenFoodFacts({ query, barcode }) {
+  const params = new URLSearchParams();
+  if (barcode) params.set("barcode", barcode);
+  else if (query) params.set("query", query);
+
+  let risposta;
+  try {
+    risposta = await fetch(`/api/openfoodfacts?${params.toString()}`);
+  } catch (e) {
+    return { errore: "Errore di rete. Controlla la connessione e riprova." };
+  }
+
+  const corpo = await risposta.json().catch(() => ({}));
+  if (!risposta.ok) {
+    return { errore: corpo.errore || "Errore imprevisto nella ricerca." };
+  }
+  return { prodotti: corpo.prodotti || [] };
+}
+
+const OFF_NUTRISCORE_LABEL = { a: "A", b: "B", c: "C", d: "D", e: "E" };
+
+function renderSchedaProdottoOFF(p) {
+  const badgeNutriscore = p.nutriscore && OFF_NUTRISCORE_LABEL[p.nutriscore]
+    ? `<span class="off-badge-nutriscore off-nutriscore-${p.nutriscore}">Nutri-Score ${OFF_NUTRISCORE_LABEL[p.nutriscore]}</span>`
+    : "";
+  const badgeNova = p.nova ? `<span class="off-badge-nova">NOVA ${escapeHtml(String(p.nova))}</span>` : "";
+
+  return `
+    <article class="off-scheda-prodotto">
+      <h3>${escapeHtml(p.nome || "Prodotto senza nome")}</h3>
+      <p class="hint">${escapeHtml(p.marca || "Marca non indicata")}${p.quantita ? " · " + escapeHtml(p.quantita) : ""}</p>
+      <div class="off-badge-riga">${badgeNutriscore}${badgeNova}</div>
+      <table class="off-tabella-nutrienti">
+        <tbody>
+          <tr><td>Energia</td><td>${p.kcal100g != null ? round1(p.kcal100g) + " kcal" : "—"}</td></tr>
+          <tr><td>Proteine</td><td>${p.proteine100g != null ? round1(p.proteine100g) + " g" : "—"}</td></tr>
+          <tr><td>Grassi</td><td>${p.grassi100g != null ? round1(p.grassi100g) + " g" : "—"}</td></tr>
+          <tr><td>Carboidrati</td><td>${p.carboidrati100g != null ? round1(p.carboidrati100g) + " g" : "—"}</td></tr>
+        </tbody>
+      </table>
+      <p class="hint">Valori per 100 g/ml.</p>
+      ${p.ingredienti ? `<p><strong>Ingredienti:</strong> ${escapeHtml(p.ingredienti)}</p>` : ""}
+      ${p.allergeni ? `<p><strong>Allergeni:</strong> ${escapeHtml(p.allergeni)}</p>` : ""}
+    </article>
+  `;
+}
+
+function renderRisultatiOFF(container, erroreEl, risultato) {
+  erroreEl.classList.add("hidden");
+  if (risultato.errore) {
+    erroreEl.textContent = risultato.errore;
+    erroreEl.classList.remove("hidden");
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = risultato.prodotti.map(renderSchedaProdottoOFF).join("");
+}
+
+async function cercaOFFAdmin() {
+  const query = offAdminQueryInput.value.trim();
+  const barcode = offAdminBarcodeInput.value.trim();
+  if (!query && !barcode) {
+    offAdminErrore.textContent = "Inserisci un nome prodotto o un codice a barre.";
+    offAdminErrore.classList.remove("hidden");
+    return;
+  }
+  offAdminRisultati.innerHTML = '<p class="hint">Ricerca in corso...</p>';
+  const risultato = await cercaOpenFoodFacts({ query, barcode });
+  renderRisultatiOFF(offAdminRisultati, offAdminErrore, risultato);
+}
+
+// ---------- Open Food Facts: scanner barcode (paziente) ----------
+// html5-qrcode gestisce sia il permesso fotocamera che la decodifica del
+// codice a barre; se la fotocamera non è disponibile o il permesso viene
+// negato, resta comunque possibile inserire il codice a barre a mano.
+
+let html5QrCodeScanner = null;
+
+async function avviaScannerBarcode() {
+  offPazienteErrore.classList.add("hidden");
+  offScannerPermessoNota.classList.remove("hidden");
+  offScannerViewport.classList.remove("hidden");
+  offScannerAvviaBtn.classList.add("hidden");
+  offScannerStopBtn.classList.remove("hidden");
+
+  html5QrCodeScanner = new Html5Qrcode("off-scanner-viewport");
+  try {
+    await html5QrCodeScanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      async (codiceLetto) => {
+        await fermaScannerBarcode();
+        offBarcodeManualeInput.value = codiceLetto;
+        await cercaOFFBarcode(codiceLetto);
+      },
+      () => {} // errori di lettura frame-by-frame: normali durante la scansione, si ignorano
+    );
+  } catch (e) {
+    offPazienteErrore.textContent = "Impossibile accedere alla fotocamera. Puoi comunque inserire il codice a barre manualmente qui sotto.";
+    offPazienteErrore.classList.remove("hidden");
+    await fermaScannerBarcode();
+  }
+}
+
+async function fermaScannerBarcode() {
+  offScannerViewport.classList.add("hidden");
+  offScannerPermessoNota.classList.add("hidden");
+  offScannerAvviaBtn.classList.remove("hidden");
+  offScannerStopBtn.classList.add("hidden");
+  if (html5QrCodeScanner) {
+    try {
+      await html5QrCodeScanner.stop();
+      html5QrCodeScanner.clear();
+    } catch (e) {}
+    html5QrCodeScanner = null;
+  }
+}
+
+async function cercaOFFBarcode(barcode) {
+  offPazienteRisultati.innerHTML = '<p class="hint">Ricerca in corso...</p>';
+  const risultato = await cercaOpenFoodFacts({ barcode });
+  renderRisultatiOFF(offPazienteRisultati, offPazienteErrore, risultato);
+}
+
+async function cercaOFFBarcodeManuale() {
+  const barcode = offBarcodeManualeInput.value.trim();
+  if (!barcode) {
+    offPazienteErrore.textContent = "Inserisci un codice a barre.";
+    offPazienteErrore.classList.remove("hidden");
+    return;
+  }
+  await cercaOFFBarcode(barcode);
+}
+
 // ---------- Notifiche push: consenso e subscription ----------
 
 function rilevaIosNonStandalone() {
@@ -1211,6 +1595,198 @@ async function inviaInvito() {
   popolaSelettorePazientiInvito();
 }
 
+// ---------- Sicurezza account: autenticazione a due fattori (admin) ----------
+// Usa l'MFA nativo di Supabase Auth (TOTP): QR code, verifica e assurance
+// level (aal1/aal2) sono gestiti interamente da Supabase, qui ci limitiamo a
+// chiamare mfa.enroll/challenge/verify/unenroll. I codici di backup non sono
+// previsti dall'MFA nativo: li generiamo noi (crypto.getRandomValues) e ne
+// salviamo solo l'hash SHA-256 in admin_backup_codes (RLS: solo il proprietario
+// può leggerli/cancellarli). Di default la 2FA è disattivata: se l'admin non
+// la attiva mai, verificaSeServe2FA() non troverà nessun fattore e il login
+// resta esattamente come oggi.
+
+async function sha256Hex(testo) {
+  const dati = new TextEncoder().encode(testo);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", dati);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function generaCodiceBackup() {
+  const bytes = new Uint8Array(5);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+  return `${hex.slice(0, 5)}-${hex.slice(5, 10)}`;
+}
+
+async function consumaCodiceBackup(codice) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return false;
+
+  const hash = await sha256Hex(codice.trim().toUpperCase());
+  const { data, error } = await supabaseClient
+    .from("admin_backup_codes")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("code_hash", hash)
+    .limit(1);
+
+  if (error || !data || data.length === 0) return false;
+
+  await supabaseClient.from("admin_backup_codes").delete().eq("id", data[0].id);
+  return true;
+}
+
+async function apriSicurezza() {
+  sicurezzaSetupBlocco.classList.add("hidden");
+  sicurezzaBackupBlocco.classList.add("hidden");
+  sicurezzaDisattivaBlocco.classList.add("hidden");
+  sicurezzaAttivaBtn.classList.add("hidden");
+  sicurezzaStatoEl.textContent = "Verifica in corso...";
+  sicurezzaOverlay.classList.remove("hidden");
+
+  const { data, error } = await supabaseClient.auth.mfa.listFactors();
+  const totpAttivo = !error && data && data.totp ? data.totp.find(f => f.status === "verified") : null;
+
+  if (totpAttivo) {
+    mfaFactorIdCorrente = totpAttivo.id;
+    sicurezzaStatoEl.textContent = "Autenticazione a due fattori: attiva.";
+    sicurezzaDisattivaCodiceInput.value = "";
+    sicurezzaDisattivaErrore.classList.add("hidden");
+    sicurezzaDisattivaBlocco.classList.remove("hidden");
+  } else {
+    mfaFactorIdCorrente = null;
+    sicurezzaStatoEl.textContent = "Autenticazione a due fattori: non attiva.";
+    sicurezzaAttivaBtn.classList.remove("hidden");
+  }
+}
+
+function chiudiSicurezza() {
+  sicurezzaOverlay.classList.add("hidden");
+}
+
+async function avviaAttivazione2FA() {
+  sicurezzaSetupErrore.classList.add("hidden");
+  const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: "totp" });
+  if (error) {
+    alert("Errore nell'avvio dell'attivazione: " + error.message);
+    return;
+  }
+
+  mfaFactorIdCorrente = data.id;
+  sicurezzaQrContenitore.innerHTML = data.totp.qr_code;
+  sicurezzaSecretTesto.textContent = "Codice manuale (se non puoi inquadrare il QR): " + data.totp.secret;
+  sicurezzaSetupCodiceInput.value = "";
+  sicurezzaAttivaBtn.classList.add("hidden");
+  sicurezzaSetupBlocco.classList.remove("hidden");
+}
+
+async function annullaAttivazione2FA() {
+  if (mfaFactorIdCorrente) {
+    await supabaseClient.auth.mfa.unenroll({ factorId: mfaFactorIdCorrente });
+  }
+  mfaFactorIdCorrente = null;
+  sicurezzaSetupBlocco.classList.add("hidden");
+  sicurezzaAttivaBtn.classList.remove("hidden");
+}
+
+async function confermaAttivazione2FA() {
+  const codice = sicurezzaSetupCodiceInput.value.trim();
+  sicurezzaSetupErrore.classList.add("hidden");
+  if (!codice) {
+    sicurezzaSetupErrore.textContent = "Inserisci il codice a 6 cifre.";
+    sicurezzaSetupErrore.classList.remove("hidden");
+    return;
+  }
+
+  sicurezzaSetupConfermaBtn.disabled = true;
+  const { data: challenge, error: erroreChallenge } = await supabaseClient.auth.mfa.challenge({ factorId: mfaFactorIdCorrente });
+  if (erroreChallenge) {
+    sicurezzaSetupConfermaBtn.disabled = false;
+    sicurezzaSetupErrore.textContent = "Errore: " + erroreChallenge.message;
+    sicurezzaSetupErrore.classList.remove("hidden");
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.mfa.verify({ factorId: mfaFactorIdCorrente, challengeId: challenge.id, code: codice });
+  sicurezzaSetupConfermaBtn.disabled = false;
+
+  if (error) {
+    sicurezzaSetupErrore.textContent = "Codice non valido. Riprova.";
+    sicurezzaSetupErrore.classList.remove("hidden");
+    return;
+  }
+
+  sicurezzaSetupBlocco.classList.add("hidden");
+  await generaEMostraBackupCodes();
+}
+
+async function generaEMostraBackupCodes() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return;
+
+  // Rimuove eventuali codici di un'attivazione precedente, ormai non più validi.
+  await supabaseClient.from("admin_backup_codes").delete().eq("user_id", user.id);
+
+  const codici = Array.from({ length: 8 }, generaCodiceBackup);
+  const righe = await Promise.all(codici.map(async (c) => ({
+    user_id: user.id,
+    code_hash: await sha256Hex(c)
+  })));
+
+  const { error } = await supabaseClient.from("admin_backup_codes").insert(righe);
+  if (error) {
+    alert("2FA attivata, ma non è stato possibile salvare i codici di backup: " + error.message);
+    return;
+  }
+
+  sicurezzaBackupLista.innerHTML = codici.map(c => `<p><code>${c}</code></p>`).join("");
+  sicurezzaBackupBlocco.classList.remove("hidden");
+}
+
+function chiudiBackupBlocco() {
+  sicurezzaBackupBlocco.classList.add("hidden");
+  chiudiSicurezza();
+}
+
+async function disattiva2FA() {
+  const codice = sicurezzaDisattivaCodiceInput.value.trim();
+  sicurezzaDisattivaErrore.classList.add("hidden");
+  if (!codice) {
+    sicurezzaDisattivaErrore.textContent = "Inserisci un codice per confermare.";
+    sicurezzaDisattivaErrore.classList.remove("hidden");
+    return;
+  }
+
+  let verificato = false;
+  const { data: challenge, error: erroreChallenge } = await supabaseClient.auth.mfa.challenge({ factorId: mfaFactorIdCorrente });
+  if (!erroreChallenge) {
+    const { error } = await supabaseClient.auth.mfa.verify({ factorId: mfaFactorIdCorrente, challengeId: challenge.id, code: codice });
+    verificato = !error;
+  }
+  if (!verificato) {
+    verificato = await consumaCodiceBackup(codice);
+  }
+
+  if (!verificato) {
+    sicurezzaDisattivaErrore.textContent = "Codice non valido.";
+    sicurezzaDisattivaErrore.classList.remove("hidden");
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.mfa.unenroll({ factorId: mfaFactorIdCorrente });
+  if (error) {
+    sicurezzaDisattivaErrore.textContent = "Errore nella disattivazione: " + error.message;
+    sicurezzaDisattivaErrore.classList.remove("hidden");
+    return;
+  }
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (user) await supabaseClient.from("admin_backup_codes").delete().eq("user_id", user.id);
+
+  chiudiSicurezza();
+  alert("Autenticazione a due fattori disattivata.");
+}
+
 // ---------- Pazienti ----------
 
 async function caricaListaPazienti() {
@@ -1358,6 +1934,161 @@ async function confermaNuovoPaziente() {
   await selezionaPaziente(data.id);
 }
 
+// ---------- Agenda appuntamenti (admin) ----------
+// Vista trasversale, non legata al "paziente in lavorazione": mostra tutti gli
+// appuntamenti (passati e futuri) con possibilità di filtrare per paziente.
+// Solo l'amministratore può crearli/modificarli/cancellarli (RLS lo impone
+// anche lato database); il paziente li vede in sola lettura, solo i propri.
+
+let listaAppuntamenti = [];
+
+async function caricaAppuntamenti() {
+  const { data, error } = await supabaseClient
+    .from("appuntamenti")
+    .select("*, pazienti(nome)")
+    .order("data_ora", { ascending: true });
+
+  if (error) {
+    console.error("Errore nel caricamento degli appuntamenti:", error);
+    listaAppuntamenti = [];
+  } else {
+    listaAppuntamenti = data || [];
+  }
+  popolaFiltroAgenda();
+  renderListaAppuntamenti();
+}
+
+function popolaFiltroAgenda() {
+  const selezionato = agendaFiltroPazienteSelect.value;
+  agendaFiltroPazienteSelect.innerHTML = '<option value="">Tutti i pazienti</option>' +
+    listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+  agendaFiltroPazienteSelect.value = selezionato || "";
+}
+
+function renderListaAppuntamenti() {
+  const filtroPaziente = agendaFiltroPazienteSelect.value;
+  const ora = new Date();
+  const righe = listaAppuntamenti.filter(a => !filtroPaziente || a.paziente_id === filtroPaziente);
+
+  if (righe.length === 0) {
+    agendaListaEl.innerHTML = '<p class="vuoto">Nessun appuntamento registrato.</p>';
+    return;
+  }
+
+  agendaListaEl.innerHTML = righe.map(a => {
+    const dataOra = new Date(a.data_ora);
+    const passato = dataOra < ora;
+    const nomePaziente = a.pazienti ? a.pazienti.nome : "—";
+    const tipologiaLabel = a.tipologia === "remoto" ? "Da remoto" : "In studio";
+    return `
+      <div class="agenda-riga ${passato ? "agenda-passato" : "agenda-futuro"}">
+        <div class="agenda-riga-info">
+          <span class="badge-checkin ${passato ? "in-ritardo" : "in-linea"}">${passato ? "Passato" : "Futuro"}</span>
+          <strong>${dataOra.toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })} · ${dataOra.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</strong>
+          <span>${escapeHtml(nomePaziente)} — ${tipologiaLabel}</span>
+          ${a.note ? `<span class="hint">${escapeHtml(a.note)}</span>` : ""}
+        </div>
+        ${!passato ? `<button type="button" class="secondary agenda-modifica-btn" data-id="${a.id}">Modifica</button>` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+function apriNuovoAppuntamento() {
+  appuntamentoInModifica = null;
+  appuntamentoTitolo.textContent = "Nuovo appuntamento";
+  appuntamentoPazienteSelect.innerHTML = listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+  if (pazienteCorrente) appuntamentoPazienteSelect.value = pazienteCorrente.id;
+  appuntamentoDataInput.value = "";
+  appuntamentoOraInput.value = "";
+  appuntamentoTipologiaSelect.value = "studio";
+  appuntamentoNoteInput.value = "";
+  appuntamentoErrore.classList.add("hidden");
+  appuntamentoEliminaBtn.classList.add("hidden");
+  appuntamentoOverlay.classList.remove("hidden");
+}
+
+function apriModificaAppuntamento(id) {
+  const a = listaAppuntamenti.find(x => x.id === id);
+  if (!a) return;
+  appuntamentoInModifica = a;
+  appuntamentoTitolo.textContent = "Modifica appuntamento";
+  appuntamentoPazienteSelect.innerHTML = listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+  appuntamentoPazienteSelect.value = a.paziente_id;
+  const dataOra = new Date(a.data_ora);
+  appuntamentoDataInput.value = dataOra.toISOString().slice(0, 10);
+  appuntamentoOraInput.value = dataOra.toTimeString().slice(0, 5);
+  appuntamentoTipologiaSelect.value = a.tipologia;
+  appuntamentoNoteInput.value = a.note || "";
+  appuntamentoErrore.classList.add("hidden");
+  appuntamentoEliminaBtn.classList.remove("hidden");
+  appuntamentoOverlay.classList.remove("hidden");
+}
+
+function chiudiAppuntamento() {
+  appuntamentoOverlay.classList.add("hidden");
+}
+
+async function salvaAppuntamento() {
+  const pazienteId = appuntamentoPazienteSelect.value;
+  const data = appuntamentoDataInput.value;
+  const ora = appuntamentoOraInput.value;
+  appuntamentoErrore.classList.add("hidden");
+
+  if (!pazienteId || !data || !ora) {
+    appuntamentoErrore.textContent = "Seleziona un paziente e inserisci data e ora.";
+    appuntamentoErrore.classList.remove("hidden");
+    return;
+  }
+
+  const dataOraLocale = new Date(`${data}T${ora}:00`);
+  if (isNaN(dataOraLocale.getTime())) {
+    appuntamentoErrore.textContent = "Data o ora non valide.";
+    appuntamentoErrore.classList.remove("hidden");
+    return;
+  }
+
+  const corpo = {
+    paziente_id: pazienteId,
+    data_ora: dataOraLocale.toISOString(),
+    tipologia: appuntamentoTipologiaSelect.value,
+    note: appuntamentoNoteInput.value.trim() || null
+  };
+
+  let error;
+  if (appuntamentoInModifica) {
+    // Se l'orario cambia, va ridato il permesso di inviare un nuovo promemoria.
+    if (new Date(appuntamentoInModifica.data_ora).getTime() !== dataOraLocale.getTime()) {
+      corpo.promemoria_inviato = false;
+    }
+    ({ error } = await supabaseClient.from("appuntamenti").update(corpo).eq("id", appuntamentoInModifica.id));
+  } else {
+    ({ error } = await supabaseClient.from("appuntamenti").insert(corpo));
+  }
+
+  if (error) {
+    appuntamentoErrore.textContent = "Errore: " + error.message;
+    appuntamentoErrore.classList.remove("hidden");
+    return;
+  }
+
+  chiudiAppuntamento();
+  await caricaAppuntamenti();
+}
+
+async function eliminaAppuntamentoCorrente() {
+  if (!appuntamentoInModifica) return;
+  if (!confirm("Eliminare questo appuntamento?")) return;
+
+  const { error } = await supabaseClient.from("appuntamenti").delete().eq("id", appuntamentoInModifica.id);
+  if (error) {
+    alert("Errore nell'eliminazione: " + error.message);
+    return;
+  }
+  chiudiAppuntamento();
+  await caricaAppuntamenti();
+}
+
 // ---------- Profilo paziente ----------
 
 async function apriProfiloPaziente() {
@@ -1385,6 +2116,7 @@ async function apriProfiloPaziente() {
   profiloAllergieInput.value = data.allergie || "";
   profiloNoteInput.value = data.note || "";
   profiloPesoOriginale = data.peso_kg ?? null;
+  profiloResetMsg.classList.add("hidden");
 
   profiloOverlay.classList.remove("hidden");
 }
@@ -1427,6 +2159,34 @@ async function salvaProfiloPaziente() {
   }
 
   chiudiProfiloPaziente();
+}
+
+// Riusa lo stesso meccanismo del recupero password self-service (vedi
+// inviaRecuperoPassword): invia un'email con link di reset monouso e a
+// scadenza breve, senza bisogno di conoscere la password attuale. Visibile
+// solo qui, nel modale profilo lato admin — mai lato paziente.
+async function resettaPasswordPaziente() {
+  profiloResetMsg.classList.add("hidden");
+
+  const email = profiloEmailInput.value.trim();
+  if (!email) {
+    profiloResetMsg.textContent = "Il paziente non ha un'email registrata: aggiungila e salva il profilo prima di procedere.";
+    profiloResetMsg.classList.remove("hidden");
+    return;
+  }
+
+  profiloResetPasswordBtn.disabled = true;
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+  profiloResetPasswordBtn.disabled = false;
+
+  if (error) {
+    profiloResetMsg.textContent = "Errore nell'invio dell'email: " + error.message;
+    profiloResetMsg.classList.remove("hidden");
+    return;
+  }
+
+  profiloResetMsg.textContent = `Email di reset inviata a ${email}.`;
+  profiloResetMsg.classList.remove("hidden");
 }
 
 // ---------- Storico diete ----------
@@ -2348,6 +3108,11 @@ function inizializza() {
     btn.addEventListener("click", () => apriTabCheckin(btn.dataset.tab));
   });
 
+  offAdminCercaBtn.addEventListener("click", cercaOFFAdmin);
+  offScannerAvviaBtn.addEventListener("click", avviaScannerBarcode);
+  offScannerStopBtn.addEventListener("click", fermaScannerBarcode);
+  offBarcodeManualeBtn.addEventListener("click", cercaOFFBarcodeManuale);
+
   notificheAttivaBtn.addEventListener("click", attivaNotifiche);
   notificheRifiutaBtn.addEventListener("click", rifiutaNotifiche);
   notificheOkBtn.addEventListener("click", chiudiRichiestaNotifiche);
@@ -2361,6 +3126,27 @@ function inizializza() {
   invitoPazienteSelect.addEventListener("change", aggiornaVisibilitaBloccoPaziente);
   invitoInviaBtn.addEventListener("click", inviaInvito);
   aggiornaVisibilitaBloccoPaziente();
+
+  sicurezzaBtn.addEventListener("click", apriSicurezza);
+  sicurezzaChiudiBtn.addEventListener("click", chiudiSicurezza);
+  sicurezzaOverlay.addEventListener("click", (e) => {
+    if (e.target === sicurezzaOverlay) chiudiSicurezza();
+  });
+  sicurezzaAttivaBtn.addEventListener("click", avviaAttivazione2FA);
+  sicurezzaSetupConfermaBtn.addEventListener("click", confermaAttivazione2FA);
+  sicurezzaSetupAnnullaBtn.addEventListener("click", annullaAttivazione2FA);
+  sicurezzaBackupChiudiBtn.addEventListener("click", chiudiBackupBlocco);
+  sicurezzaDisattivaConfermaBtn.addEventListener("click", disattiva2FA);
+
+  verifica2faConfermaBtn.addEventListener("click", confermaVerifica2FA);
+  verifica2faCodiceInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") confermaVerifica2FA();
+  });
+  verifica2faBackupLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    verifica2faBackupBlocco.classList.remove("hidden");
+  });
+  verifica2faBackupBtn.addEventListener("click", confermaBackupLogin);
 
   pazienteSearchInput.addEventListener("input", () => aggiornaSuggerimentiPazienti(false));
 
@@ -2416,6 +3202,19 @@ function inizializza() {
     if (e.target === nuovoPazienteOverlay) chiudiNuovoPaziente();
   });
 
+  agendaNuovoBtn.addEventListener("click", apriNuovoAppuntamento);
+  agendaFiltroPazienteSelect.addEventListener("change", renderListaAppuntamenti);
+  agendaListaEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".agenda-modifica-btn");
+    if (btn) apriModificaAppuntamento(btn.dataset.id);
+  });
+  appuntamentoSalvaBtn.addEventListener("click", salvaAppuntamento);
+  appuntamentoEliminaBtn.addEventListener("click", eliminaAppuntamentoCorrente);
+  appuntamentoAnnullaBtn.addEventListener("click", chiudiAppuntamento);
+  appuntamentoOverlay.addEventListener("click", (e) => {
+    if (e.target === appuntamentoOverlay) chiudiAppuntamento();
+  });
+
   storicoBtn.addEventListener("click", apriStorico);
   storicoChiudiBtn.addEventListener("click", chiudiStorico);
   storicoOverlay.addEventListener("click", (e) => {
@@ -2428,6 +3227,7 @@ function inizializza() {
 
   profiloBtn.addEventListener("click", apriProfiloPaziente);
   profiloSalvaBtn.addEventListener("click", salvaProfiloPaziente);
+  profiloResetPasswordBtn.addEventListener("click", resettaPasswordPaziente);
   profiloAnnullaBtn.addEventListener("click", chiudiProfiloPaziente);
   profiloOverlay.addEventListener("click", (e) => {
     if (e.target === profiloOverlay) chiudiProfiloPaziente();
