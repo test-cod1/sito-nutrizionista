@@ -17,7 +17,7 @@ let foodNames = [];
 let currentCalc = null;
 let suggestionIndex = -1;
 let draftPasto = [];
-let collapsedGiorni = new Set();
+let collapsedGiorni = new Set(GIORNI);
 let duplicaContesto = null;
 
 let supabaseClient = null;
@@ -1979,7 +1979,7 @@ async function selezionaPaziente(pazienteId) {
   validoDalInput.value = state.validoDal || "";
   validoAlInput.value = state.validoAl || "";
 
-  collapsedGiorni = new Set();
+  collapsedGiorni = new Set(GIORNI);
   draftPasto = [];
 
   storicoBtn.disabled = false;
@@ -2882,11 +2882,9 @@ function renderDieta() {
     titolo.className = "giorno-titolo";
     titolo.dataset.giorno = giorno;
     titolo.innerHTML = `
-      <span>
-        <span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${giorno}
-        ${giornoHaAlimenti(giorno) ? `<button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">Duplica</button>` : ''}
-      </span>
-      <span class="solo-nutrizionista">${superato ? '<span class="totale-warning">! ' : ''}Totale: ${formattaTotali(totaleGiorno)}${superato ? '</span>' : ''}</span>
+      <span class="giorno-nome"><span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${giorno}</span>
+      <span class="giorno-duplica-slot">${giornoHaAlimenti(giorno) ? `<button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">Duplica</button>` : ''}</span>
+      <span class="solo-nutrizionista giorno-totale">${superato ? '<span class="totale-warning">! ' : ''}Totale: ${formattaTotali(totaleGiorno)}${superato ? '</span>' : ''}</span>
     `;
     blocco.appendChild(titolo);
 
