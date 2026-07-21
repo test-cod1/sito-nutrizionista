@@ -1652,9 +1652,11 @@ textarea:focus {
 }
 
 #off-ricerca-admin-contenuto {
-  border-bottom: 1px dashed var(--border);
-  padding-bottom: 16px;
-  margin-bottom: 16px;
+  border: 1.5px dashed var(--accent-border);
+  background: var(--surface-alt-2);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 18px;
 }
 
 .solo-cliente {
