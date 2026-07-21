@@ -156,6 +156,13 @@ const loginBtn = document.getElementById("login-btn");
 
 const appShell = document.getElementById("app-shell");
 const areaLavoro = document.getElementById("area-lavoro");
+
+// Sidebar di navigazione rapida tra le sezioni della vista amministratore
+const sezioniToggleBtn = document.getElementById("sezioni-toggle-btn");
+const sezioniSidebar = document.getElementById("sezioni-sidebar");
+const sezioniOverlay = document.getElementById("sezioni-overlay");
+const sezioniLink = document.querySelectorAll(".sezioni-link");
+const sezioniLinkPaziente = document.querySelectorAll(".sezioni-link-paziente");
 const pazienteSearchInput = document.getElementById("paziente-search-input");
 const pazienteSuggestions = document.getElementById("paziente-suggestions");
 let pazienteSuggestionIndex = -1;
@@ -682,6 +689,7 @@ async function confermaBackupLogin() {
 async function avviaAppAdmin() {
   vistaPaziente.classList.add("hidden");
   appShell.classList.remove("hidden");
+  aggiornaDisponibilitaSezioniPaziente();
 
   await caricaAlimentiBase();
   customFoodsRemoti = await caricaAlimentiPersonalizzatiRemoti();
@@ -1898,6 +1906,11 @@ async function selezionaPazienteDaRicerca(id) {
   await selezionaPaziente(id);
 }
 
+function aggiornaDisponibilitaSezioniPaziente() {
+  const disponibili = !areaLavoro.classList.contains("hidden");
+  sezioniLinkPaziente.forEach(link => link.classList.toggle("non-disponibile", !disponibili));
+}
+
 async function selezionaPaziente(pazienteId) {
   if (!pazienteId) {
     pazienteCorrente = null;
@@ -1906,6 +1919,7 @@ async function selezionaPaziente(pazienteId) {
     profiloBtn.disabled = true;
     anteprimaPazienteBtn.disabled = true;
     areaLavoro.classList.add("hidden");
+    aggiornaDisponibilitaSezioniPaziente();
     return;
   }
 
@@ -1958,6 +1972,7 @@ async function selezionaPaziente(pazienteId) {
   profiloBtn.disabled = false;
   anteprimaPazienteBtn.disabled = false;
   areaLavoro.classList.remove("hidden");
+  aggiornaDisponibilitaSezioniPaziente();
 
   renderDraft();
   renderDieta();
@@ -3486,7 +3501,59 @@ function inizializza() {
     document.body.classList.remove("stampa-dieta", "stampa-nutrizionista", "stampa-spesa");
   });
 
+  inizializzaSidebarSezioni();
   inizializzaAuth();
+}
+
+// ---------- Sidebar di navigazione rapida tra le sezioni (vista amministratore) ----------
+
+function apriSidebarSezioni() {
+  sezioniSidebar.classList.add("aperta");
+  sezioniOverlay.classList.remove("hidden");
+}
+
+function chiudiSidebarSezioni() {
+  sezioniSidebar.classList.remove("aperta");
+  sezioniOverlay.classList.add("hidden");
+}
+
+function inizializzaSidebarSezioni() {
+  sezioniToggleBtn.addEventListener("click", () => {
+    if (sezioniSidebar.classList.contains("aperta")) {
+      chiudiSidebarSezioni();
+    } else {
+      apriSidebarSezioni();
+    }
+  });
+  sezioniOverlay.addEventListener("click", chiudiSidebarSezioni);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") chiudiSidebarSezioni();
+  });
+  sezioniLink.forEach(link => {
+    link.addEventListener("click", (e) => {
+      if (link.classList.contains("non-disponibile")) {
+        e.preventDefault();
+        return;
+      }
+      chiudiSidebarSezioni();
+    });
+  });
+
+  // Evidenzia nella sidebar la sezione attualmente visibile durante lo scroll.
+  const sezioniOsservate = Array.from(sezioniLink)
+    .map(link => document.getElementById(link.dataset.target))
+    .filter(Boolean);
+
+  if ("IntersectionObserver" in window && sezioniOsservate.length > 0) {
+    const osservatore = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const link = document.querySelector(`.sezioni-link[data-target="${entry.target.id}"]`);
+        if (link) link.classList.toggle("attiva", entry.isIntersecting);
+      });
+    }, { rootMargin: "-40% 0px -50% 0px" });
+
+    sezioniOsservate.forEach(sezione => osservatore.observe(sezione));
+  }
 }
 
 // ---------- PWA: registrazione service worker ----------

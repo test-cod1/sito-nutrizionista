@@ -233,6 +233,20 @@
   </div>
 
   <div id="app-shell" class="hidden">
+    <button type="button" id="sezioni-toggle-btn" class="sezioni-toggle-btn no-print" title="Sezioni" aria-label="Mostra le sezioni del sito">☰</button>
+    <div id="sezioni-overlay" class="sezioni-overlay hidden no-print"></div>
+    <nav id="sezioni-sidebar" class="sezioni-sidebar no-print">
+      <div class="sezioni-sidebar-titolo">Sezioni</div>
+      <a href="#paziente-bar" class="sezioni-link" data-target="paziente-bar">Paziente in lavorazione</a>
+      <a href="#agenda-admin" class="sezioni-link" data-target="agenda-admin">Agenda appuntamenti</a>
+      <a href="#impostazioni" class="sezioni-link sezioni-link-paziente" data-target="impostazioni">Dati piano alimentare</a>
+      <a href="#checkin-admin" class="sezioni-link sezioni-link-paziente" data-target="checkin-admin">Check-in periodico</a>
+      <a href="#off-ricerca-admin" class="sezioni-link sezioni-link-paziente" data-target="off-ricerca-admin">Ricerca prodotti</a>
+      <a href="#calcolatore" class="sezioni-link sezioni-link-paziente" data-target="calcolatore">Calcolatore alimento</a>
+      <a href="#pasto-corrente" class="sezioni-link sezioni-link-paziente" data-target="pasto-corrente">Pasto in corso</a>
+      <a href="#panoramica" class="sezioni-link sezioni-link-paziente" data-target="panoramica">Panoramica settimanale</a>
+      <a href="#dieta" class="sezioni-link sezioni-link-paziente" data-target="dieta">Piano alimentare settimanale</a>
+    </nav>
     <header class="hero no-print">
       <div class="gestione-utenti-fisso">
         <button type="button" id="gestione-utenti-btn" title="Gestione utenti" aria-label="Gestione utenti">👤</button>
