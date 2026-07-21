@@ -75,16 +75,25 @@ body {
   max-width: 900px;
   margin: 0 auto;
   padding: 0 20px 40px;
+  padding-left: calc(20px + env(safe-area-inset-left, 0px));
+  padding-right: calc(20px + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
   background: var(--bg-gradient);
   color: var(--text);
   line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hero {
   position: relative;
   text-align: center;
   padding: 64px 20px 30px;
+  padding-top: calc(64px + env(safe-area-inset-top, 0px));
   margin: 0 -20px 24px;
+  margin-left: calc(-20px - env(safe-area-inset-left, 0px));
+  margin-right: calc(-20px - env(safe-area-inset-right, 0px));
   background: var(--accent-gradient);
   color: white;
   border-radius: 0 0 18px 18px;
@@ -110,7 +119,7 @@ body {
 
 .header-azioni-destra {
   position: absolute;
-  top: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
   right: 20px;
   display: flex;
   align-items: center;
@@ -181,7 +190,7 @@ body {
 
 .gestione-utenti-fisso {
   position: absolute;
-  top: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
   left: 20px;
   display: flex;
   gap: 8px;
@@ -1168,10 +1177,12 @@ table tfoot .riga-totale td {
   bottom: 0;
   background: var(--overlay);
   display: flex;
-  align-items: center;
   justify-content: center;
   z-index: 100;
   padding: 20px;
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
 }
 
 .duplica-overlay.hidden {
@@ -1185,8 +1196,7 @@ table tfoot .riga-totale td {
   max-width: 380px;
   width: 100%;
   box-shadow: 0 12px 32px var(--shadow-modal);
-  max-height: 85vh;
-  overflow-y: auto;
+  margin: auto;
 }
 
 .duplica-modal-larga {
@@ -2198,8 +2208,8 @@ textarea:focus {
   color: var(--accent);
   font-size: 0.95rem;
   font-weight: 700;
-  padding: 0;
-  margin-top: 16px;
+  padding: 8px 0;
+  margin-top: 8px;
   cursor: pointer;
 }
 
@@ -2215,6 +2225,7 @@ textarea:focus {
 
 .profilo-accordion-contenuto p {
   margin: 4px 0;
+  overflow-wrap: break-word;
 }
 
 /* ---------- Progressi peso (paziente) ---------- */
@@ -2237,7 +2248,10 @@ textarea:focus {
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.85rem;
-  padding: 6px 12px;
+  padding: 9px 14px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
 }
 
