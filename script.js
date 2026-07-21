@@ -265,15 +265,20 @@ const pazienteLogoutBtn = document.getElementById("paziente-logout-btn");
 const pzTemaChiaroBtn = document.getElementById("pz-tema-chiaro-btn");
 const pzTemaNotteBtn = document.getElementById("pz-tema-notte-btn");
 
+// Impostazioni (paziente): reimposta password + richiesta cancellazione dati
+const pazienteImpostazioniBtn = document.getElementById("paziente-impostazioni-btn");
+const pazienteImpostazioniOverlay = document.getElementById("paziente-impostazioni-overlay");
+const pazienteImpostazioniChiudiBtn = document.getElementById("paziente-impostazioni-chiudi-btn");
+const impostazioniResetPasswordBtn = document.getElementById("impostazioni-reset-password-btn");
+const impostazioniCancellazioneBtn = document.getElementById("impostazioni-cancellazione-btn");
+
 // Reimposta password (paziente)
-const pazienteSicurezzaBtn = document.getElementById("paziente-sicurezza-btn");
 const pazienteSicurezzaOverlay = document.getElementById("paziente-sicurezza-overlay");
 const pazienteSicurezzaMsg = document.getElementById("paziente-sicurezza-msg");
 const pazienteSicurezzaInviaBtn = document.getElementById("paziente-sicurezza-invia-btn");
 const pazienteSicurezzaChiudiBtn = document.getElementById("paziente-sicurezza-chiudi-btn");
 
 // Richiesta di cancellazione dati (paziente)
-const cancellazioneApriBtn = document.getElementById("cancellazione-apri-btn");
 const cancellazioneOverlay = document.getElementById("cancellazione-overlay");
 const cancellazioneStep1 = document.getElementById("cancellazione-step-1");
 const cancellazioneStep2 = document.getElementById("cancellazione-step-2");
@@ -534,6 +539,19 @@ async function inviaRecuperoPassword() {
 
   recuperoSuccesso.textContent = "Se l'email è registrata, riceverai a breve un'email con il link per reimpostare la password.";
   recuperoSuccesso.classList.remove("hidden");
+}
+
+// ---------- Impostazioni (paziente) ----------
+// Punto d'ingresso unico per le due funzioni di account: da qui si passa
+// al modale di reset password o a quello di richiesta cancellazione dati,
+// che restano invariati internamente.
+
+function apriPazienteImpostazioni() {
+  pazienteImpostazioniOverlay.classList.remove("hidden");
+}
+
+function chiudiPazienteImpostazioni() {
+  pazienteImpostazioniOverlay.classList.add("hidden");
 }
 
 // ---------- Reimposta password (paziente già loggato) ----------
@@ -3756,14 +3774,26 @@ function inizializza() {
     if (e.target === recuperoPasswordOverlay) chiudiRecuperoPassword();
   });
 
-  pazienteSicurezzaBtn.addEventListener("click", apriPazienteSicurezza);
+  pazienteImpostazioniBtn.addEventListener("click", apriPazienteImpostazioni);
+  pazienteImpostazioniChiudiBtn.addEventListener("click", chiudiPazienteImpostazioni);
+  pazienteImpostazioniOverlay.addEventListener("click", (e) => {
+    if (e.target === pazienteImpostazioniOverlay) chiudiPazienteImpostazioni();
+  });
+  impostazioniResetPasswordBtn.addEventListener("click", () => {
+    chiudiPazienteImpostazioni();
+    apriPazienteSicurezza();
+  });
+  impostazioniCancellazioneBtn.addEventListener("click", () => {
+    chiudiPazienteImpostazioni();
+    apriCancellazione();
+  });
+
   pazienteSicurezzaInviaBtn.addEventListener("click", inviaResetPasswordPazienteProprio);
   pazienteSicurezzaChiudiBtn.addEventListener("click", chiudiPazienteSicurezza);
   pazienteSicurezzaOverlay.addEventListener("click", (e) => {
     if (e.target === pazienteSicurezzaOverlay) chiudiPazienteSicurezza();
   });
 
-  cancellazioneApriBtn.addEventListener("click", apriCancellazione);
   cancellazioneStep1AvantiBtn.addEventListener("click", avantiStep2Cancellazione);
   cancellazioneStep1AnnullaBtn.addEventListener("click", chiudiCancellazione);
   cancellazioneStep2InviaBtn.addEventListener("click", inviaRichiestaCancellazione);

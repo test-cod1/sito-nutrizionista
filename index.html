@@ -115,6 +115,18 @@
     </div>
   </div>
 
+  <!-- Impostazioni (paziente) -->
+  <div id="paziente-impostazioni-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3>Impostazioni</h3>
+      <div class="duplica-azioni">
+        <button type="button" id="impostazioni-reset-password-btn" class="secondary">Reimposta password</button>
+        <button type="button" id="impostazioni-cancellazione-btn" class="secondary">Richiedi la cancellazione dei tuoi dati</button>
+        <button type="button" id="paziente-impostazioni-chiudi-btn" class="danger">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Reimposta password (paziente) -->
   <div id="paziente-sicurezza-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal">
@@ -172,7 +184,7 @@
     </div>
     <header class="hero no-print">
       <div class="gestione-utenti-fisso">
-        <button type="button" id="paziente-sicurezza-btn" title="Reimposta password" aria-label="Reimposta password">🔑</button>
+        <button type="button" id="paziente-impostazioni-btn" title="Impostazioni" aria-label="Impostazioni">⚙️</button>
       </div>
       <div class="header-azioni-destra">
         <button type="button" id="paziente-logout-btn" class="esci-header-btn">Esci</button>
@@ -198,8 +210,6 @@
 
       <button id="profilo-contatti-toggle" class="profilo-accordion-toggle" type="button">▸ Contatti</button>
       <div id="profilo-contatti-contenuto" class="hidden profilo-accordion-contenuto"></div>
-
-      <button type="button" id="cancellazione-apri-btn" class="cancellazione-link">Richiedi la cancellazione dei tuoi dati</button>
     </section>
 
     <section class="card no-print">

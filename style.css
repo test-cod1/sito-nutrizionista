@@ -188,7 +188,7 @@ body {
 #agenda-btn,
 #task-board-btn,
 #richieste-btn,
-#paziente-sicurezza-btn {
+#paziente-impostazioni-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -212,7 +212,7 @@ body {
 #agenda-btn:hover,
 #task-board-btn:hover,
 #richieste-btn:hover,
-#paziente-sicurezza-btn:hover {
+#paziente-impostazioni-btn:hover {
   background: #eef4f0;
   transform: none;
 }
