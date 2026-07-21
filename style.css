@@ -2158,6 +2158,38 @@ textarea:focus {
 
 /* ---------- Vista paziente (sola lettura) ---------- */
 
+/* Sezione unica: profilo a sinistra, prossimo appuntamento a destra,
+   separati da una linea verticale (che diventa orizzontale su mobile). */
+.profilo-appuntamento-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.profilo-appuntamento-colonna {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.profilo-colonna {
+  flex-grow: 2;
+}
+
+.appuntamento-colonna {
+  flex-grow: 1;
+  border-left: 1px solid var(--border);
+  padding-left: 24px;
+}
+
+@media (max-width: 640px) {
+  .appuntamento-colonna {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+}
+
 .profilo-accordion-toggle {
   width: 100%;
   text-align: left;

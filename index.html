@@ -201,19 +201,21 @@
       <p class="hero-sub" id="vista-paziente-nome"></p>
     </header>
 
-    <section id="prossimo-appuntamento" class="card no-print">
-      <h2>Prossimo appuntamento</h2>
-      <div id="prossimo-appuntamento-contenuto"></div>
-    </section>
+    <section id="prossimo-appuntamento" class="card no-print profilo-appuntamento-card">
+      <div class="profilo-appuntamento-colonna profilo-colonna">
+        <h2>Il mio profilo</h2>
 
-    <section class="card no-print">
-      <h2>Il mio profilo</h2>
+        <button id="profilo-fisici-toggle" class="profilo-accordion-toggle" type="button">▸ Dati fisici</button>
+        <div id="profilo-fisici-contenuto" class="hidden profilo-accordion-contenuto"></div>
 
-      <button id="profilo-fisici-toggle" class="profilo-accordion-toggle" type="button">▸ Dati fisici</button>
-      <div id="profilo-fisici-contenuto" class="hidden profilo-accordion-contenuto"></div>
+        <button id="profilo-contatti-toggle" class="profilo-accordion-toggle" type="button">▸ Contatti</button>
+        <div id="profilo-contatti-contenuto" class="hidden profilo-accordion-contenuto"></div>
+      </div>
 
-      <button id="profilo-contatti-toggle" class="profilo-accordion-toggle" type="button">▸ Contatti</button>
-      <div id="profilo-contatti-contenuto" class="hidden profilo-accordion-contenuto"></div>
+      <div class="profilo-appuntamento-colonna appuntamento-colonna">
+        <h2>Prossimo appuntamento</h2>
+        <div id="prossimo-appuntamento-contenuto"></div>
+      </div>
     </section>
 
     <section class="card no-print">
