@@ -222,6 +222,7 @@ const profiloTelefonoInput = document.getElementById("profilo-telefono");
 const profiloEmailInput = document.getElementById("profilo-email");
 const profiloAllergieInput = document.getElementById("profilo-allergie");
 const profiloNoteInput = document.getElementById("profilo-note");
+const profiloNonSeguitoCheck = document.getElementById("profilo-non-seguito-check");
 const profiloSalvaBtn = document.getElementById("profilo-salva-btn");
 const profiloAnnullaBtn = document.getElementById("profilo-annulla-btn");
 
@@ -271,6 +272,20 @@ const pazienteSicurezzaMsg = document.getElementById("paziente-sicurezza-msg");
 const pazienteSicurezzaInviaBtn = document.getElementById("paziente-sicurezza-invia-btn");
 const pazienteSicurezzaChiudiBtn = document.getElementById("paziente-sicurezza-chiudi-btn");
 
+// Richiesta di cancellazione dati (paziente)
+const cancellazioneApriBtn = document.getElementById("cancellazione-apri-btn");
+const cancellazioneOverlay = document.getElementById("cancellazione-overlay");
+const cancellazioneStep1 = document.getElementById("cancellazione-step-1");
+const cancellazioneStep2 = document.getElementById("cancellazione-step-2");
+const cancellazioneStep3 = document.getElementById("cancellazione-step-3");
+const cancellazioneStep1AvantiBtn = document.getElementById("cancellazione-step-1-avanti-btn");
+const cancellazioneStep1AnnullaBtn = document.getElementById("cancellazione-step-1-annulla-btn");
+const cancellazionePasswordInput = document.getElementById("cancellazione-password-input");
+const cancellazioneError = document.getElementById("cancellazione-error");
+const cancellazioneStep2InviaBtn = document.getElementById("cancellazione-step-2-invia-btn");
+const cancellazioneStep2AnnullaBtn = document.getElementById("cancellazione-step-2-annulla-btn");
+const cancellazioneStep3ChiudiBtn = document.getElementById("cancellazione-step-3-chiudi-btn");
+
 // Profilo paziente (accordion, sola lettura)
 const profiloFisiciToggle = document.getElementById("profilo-fisici-toggle");
 const profiloFisiciContenuto = document.getElementById("profilo-fisici-contenuto");
@@ -315,6 +330,57 @@ const agendaListaEl = document.getElementById("agenda-lista");
 const agendaNuovoBtn = document.getElementById("agenda-nuovo-btn");
 const agendaFiltroPazienteSelect = document.getElementById("agenda-filtro-paziente");
 const prossimoAppuntamentoAdminContenuto = document.getElementById("prossimo-appuntamento-admin-contenuto");
+
+// Richieste di cancellazione dati (admin)
+const richiesteBtn = document.getElementById("richieste-btn");
+const richiesteBadge = document.getElementById("richieste-badge");
+const richiesteOverlay = document.getElementById("richieste-overlay");
+const richiesteLista = document.getElementById("richieste-lista");
+const richiesteChiudiBtn = document.getElementById("richieste-chiudi-btn");
+let listaRichieste = [];
+
+// Bacheca task (admin)
+const taskBoardBtn = document.getElementById("task-board-btn");
+const taskBoard = document.getElementById("task-board");
+const taskBoardChiudiBtn = document.getElementById("task-board-chiudi-btn");
+const taskNuovaBtn = document.getElementById("task-nuova-btn");
+const taskArchivioBtn = document.getElementById("task-archivio-btn");
+const taskListaEl = {
+  da_fare: document.getElementById("task-lista-da_fare"),
+  in_corso: document.getElementById("task-lista-in_corso"),
+  fatto: document.getElementById("task-lista-fatto")
+};
+const taskContatoreEl = {
+  da_fare: document.getElementById("task-contatore-da_fare"),
+  in_corso: document.getElementById("task-contatore-in_corso"),
+  fatto: document.getElementById("task-contatore-fatto")
+};
+const taskVediTutteBtn = document.getElementById("task-vedi-tutte-btn");
+
+const taskModalOverlay = document.getElementById("task-modal-overlay");
+const taskModalTitolo = document.getElementById("task-modal-titolo");
+const taskTitoloInput = document.getElementById("task-titolo-input");
+const taskNotaInput = document.getElementById("task-nota-input");
+const taskPrioritaSelect = document.getElementById("task-priorita-select");
+const taskPazienteSelect = document.getElementById("task-paziente-select");
+const taskModalError = document.getElementById("task-modal-error");
+const taskSalvaBtn = document.getElementById("task-salva-btn");
+const taskEliminaBtn = document.getElementById("task-elimina-btn");
+const taskAnnullaBtn = document.getElementById("task-annulla-btn");
+
+const taskVediTutteOverlay = document.getElementById("task-vedi-tutte-overlay");
+const taskVediTutteLista = document.getElementById("task-vedi-tutte-lista");
+const taskVediTutteChiudiBtn = document.getElementById("task-vedi-tutte-chiudi-btn");
+
+const taskArchivioOverlay = document.getElementById("task-archivio-overlay");
+const taskArchivioLista = document.getElementById("task-archivio-lista");
+const taskArchivioChiudiBtn = document.getElementById("task-archivio-chiudi-btn");
+
+let listaTask = [];
+let taskInModifica = null;
+const TASK_FATTO_LIMITE = 15;
+const TASK_STATO_LABEL = { da_fare: "Da fare", in_corso: "In corso", fatto: "Fatto" };
+const TASK_PRIORITA_LABEL = { bassa: "Bassa", media: "Media", alta: "Alta" };
 const appuntamentoOverlay = document.getElementById("appuntamento-overlay");
 const appuntamentoTitolo = document.getElementById("appuntamento-titolo");
 const appuntamentoPazienteSelect = document.getElementById("appuntamento-paziente-select");
@@ -507,6 +573,75 @@ async function inviaResetPasswordPazienteProprio() {
 
   pazienteSicurezzaMsg.textContent = `Ti abbiamo inviato un'email a ${user.email} con le istruzioni per reimpostare la password.`;
   pazienteSicurezzaMsg.classList.remove("hidden");
+}
+
+// ---------- Richiesta di cancellazione dati (paziente) ----------
+// Tre passaggi: spiegazione + conferma, verifica password (re-login senza
+// alterare la sessione), messaggio finale. La richiesta viene solo
+// registrata qui: l'effettiva cancellazione avviene lato amministratore,
+// dopo revisione, tramite la funzione serverless elimina-paziente.
+
+function mostraStepCancellazione(step) {
+  cancellazioneStep1.classList.toggle("hidden", step !== 1);
+  cancellazioneStep2.classList.toggle("hidden", step !== 2);
+  cancellazioneStep3.classList.toggle("hidden", step !== 3);
+}
+
+function apriCancellazione() {
+  cancellazionePasswordInput.value = "";
+  cancellazioneError.classList.add("hidden");
+  mostraStepCancellazione(1);
+  cancellazioneOverlay.classList.remove("hidden");
+}
+
+function chiudiCancellazione() {
+  cancellazioneOverlay.classList.add("hidden");
+}
+
+function avantiStep2Cancellazione() {
+  mostraStepCancellazione(2);
+  cancellazionePasswordInput.focus();
+}
+
+async function inviaRichiestaCancellazione() {
+  cancellazioneError.classList.add("hidden");
+  const password = cancellazionePasswordInput.value;
+  if (!password) {
+    cancellazioneError.textContent = "Inserisci la password.";
+    cancellazioneError.classList.remove("hidden");
+    return;
+  }
+
+  const { data: { user }, error: erroreUser } = await supabaseClient.auth.getUser();
+  if (erroreUser || !user || !user.email) {
+    cancellazioneError.textContent = "Errore nel recupero dell'account.";
+    cancellazioneError.classList.remove("hidden");
+    return;
+  }
+
+  cancellazioneStep2InviaBtn.disabled = true;
+  const { error: erroreLogin } = await supabaseClient.auth.signInWithPassword({ email: user.email, password });
+  cancellazioneStep2InviaBtn.disabled = false;
+
+  if (erroreLogin) {
+    cancellazioneError.textContent = "Password errata.";
+    cancellazioneError.classList.remove("hidden");
+    return;
+  }
+
+  const { error } = await supabaseClient.from("richieste_cancellazione").insert({
+    paziente_id: pazienteCorrente.id,
+    paziente_nome_snapshot: pazienteCorrente.nome,
+    paziente_email_snapshot: user.email
+  });
+
+  if (error) {
+    cancellazioneError.textContent = "Errore nell'invio della richiesta: " + error.message;
+    cancellazioneError.classList.remove("hidden");
+    return;
+  }
+
+  mostraStepCancellazione(3);
 }
 
 function mostraImpostaPassword() {
@@ -742,6 +877,7 @@ async function avviaAppAdmin() {
 
   await caricaListaPazienti();
   await caricaAppuntamenti();
+  await caricaRichieste();
 
   renderDraft();
   renderDieta();
@@ -2219,6 +2355,416 @@ async function eliminaAppuntamentoCorrente() {
   await caricaAppuntamenti();
 }
 
+// ---------- Richieste di cancellazione dati (admin) ----------
+// Notifica interna (nessuna push): un contatore sull'icona 🔔, aggiornato al
+// caricamento della vista admin e dopo ogni azione. "Accetta" registra la
+// decisione e lancia subito la funzione serverless elimina-paziente, che
+// cancella account e dati: da qui in avanti l'operazione non è reversibile.
+
+async function caricaRichieste() {
+  const { data, error } = await supabaseClient
+    .from("richieste_cancellazione")
+    .select("*")
+    .order("richiesta_il", { ascending: false });
+
+  if (error) {
+    console.error("Errore nel caricamento delle richieste di cancellazione:", error);
+    listaRichieste = [];
+  } else {
+    listaRichieste = data || [];
+  }
+  aggiornaBadgeRichieste();
+  renderListaRichieste();
+}
+
+function aggiornaBadgeRichieste() {
+  const inAttesa = listaRichieste.filter(r => r.stato === "in_attesa").length;
+  richiesteBadge.textContent = inAttesa;
+  richiesteBadge.classList.toggle("hidden", inAttesa === 0);
+}
+
+function renderListaRichieste() {
+  if (listaRichieste.length === 0) {
+    richiesteLista.innerHTML = '<p class="vuoto">Nessuna richiesta di cancellazione dati.</p>';
+    return;
+  }
+
+  const STATO_LABEL = {
+    accettata: "Accettata — cancellazione in corso",
+    rifiutata: "Rifiutata",
+    completata: "Completata — dati cancellati definitivamente"
+  };
+
+  richiesteLista.innerHTML = listaRichieste.map(r => {
+    const data = new Date(r.richiesta_il).toLocaleString("it-IT", { dateStyle: "medium", timeStyle: "short" });
+
+    if (r.stato === "in_attesa") {
+      return `
+        <div class="richiesta-riga">
+          <div class="richiesta-riga-info">
+            <strong>${escapeHtml(r.paziente_nome_snapshot)}</strong>
+            <span class="hint">${escapeHtml(r.paziente_email_snapshot || "")}</span>
+            <span class="hint">Richiesta il ${data}</span>
+          </div>
+          <div class="richiesta-riga-azioni">
+            <button type="button" class="secondary richiesta-accetta-btn" data-id="${r.id}">Accetta e cancella</button>
+            <button type="button" class="danger richiesta-rifiuta-btn" data-id="${r.id}">Rifiuta</button>
+          </div>
+          <div class="richiesta-rifiuta-blocco hidden" data-id="${r.id}">
+            <label>Motivo del rifiuto</label>
+            <textarea class="richiesta-motivazione-input" rows="2" placeholder="Spiega perché la richiesta viene rifiutata..."></textarea>
+            <button type="button" class="danger richiesta-conferma-rifiuto-btn" data-id="${r.id}">Conferma rifiuto</button>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="richiesta-riga richiesta-riga-chiusa">
+        <div class="richiesta-riga-info">
+          <strong>${escapeHtml(r.paziente_nome_snapshot)}</strong>
+          <span class="hint">${escapeHtml(r.paziente_email_snapshot || "")}</span>
+          <span class="hint">Richiesta il ${data} — ${STATO_LABEL[r.stato] || r.stato}</span>
+          ${r.motivazione_rifiuto ? `<span class="hint">Motivo: ${escapeHtml(r.motivazione_rifiuto)}</span>` : ""}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function apriRichieste() {
+  await caricaRichieste();
+  richiesteOverlay.classList.remove("hidden");
+}
+
+function chiudiRichieste() {
+  richiesteOverlay.classList.add("hidden");
+}
+
+async function accettaRichiesta(id) {
+  const richiesta = listaRichieste.find(r => r.id === id);
+  if (!richiesta) return;
+  if (!confirm(`Confermi la cancellazione DEFINITIVA di tutti i dati di ${richiesta.paziente_nome_snapshot}? L'operazione non può essere annullata.`)) return;
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { error: erroreAccetta } = await supabaseClient
+    .from("richieste_cancellazione")
+    .update({ stato: "accettata", gestita_il: new Date().toISOString(), gestita_da: user ? user.id : null })
+    .eq("id", id);
+
+  if (erroreAccetta) {
+    alert("Errore nell'aggiornamento della richiesta: " + erroreAccetta.message);
+    return;
+  }
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  try {
+    const res = await fetch("/api/elimina-paziente", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ richiestaId: id })
+    });
+    const dati = await res.json();
+    if (!res.ok) throw new Error(dati.error || "Errore nella cancellazione.");
+  } catch (e) {
+    alert("La richiesta è stata accettata ma la cancellazione automatica non è riuscita: " + e.message + "\nRiprova più tardi o contatta l'assistenza.");
+  }
+
+  await caricaRichieste();
+}
+
+async function rifiutaRichiesta(id, motivazione) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { error } = await supabaseClient
+    .from("richieste_cancellazione")
+    .update({ stato: "rifiutata", motivazione_rifiuto: motivazione, gestita_il: new Date().toISOString(), gestita_da: user ? user.id : null })
+    .eq("id", id);
+
+  if (error) {
+    alert("Errore nel rifiuto della richiesta: " + error.message);
+    return;
+  }
+  await caricaRichieste();
+}
+
+// ---------- Bacheca task (admin) ----------
+// Kanban condiviso tra tutti gli amministratori. Una task collegata a un
+// paziente segnato come "non più seguito" (pazienti.attivo = false) non
+// compare più sulla bacheca principale in nessuna colonna: è consultabile
+// solo dall'Archivio, così la bacheca resta focalizzata sui pazienti attivi
+// e la colonna Fatto non cresce all'infinito.
+
+function taskArchiviata(task) {
+  return !!(task.paziente_id && task.pazienti && task.pazienti.attivo === false);
+}
+
+async function caricaTask() {
+  const { data, error } = await supabaseClient
+    .from("task_nutrizionista")
+    .select("*, pazienti(nome, attivo)")
+    .order("creato_il", { ascending: true });
+
+  if (error) {
+    console.error("Errore nel caricamento delle task:", error);
+    listaTask = [];
+  } else {
+    listaTask = data || [];
+  }
+  renderBachecaTask();
+}
+
+function renderBachecaTask() {
+  ["da_fare", "in_corso", "fatto"].forEach(stato => {
+    const attive = listaTask.filter(t => t.stato === stato && !taskArchiviata(t));
+    attive.sort((a, b) => stato === "fatto"
+      ? new Date(b.completato_il || b.creato_il) - new Date(a.completato_il || a.creato_il)
+      : new Date(a.creato_il) - new Date(b.creato_il));
+
+    taskContatoreEl[stato].textContent = attive.length;
+
+    if (stato === "fatto") {
+      const daMostrare = attive.slice(0, TASK_FATTO_LIMITE);
+      taskListaEl.fatto.innerHTML = daMostrare.length === 0
+        ? '<p class="vuoto">Nessuna task completata.</p>'
+        : daMostrare.map(renderTaskCard).join("");
+      taskVediTutteBtn.classList.toggle("hidden", attive.length <= TASK_FATTO_LIMITE);
+    } else {
+      taskListaEl[stato].innerHTML = attive.length === 0
+        ? '<p class="vuoto">Nessuna task.</p>'
+        : attive.map(renderTaskCard).join("");
+    }
+  });
+}
+
+function renderTaskCard(task) {
+  const nomePaziente = task.pazienti ? task.pazienti.nome : null;
+  const pulsantiSposta = {
+    da_fare: `<button type="button" class="task-sposta-btn" data-id="${task.id}" data-nuovo-stato="in_corso">In corso →</button>`,
+    in_corso: `<button type="button" class="task-sposta-btn" data-id="${task.id}" data-nuovo-stato="da_fare">← Da fare</button><button type="button" class="task-sposta-btn" data-id="${task.id}" data-nuovo-stato="fatto">Fatto →</button>`,
+    fatto: `<button type="button" class="task-sposta-btn" data-id="${task.id}" data-nuovo-stato="in_corso">← Riapri</button>`
+  };
+
+  return `
+    <div class="task-card task-priorita-${task.priorita}" draggable="true" data-id="${task.id}">
+      <div class="task-card-titolo" data-id="${task.id}">${escapeHtml(task.titolo)}</div>
+      ${task.nota ? `<div class="task-card-nota">${escapeHtml(task.nota)}</div>` : ""}
+      <div class="task-card-riga">
+        ${nomePaziente ? `<span class="task-card-paziente">${escapeHtml(nomePaziente)}</span>` : "<span></span>"}
+        <div class="task-card-sposta">${pulsantiSposta[task.stato]}</div>
+      </div>
+    </div>
+  `;
+}
+
+async function spostaTask(id, nuovoStato) {
+  const task = listaTask.find(t => t.id === id);
+  if (!task || task.stato === nuovoStato) return;
+
+  const aggiornamento = { stato: nuovoStato, completato_il: nuovoStato === "fatto" ? new Date().toISOString() : null };
+
+  const { error } = await supabaseClient.from("task_nutrizionista").update(aggiornamento).eq("id", id);
+  if (error) {
+    alert("Errore nello spostamento della task: " + error.message);
+    return;
+  }
+
+  task.stato = nuovoStato;
+  task.completato_il = aggiornamento.completato_il;
+  renderBachecaTask();
+}
+
+function inizializzaTaskBoardDragDrop() {
+  const colonne = document.getElementById("task-colonne");
+
+  Object.values(taskListaEl).forEach(lista => {
+    lista.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      lista.classList.add("drag-over");
+    });
+    lista.addEventListener("dragleave", () => {
+      lista.classList.remove("drag-over");
+    });
+    lista.addEventListener("drop", (e) => {
+      e.preventDefault();
+      lista.classList.remove("drag-over");
+      const id = e.dataTransfer.getData("text/plain");
+      if (id) spostaTask(id, lista.dataset.stato);
+    });
+    lista.addEventListener("click", (e) => {
+      const spostaBtn = e.target.closest(".task-sposta-btn");
+      if (spostaBtn) {
+        spostaTask(spostaBtn.dataset.id, spostaBtn.dataset.nuovoStato);
+        return;
+      }
+      const titolo = e.target.closest(".task-card-titolo");
+      if (titolo) apriModificaTask(titolo.dataset.id);
+    });
+  });
+
+  colonne.addEventListener("dragstart", (e) => {
+    const card = e.target.closest(".task-card");
+    if (!card) return;
+    e.dataTransfer.setData("text/plain", card.dataset.id);
+    card.classList.add("dragging");
+  });
+  colonne.addEventListener("dragend", (e) => {
+    const card = e.target.closest(".task-card");
+    if (card) card.classList.remove("dragging");
+  });
+}
+
+async function apriTaskBoard() {
+  appShell.classList.add("hidden");
+  taskBoard.classList.remove("hidden");
+  await caricaTask();
+}
+
+function chiudiTaskBoard() {
+  taskBoard.classList.add("hidden");
+  appShell.classList.remove("hidden");
+}
+
+function popolaSelectPazienteTask(selezionato) {
+  taskPazienteSelect.innerHTML = '<option value="">— Nessun paziente —</option>' +
+    listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}${p.attivo === false ? " (non seguito)" : ""}</option>`).join("");
+  taskPazienteSelect.value = selezionato || "";
+}
+
+function apriNuovaTask() {
+  taskInModifica = null;
+  taskModalTitolo.textContent = "Nuova task";
+  taskTitoloInput.value = "";
+  taskNotaInput.value = "";
+  taskPrioritaSelect.value = "media";
+  popolaSelectPazienteTask("");
+  taskModalError.classList.add("hidden");
+  taskEliminaBtn.classList.add("hidden");
+  taskModalOverlay.classList.remove("hidden");
+}
+
+function apriModificaTask(id) {
+  const task = listaTask.find(t => t.id === id);
+  if (!task) return;
+  taskInModifica = task;
+  taskModalTitolo.textContent = "Modifica task";
+  taskTitoloInput.value = task.titolo;
+  taskNotaInput.value = task.nota || "";
+  taskPrioritaSelect.value = task.priorita;
+  popolaSelectPazienteTask(task.paziente_id || "");
+  taskModalError.classList.add("hidden");
+  taskEliminaBtn.classList.remove("hidden");
+  taskVediTutteOverlay.classList.add("hidden");
+  taskArchivioOverlay.classList.add("hidden");
+  taskModalOverlay.classList.remove("hidden");
+}
+
+function chiudiTaskModale() {
+  taskModalOverlay.classList.add("hidden");
+}
+
+async function salvaTask() {
+  const titolo = taskTitoloInput.value.trim();
+  if (!titolo) {
+    taskModalError.textContent = "Inserisci un titolo.";
+    taskModalError.classList.remove("hidden");
+    return;
+  }
+
+  const corpo = {
+    titolo,
+    nota: taskNotaInput.value.trim() || null,
+    priorita: taskPrioritaSelect.value,
+    paziente_id: taskPazienteSelect.value || null
+  };
+
+  let error;
+  if (taskInModifica) {
+    ({ error } = await supabaseClient.from("task_nutrizionista").update(corpo).eq("id", taskInModifica.id));
+  } else {
+    corpo.stato = "da_fare";
+    ({ error } = await supabaseClient.from("task_nutrizionista").insert(corpo));
+  }
+
+  if (error) {
+    taskModalError.textContent = "Errore: " + error.message;
+    taskModalError.classList.remove("hidden");
+    return;
+  }
+
+  chiudiTaskModale();
+  await caricaTask();
+}
+
+async function eliminaTaskCorrente() {
+  if (!taskInModifica) return;
+  if (!confirm("Eliminare questa task?")) return;
+
+  const { error } = await supabaseClient.from("task_nutrizionista").delete().eq("id", taskInModifica.id);
+  if (error) {
+    alert("Errore nell'eliminazione: " + error.message);
+    return;
+  }
+  chiudiTaskModale();
+  await caricaTask();
+}
+
+function renderTaskRigaCompatta(task) {
+  const nomePaziente = task.pazienti ? task.pazienti.nome : null;
+  const dataRif = (task.stato === "fatto" && task.completato_il ? new Date(task.completato_il) : new Date(task.creato_il))
+    .toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return `
+    <div class="richiesta-riga task-riga-compatta" data-id="${task.id}">
+      <div class="richiesta-riga-info">
+        <strong>${escapeHtml(task.titolo)}</strong>
+        <span class="hint">${TASK_STATO_LABEL[task.stato]} · Priorità ${TASK_PRIORITA_LABEL[task.priorita]}${nomePaziente ? " · " + escapeHtml(nomePaziente) : ""} · ${dataRif}</span>
+      </div>
+    </div>
+  `;
+}
+
+function apriVediTutteFatto() {
+  const tutte = listaTask
+    .filter(t => t.stato === "fatto" && !taskArchiviata(t))
+    .sort((a, b) => new Date(b.completato_il || b.creato_il) - new Date(a.completato_il || a.creato_il));
+
+  taskVediTutteLista.innerHTML = tutte.length === 0
+    ? '<p class="vuoto">Nessuna task completata.</p>'
+    : tutte.map(renderTaskRigaCompatta).join("");
+
+  taskVediTutteOverlay.classList.remove("hidden");
+}
+
+function chiudiVediTutteFatto() {
+  taskVediTutteOverlay.classList.add("hidden");
+}
+
+function apriArchivioTask() {
+  const archiviati = listaTask.filter(taskArchiviata);
+
+  if (archiviati.length === 0) {
+    taskArchivioLista.innerHTML = '<p class="vuoto">Nessuna task archiviata.</p>';
+  } else {
+    const gruppi = new Map();
+    archiviati.forEach(t => {
+      const nome = t.pazienti ? t.pazienti.nome : "—";
+      if (!gruppi.has(nome)) gruppi.set(nome, []);
+      gruppi.get(nome).push(t);
+    });
+    taskArchivioLista.innerHTML = Array.from(gruppi.entries()).map(([nome, task]) => `
+      <div class="task-archivio-gruppo">
+        <h4>${escapeHtml(nome)}</h4>
+        ${task.map(renderTaskRigaCompatta).join("")}
+      </div>
+    `).join("");
+  }
+
+  taskArchivioOverlay.classList.remove("hidden");
+}
+
+function chiudiArchivioTask() {
+  taskArchivioOverlay.classList.add("hidden");
+}
+
 // ---------- Profilo paziente ----------
 
 async function apriProfiloPaziente() {
@@ -2270,7 +2816,8 @@ async function salvaProfiloPaziente() {
     telefono: profiloTelefonoInput.value.trim() || null,
     email: profiloEmailInput.value.trim() || null,
     allergie: profiloAllergieInput.value.trim() || null,
-    note: profiloNoteInput.value.trim() || null
+    note: profiloNoteInput.value.trim() || null,
+    attivo: !profiloNonSeguitoCheck.checked
   };
 
   const { error } = await supabaseClient.from("pazienti").update(aggiornamento).eq("id", pazienteCorrente.id);
@@ -3216,6 +3763,19 @@ function inizializza() {
     if (e.target === pazienteSicurezzaOverlay) chiudiPazienteSicurezza();
   });
 
+  cancellazioneApriBtn.addEventListener("click", apriCancellazione);
+  cancellazioneStep1AvantiBtn.addEventListener("click", avantiStep2Cancellazione);
+  cancellazioneStep1AnnullaBtn.addEventListener("click", chiudiCancellazione);
+  cancellazioneStep2InviaBtn.addEventListener("click", inviaRichiestaCancellazione);
+  cancellazionePasswordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") inviaRichiestaCancellazione();
+  });
+  cancellazioneStep2AnnullaBtn.addEventListener("click", chiudiCancellazione);
+  cancellazioneStep3ChiudiBtn.addEventListener("click", chiudiCancellazione);
+  cancellazioneOverlay.addEventListener("click", (e) => {
+    if (e.target === cancellazioneOverlay) chiudiCancellazione();
+  });
+
   impostaPasswordBtn.addEventListener("click", confermaImpostaPassword);
   nuovaPasswordInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") confermaImpostaPassword();
@@ -3370,6 +3930,69 @@ function inizializza() {
     if (e.target === agendaOverlay) chiudiAgendaModale();
   });
   agendaNuovoBtn.addEventListener("click", apriNuovoAppuntamento);
+
+  richiesteBtn.addEventListener("click", apriRichieste);
+  richiesteChiudiBtn.addEventListener("click", chiudiRichieste);
+  richiesteOverlay.addEventListener("click", (e) => {
+    if (e.target === richiesteOverlay) chiudiRichieste();
+  });
+  richiesteLista.addEventListener("click", (e) => {
+    const accettaBtn = e.target.closest(".richiesta-accetta-btn");
+    if (accettaBtn) {
+      accettaRichiesta(accettaBtn.dataset.id);
+      return;
+    }
+    const rifiutaBtn = e.target.closest(".richiesta-rifiuta-btn");
+    if (rifiutaBtn) {
+      const blocco = richiesteLista.querySelector(`.richiesta-rifiuta-blocco[data-id="${rifiutaBtn.dataset.id}"]`);
+      if (blocco) blocco.classList.remove("hidden");
+      return;
+    }
+    const confermaRifiutoBtn = e.target.closest(".richiesta-conferma-rifiuto-btn");
+    if (confermaRifiutoBtn) {
+      const blocco = confermaRifiutoBtn.closest(".richiesta-rifiuta-blocco");
+      const testo = blocco.querySelector(".richiesta-motivazione-input").value.trim();
+      if (!testo) {
+        alert("Inserisci una motivazione per il rifiuto.");
+        return;
+      }
+      rifiutaRichiesta(confermaRifiutoBtn.dataset.id, testo);
+    }
+  });
+
+  taskBoardBtn.addEventListener("click", apriTaskBoard);
+  taskBoardChiudiBtn.addEventListener("click", chiudiTaskBoard);
+  taskNuovaBtn.addEventListener("click", apriNuovaTask);
+  taskArchivioBtn.addEventListener("click", apriArchivioTask);
+  taskVediTutteBtn.addEventListener("click", apriVediTutteFatto);
+
+  taskSalvaBtn.addEventListener("click", salvaTask);
+  taskEliminaBtn.addEventListener("click", eliminaTaskCorrente);
+  taskAnnullaBtn.addEventListener("click", chiudiTaskModale);
+  taskModalOverlay.addEventListener("click", (e) => {
+    if (e.target === taskModalOverlay) chiudiTaskModale();
+  });
+
+  taskVediTutteChiudiBtn.addEventListener("click", chiudiVediTutteFatto);
+  taskVediTutteOverlay.addEventListener("click", (e) => {
+    if (e.target === taskVediTutteOverlay) chiudiVediTutteFatto();
+  });
+  taskVediTutteLista.addEventListener("click", (e) => {
+    const riga = e.target.closest(".task-riga-compatta");
+    if (riga) apriModificaTask(riga.dataset.id);
+  });
+
+  taskArchivioChiudiBtn.addEventListener("click", chiudiArchivioTask);
+  taskArchivioOverlay.addEventListener("click", (e) => {
+    if (e.target === taskArchivioOverlay) chiudiArchivioTask();
+  });
+  taskArchivioLista.addEventListener("click", (e) => {
+    const riga = e.target.closest(".task-riga-compatta");
+    if (riga) apriModificaTask(riga.dataset.id);
+  });
+
+  inizializzaTaskBoardDragDrop();
+
   agendaFiltroPazienteSelect.addEventListener("change", renderListaAppuntamenti);
   agendaListaEl.addEventListener("click", (e) => {
     const btn = e.target.closest(".agenda-modifica-btn");

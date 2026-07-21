@@ -128,6 +128,42 @@
     </div>
   </div>
 
+  <!-- Richiesta di cancellazione dati (paziente) -->
+  <div id="cancellazione-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+
+      <div id="cancellazione-step-1">
+        <h3>Richiedi la cancellazione dei tuoi dati</h3>
+        <p class="duplica-sottotitolo">Stai per chiedere al tuo nutrizionista di cancellare definitivamente il tuo account e tutti i tuoi dati da NutriPlan: piano alimentare, storico peso, check-in e appuntamenti. Una volta accettata, l'operazione è <strong>irreversibile</strong>. Il tuo nutrizionista esaminerà la richiesta prima di procedere.</p>
+        <div class="duplica-azioni">
+          <button id="cancellazione-step-1-avanti-btn">Continua</button>
+          <button id="cancellazione-step-1-annulla-btn" class="danger">Annulla</button>
+        </div>
+      </div>
+
+      <div id="cancellazione-step-2" class="hidden">
+        <h3>Conferma con la tua password</h3>
+        <p class="duplica-sottotitolo">Per sicurezza, inserisci la password con cui hai effettuato l'accesso per confermare in modo definitivo l'invio della richiesta.</p>
+        <label for="cancellazione-password-input">Password</label>
+        <input type="password" id="cancellazione-password-input" autocomplete="current-password">
+        <p id="cancellazione-error" class="error hidden"></p>
+        <div class="duplica-azioni">
+          <button id="cancellazione-step-2-invia-btn">Invia richiesta definitiva</button>
+          <button id="cancellazione-step-2-annulla-btn" class="danger">Annulla</button>
+        </div>
+      </div>
+
+      <div id="cancellazione-step-3" class="hidden">
+        <h3>Richiesta inviata</h3>
+        <p class="duplica-sottotitolo">La tua richiesta di cancellazione dati è stata inviata al tuo nutrizionista. Verrai contattato/a per proseguire.</p>
+        <div class="duplica-azioni">
+          <button id="cancellazione-step-3-chiudi-btn">Ho capito</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Vista paziente: profilo e dieta attuale in sola lettura -->
   <div id="vista-paziente" class="hidden">
     <div id="anteprima-banner" class="anteprima-banner no-print hidden">
@@ -162,6 +198,8 @@
 
       <button id="profilo-contatti-toggle" class="profilo-accordion-toggle" type="button">▸ Contatti</button>
       <div id="profilo-contatti-contenuto" class="hidden profilo-accordion-contenuto"></div>
+
+      <button type="button" id="cancellazione-apri-btn" class="cancellazione-link">Richiedi la cancellazione dei tuoi dati</button>
     </section>
 
     <section class="card no-print">
@@ -262,6 +300,8 @@
         <button type="button" id="gestione-utenti-btn" title="Gestione utenti" aria-label="Gestione utenti">👤</button>
         <button type="button" id="sicurezza-btn" title="Sicurezza account" aria-label="Sicurezza account">🔒</button>
         <button type="button" id="agenda-btn" title="Agenda appuntamenti" aria-label="Agenda appuntamenti">📅</button>
+        <button type="button" id="task-board-btn" title="Bacheca task" aria-label="Bacheca task">📋</button>
+        <button type="button" id="richieste-btn" title="Richieste di cancellazione dati" aria-label="Richieste di cancellazione dati">🔔<span id="richieste-badge" class="richieste-badge hidden">0</span></button>
       </div>
       <div class="header-azioni-destra">
         <button type="button" id="logout-btn" class="esci-header-btn">Esci</button>
@@ -513,6 +553,94 @@
     </div>
   </div>
 
+  <!-- Bacheca task -->
+  <div id="task-board" class="hidden">
+    <header class="hero no-print">
+      <div class="header-azioni-destra">
+        <button type="button" id="task-board-chiudi-btn" class="esci-header-btn">Torna al calcolatore</button>
+      </div>
+      <h1>Bacheca task</h1>
+      <p class="hero-sub">Organizza le attività dello studio, collegandole ai pazienti</p>
+    </header>
+
+    <section class="card no-print">
+      <div class="paziente-bar-riga">
+        <button type="button" id="task-nuova-btn">+ Nuova task</button>
+        <button type="button" id="task-archivio-btn" class="secondary">📦 Archivio pazienti non seguiti</button>
+      </div>
+    </section>
+
+    <div id="task-colonne" class="task-colonne no-print">
+      <section class="task-colonna">
+        <h2>Da fare <span class="task-colonna-contatore" id="task-contatore-da_fare"></span></h2>
+        <div class="task-lista" id="task-lista-da_fare" data-stato="da_fare"></div>
+      </section>
+      <section class="task-colonna">
+        <h2>In corso <span class="task-colonna-contatore" id="task-contatore-in_corso"></span></h2>
+        <div class="task-lista" id="task-lista-in_corso" data-stato="in_corso"></div>
+      </section>
+      <section class="task-colonna">
+        <h2>Fatto <span class="task-colonna-contatore" id="task-contatore-fatto"></span></h2>
+        <div class="task-lista" id="task-lista-fatto" data-stato="fatto"></div>
+        <button type="button" id="task-vedi-tutte-btn" class="secondary task-vedi-tutte-btn hidden">Vedi tutte</button>
+      </section>
+    </div>
+  </div>
+
+  <!-- Nuova/modifica task -->
+  <div id="task-modal-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3 id="task-modal-titolo">Nuova task</h3>
+      <label for="task-titolo-input">Titolo</label>
+      <input type="text" id="task-titolo-input" placeholder="es. Preparare piano alimentare">
+
+      <label for="task-nota-input">Nota (opzionale)</label>
+      <textarea id="task-nota-input" rows="3" placeholder="Dettagli, promemoria..."></textarea>
+
+      <label for="task-priorita-select">Priorità</label>
+      <select id="task-priorita-select">
+        <option value="bassa">Bassa</option>
+        <option value="media">Media</option>
+        <option value="alta">Alta</option>
+      </select>
+
+      <label for="task-paziente-select">Paziente collegato (opzionale)</label>
+      <select id="task-paziente-select">
+        <option value="">— Nessun paziente —</option>
+      </select>
+
+      <p id="task-modal-error" class="error hidden"></p>
+      <div class="duplica-azioni">
+        <button id="task-salva-btn">Salva</button>
+        <button id="task-elimina-btn" class="danger hidden">Elimina</button>
+        <button id="task-annulla-btn" class="danger">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fatto: elenco completo (task attive/non collegate) -->
+  <div id="task-vedi-tutte-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal duplica-modal-larga">
+      <h3>Tutte le task completate</h3>
+      <div id="task-vedi-tutte-lista"></div>
+      <div class="duplica-azioni">
+        <button id="task-vedi-tutte-chiudi-btn" class="danger">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Archivio: task dei pazienti non più seguiti -->
+  <div id="task-archivio-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal duplica-modal-larga">
+      <h3>Archivio — pazienti non più seguiti</h3>
+      <p class="duplica-sottotitolo">Le task collegate a un paziente segnato come "non più seguito" nel suo profilo compaiono qui, raggruppate per paziente, invece che nella bacheca principale.</p>
+      <div id="task-archivio-lista"></div>
+      <div class="duplica-azioni">
+        <button id="task-archivio-chiudi-btn" class="danger">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Gestione utenti -->
   <div id="gestione-utenti-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal">
@@ -650,6 +778,17 @@
     </div>
   </div>
 
+  <!-- Richieste di cancellazione dati (admin) -->
+  <div id="richieste-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal duplica-modal-larga">
+      <h3>Richieste di cancellazione dati</h3>
+      <div id="richieste-lista"></div>
+      <div class="duplica-azioni">
+        <button id="richieste-chiudi-btn" class="danger">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Appuntamento (nuovo o modifica) -->
   <div id="appuntamento-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal">
@@ -738,6 +877,12 @@
         <div class="griglia-2-full">
           <label for="profilo-note">Note generali</label>
           <textarea id="profilo-note" rows="3" placeholder="Patologie, obiettivi, altre annotazioni..."></textarea>
+        </div>
+        <div class="griglia-2-full">
+          <label class="check-inline">
+            <input type="checkbox" id="profilo-non-seguito-check">
+            Paziente non più seguito (le sue task vengono spostate nell'archivio)
+          </label>
         </div>
       </div>
       <p id="profilo-reset-msg" class="hidden"></p>
