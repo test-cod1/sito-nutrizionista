@@ -628,9 +628,11 @@
       </select>
 
       <label for="task-paziente-select">Paziente collegato (opzionale)</label>
-      <select id="task-paziente-select">
-        <option value="">— Nessun paziente —</option>
-      </select>
+      <div class="autocomplete-wrapper paziente-combo">
+        <input type="text" id="task-paziente-select" placeholder="— Nessun paziente —" autocomplete="off">
+        <span class="combo-caret" aria-hidden="true">▾</span>
+        <div id="task-paziente-suggestions" class="suggestions hidden"></div>
+      </div>
 
       <p id="task-modal-error" class="error hidden"></p>
       <div class="duplica-azioni">
@@ -791,9 +793,11 @@
     <div class="duplica-modal duplica-modal-larga">
       <h3>Agenda appuntamenti</h3>
       <label for="agenda-filtro-paziente">Filtra per paziente</label>
-      <select id="agenda-filtro-paziente">
-        <option value="">Tutti i pazienti</option>
-      </select>
+      <div class="autocomplete-wrapper paziente-combo">
+        <input type="text" id="agenda-filtro-paziente" placeholder="Tutti i pazienti" autocomplete="off">
+        <span class="combo-caret" aria-hidden="true">▾</span>
+        <div id="agenda-filtro-paziente-suggestions" class="suggestions hidden"></div>
+      </div>
       <div id="agenda-lista"></div>
       <div class="duplica-azioni">
         <button id="agenda-chiudi-btn" class="danger">Chiudi</button>
@@ -817,7 +821,11 @@
     <div class="duplica-modal">
       <h3 id="appuntamento-titolo">Nuovo appuntamento</h3>
       <label for="appuntamento-paziente-select">Paziente</label>
-      <select id="appuntamento-paziente-select"></select>
+      <div class="autocomplete-wrapper paziente-combo">
+        <input type="text" id="appuntamento-paziente-select" placeholder="Scegli paziente" autocomplete="off">
+        <span class="combo-caret" aria-hidden="true">▾</span>
+        <div id="appuntamento-paziente-suggestions" class="suggestions hidden"></div>
+      </div>
 
       <div class="griglia-2">
         <div>

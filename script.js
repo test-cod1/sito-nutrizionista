@@ -334,7 +334,12 @@ const agendaOverlay = document.getElementById("agenda-overlay");
 const agendaChiudiBtn = document.getElementById("agenda-chiudi-btn");
 const agendaListaEl = document.getElementById("agenda-lista");
 const agendaNuovoBtn = document.getElementById("agenda-nuovo-btn");
-const agendaFiltroPazienteSelect = document.getElementById("agenda-filtro-paziente");
+const agendaFiltroPazienteSelect = creaComboPazienteRicerca(
+  document.getElementById("agenda-filtro-paziente"),
+  document.getElementById("agenda-filtro-paziente-suggestions"),
+  "Tutti i pazienti"
+);
+agendaFiltroPazienteSelect.onChange = () => renderListaAppuntamenti();
 const prossimoAppuntamentoAdminContenuto = document.getElementById("prossimo-appuntamento-admin-contenuto");
 
 // Richieste di cancellazione dati (admin)
@@ -373,7 +378,11 @@ const taskModalTitolo = document.getElementById("task-modal-titolo");
 const taskTitoloInput = document.getElementById("task-titolo-input");
 const taskNotaInput = document.getElementById("task-nota-input");
 const taskPrioritaSelect = document.getElementById("task-priorita-select");
-const taskPazienteSelect = document.getElementById("task-paziente-select");
+const taskPazienteSelect = creaComboPazienteRicerca(
+  document.getElementById("task-paziente-select"),
+  document.getElementById("task-paziente-suggestions"),
+  "— Nessun paziente —"
+);
 const taskModalError = document.getElementById("task-modal-error");
 const taskSalvaBtn = document.getElementById("task-salva-btn");
 const taskEliminaBtn = document.getElementById("task-elimina-btn");
@@ -395,7 +404,11 @@ const TASK_PRIORITA_LABEL = { bassa: "Bassa", media: "Media", alta: "Alta" };
 const TASK_PRIORITA_ORDINE = { alta: 0, media: 1, bassa: 2 };
 const appuntamentoOverlay = document.getElementById("appuntamento-overlay");
 const appuntamentoTitolo = document.getElementById("appuntamento-titolo");
-const appuntamentoPazienteSelect = document.getElementById("appuntamento-paziente-select");
+const appuntamentoPazienteSelect = creaComboPazienteRicerca(
+  document.getElementById("appuntamento-paziente-select"),
+  document.getElementById("appuntamento-paziente-suggestions"),
+  null
+);
 const appuntamentoDataInput = document.getElementById("appuntamento-data-input");
 // Ore e minuti sono due <select> separati (minuti solo 00/15/30/45): molti
 // picker nativi di <input type="time"> ignorano l'attributo "step" e
@@ -2078,6 +2091,126 @@ async function disattiva2FA() {
 
 // ---------- Pazienti ----------
 
+// Combo di ricerca paziente riutilizzabile: un input di testo + lista
+// suggerimenti che si comporta come "Paziente in lavorazione" in homepage
+// (si scrive per filtrare, si cancella il testo per cercarne un altro).
+// Espone una proprietà "value" (id paziente, "" se non selezionato) al
+// posto di quella di un <select>, così il resto del codice che legge/scrive
+// ".value" non cambia.
+function creaComboPazienteRicerca(inputEl, suggestionsEl, opzioneVuotaTesto) {
+  let elenco = [];
+  let valore = "";
+  let indiceEvidenziato = -1;
+
+  function opzioniVisibili(testoRicerca) {
+    const norm = normalizza((testoRicerca || "").trim());
+    const filtrati = !norm ? elenco : elenco.filter(p => normalizza(p.nome).includes(norm));
+    if (!opzioneVuotaTesto) return filtrati;
+    const vuotaCombacia = !norm || normalizza(opzioneVuotaTesto).includes(norm);
+    return vuotaCombacia ? [{ id: "", nome: opzioneVuotaTesto }].concat(filtrati) : filtrati;
+  }
+
+  function mostra(lista) {
+    indiceEvidenziato = -1;
+    if (lista.length === 0) {
+      suggestionsEl.innerHTML = "";
+      suggestionsEl.classList.add("hidden");
+      return;
+    }
+    suggestionsEl.innerHTML = lista
+      .map((p, i) => `<div class="suggestion-item" data-index="${i}">${escapeHtml(p.nome)}</div>`)
+      .join("");
+    suggestionsEl.dataset.ids = JSON.stringify(lista.map(p => p.id));
+    suggestionsEl.classList.remove("hidden");
+  }
+
+  function nascondi() {
+    suggestionsEl.classList.add("hidden");
+    indiceEvidenziato = -1;
+  }
+
+  function aggiornaFiltro() {
+    mostra(opzioniVisibili(inputEl.value));
+  }
+
+  function evidenzia() {
+    suggestionsEl.querySelectorAll(".suggestion-item").forEach((el, i) => el.classList.toggle("active", i === indiceEvidenziato));
+  }
+
+  function testoPerValore(id) {
+    // Quando non c'è selezione il campo resta vuoto (mostra il placeholder
+    // HTML): scriverci dentro il testo dell'opzione vuota lo farebbe
+    // ri-filtrare come se fosse testo digitato dall'utente al focus
+    // successivo, mostrando solo se stesso nei suggerimenti.
+    if (!id) return "";
+    const p = elenco.find(p => p.id === id);
+    return p ? p.nome : "";
+  }
+
+  function seleziona(id) {
+    valore = id || "";
+    inputEl.value = testoPerValore(valore);
+    nascondi();
+    if (combo.onChange) combo.onChange(valore);
+  }
+
+  // Al click/focus mostra sempre l'elenco completo e seleziona il testo:
+  // così si può scorrere tutti i nomi, oppure iniziare a digitare per
+  // filtrare (come il combo "Paziente in lavorazione" della homepage).
+  const apriElencoCompleto = () => {
+    inputEl.select();
+    mostra(opzioniVisibili(""));
+  };
+  inputEl.addEventListener("input", aggiornaFiltro);
+  inputEl.addEventListener("focus", apriElencoCompleto);
+  inputEl.addEventListener("click", apriElencoCompleto);
+  inputEl.addEventListener("keydown", (e) => {
+    const items = suggestionsEl.querySelectorAll(".suggestion-item");
+    if (suggestionsEl.classList.contains("hidden") || items.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      indiceEvidenziato = Math.min(indiceEvidenziato + 1, items.length - 1);
+      evidenzia();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      indiceEvidenziato = Math.max(indiceEvidenziato - 1, 0);
+      evidenzia();
+    } else if (e.key === "Enter" && indiceEvidenziato >= 0) {
+      e.preventDefault();
+      const ids = JSON.parse(suggestionsEl.dataset.ids || "[]");
+      seleziona(ids[indiceEvidenziato]);
+    } else if (e.key === "Escape") {
+      nascondi();
+    }
+  });
+  suggestionsEl.addEventListener("mousedown", (e) => {
+    const item = e.target.closest(".suggestion-item");
+    if (!item) return;
+    e.preventDefault();
+    const ids = JSON.parse(suggestionsEl.dataset.ids || "[]");
+    seleziona(ids[Number(item.dataset.index)]);
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target !== inputEl && !suggestionsEl.contains(e.target)) nascondi();
+  });
+
+  const combo = {
+    get value() {
+      return valore;
+    },
+    set value(id) {
+      valore = id || "";
+      inputEl.value = testoPerValore(valore);
+    },
+    setElenco(nuovoElenco) {
+      elenco = nuovoElenco || [];
+      inputEl.value = testoPerValore(valore);
+    },
+    onChange: null
+  };
+  return combo;
+}
+
 async function caricaListaPazienti() {
   const { data, error } = await supabaseClient.from("pazienti").select("*").order("nome", { ascending: true });
   if (error) {
@@ -2292,8 +2425,7 @@ function renderProssimoAppuntamentoAdmin() {
 
 function popolaFiltroAgenda() {
   const selezionato = agendaFiltroPazienteSelect.value;
-  agendaFiltroPazienteSelect.innerHTML = '<option value="">Tutti i pazienti</option>' +
-    listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+  agendaFiltroPazienteSelect.setElenco(listaPazienti);
   agendaFiltroPazienteSelect.value = selezionato || "";
 }
 
@@ -2329,7 +2461,7 @@ function renderListaAppuntamenti() {
 function apriNuovoAppuntamento() {
   appuntamentoInModifica = null;
   appuntamentoTitolo.textContent = "Nuovo appuntamento";
-  appuntamentoPazienteSelect.innerHTML = listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+  appuntamentoPazienteSelect.setElenco(listaPazienti);
   if (pazienteCorrente) appuntamentoPazienteSelect.value = pazienteCorrente.id;
   appuntamentoDataInput.value = "";
   appuntamentoOraInput.value = "";
@@ -2346,7 +2478,7 @@ function apriModificaAppuntamento(id) {
   if (!a) return;
   appuntamentoInModifica = a;
   appuntamentoTitolo.textContent = "Modifica appuntamento";
-  appuntamentoPazienteSelect.innerHTML = listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+  appuntamentoPazienteSelect.setElenco(listaPazienti);
   appuntamentoPazienteSelect.value = a.paziente_id;
   const dataOra = new Date(a.data_ora);
   appuntamentoDataInput.value = dataOra.toISOString().slice(0, 10);
@@ -2711,8 +2843,8 @@ function chiudiTaskBoard() {
 }
 
 function popolaSelectPazienteTask(selezionato) {
-  taskPazienteSelect.innerHTML = '<option value="">— Nessun paziente —</option>' +
-    listaPazienti.map(p => `<option value="${p.id}">${escapeHtml(p.nome)}${p.attivo === false ? " (non seguito)" : ""}</option>`).join("");
+  const elenco = listaPazienti.map(p => ({ id: p.id, nome: p.nome + (p.attivo === false ? " (non seguito)" : "") }));
+  taskPazienteSelect.setElenco(elenco);
   taskPazienteSelect.value = selezionato || "";
 }
 
@@ -4100,7 +4232,6 @@ function inizializza() {
 
   inizializzaTaskBoardDragDrop();
 
-  agendaFiltroPazienteSelect.addEventListener("change", renderListaAppuntamenti);
   agendaListaEl.addEventListener("click", (e) => {
     const btn = e.target.closest(".agenda-modifica-btn");
     if (btn) apriModificaAppuntamento(btn.dataset.id);
