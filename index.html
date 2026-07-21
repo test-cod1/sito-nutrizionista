@@ -441,7 +441,7 @@
             <input type="text" id="food-input" placeholder="Inizia a scrivere il nome dell'alimento..." autocomplete="off">
             <div id="suggestions" class="suggestions hidden"></div>
           </div>
-          <button id="nuovo-alimento-btn" class="secondary btn-plus" title="Aggiungi un nuovo alimento al database">+</button>
+          <button id="nuovo-alimento-btn" class="secondary btn-plus" title="Aggiungi un nuovo alimento al database" aria-label="Aggiungi un nuovo alimento">+</button>
         </div>
         <p id="food-error" class="error hidden">Alimento non trovato. Selezionalo dall'elenco suggerito mentre scrivi.</p>
 
@@ -485,7 +485,7 @@
           <input type="checkbox" id="porzione-check">
           Mostra porzione al posto dei grammi nel PDF cliente
         </label>
-        <input type="text" id="porzione-input" class="hidden" placeholder="es. 3 cucchiai, 1 vasetto, q.b.">
+        <input type="text" id="porzione-input" class="hidden" placeholder="es. 3 cucchiai, 1 vasetto, q.b." aria-label="Descrizione porzione">
 
         <div id="preview" class="preview hidden">
           <p>Calorie: <strong><span id="preview-kcal"></span> kcal</strong></p>
@@ -534,8 +534,8 @@
           <label>Pasto libero</label>
           <p class="hint">Segna il pasto e i giorni selezionati qui sopra come "Pasto libero" (sostituisce eventuali alimenti già presenti in quel pasto).</p>
           <div class="pasto-libero-campi">
-            <input type="number" id="libero-kcal-input" min="0" placeholder="kcal stimate (opzionale)">
-            <input type="text" id="libero-nota-input" placeholder="nota (opzionale, es. cena fuori)">
+            <input type="number" id="libero-kcal-input" min="0" placeholder="kcal stimate (opzionale)" aria-label="Calorie stimate del pasto libero (opzionale)">
+            <input type="text" id="libero-nota-input" placeholder="nota (opzionale, es. cena fuori)" aria-label="Nota del pasto libero (opzionale)">
           </div>
           <button id="pasto-libero-btn" class="secondary" disabled>Segna come pasto libero</button>
         </div>

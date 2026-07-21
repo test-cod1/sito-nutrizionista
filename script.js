@@ -503,6 +503,7 @@ function mostraLogin() {
   recuperoPasswordOverlay.classList.add("hidden");
   appShell.classList.add("hidden");
   vistaPaziente.classList.add("hidden");
+  loginEmailInput.focus();
 }
 
 function apriRecuperoPassword() {
@@ -2293,6 +2294,7 @@ function apriNuovoAppuntamento() {
   appuntamentoErrore.classList.add("hidden");
   appuntamentoEliminaBtn.classList.add("hidden");
   appuntamentoOverlay.classList.remove("hidden");
+  appuntamentoDataInput.focus();
 }
 
 function apriModificaAppuntamento(id) {
@@ -2343,14 +2345,19 @@ async function salvaAppuntamento() {
   };
 
   let error;
-  if (appuntamentoInModifica) {
-    // Se l'orario cambia, va ridato il permesso di inviare un nuovo promemoria.
-    if (new Date(appuntamentoInModifica.data_ora).getTime() !== dataOraLocale.getTime()) {
-      corpo.promemoria_inviato = false;
+  appuntamentoSalvaBtn.disabled = true;
+  try {
+    if (appuntamentoInModifica) {
+      // Se l'orario cambia, va ridato il permesso di inviare un nuovo promemoria.
+      if (new Date(appuntamentoInModifica.data_ora).getTime() !== dataOraLocale.getTime()) {
+        corpo.promemoria_inviato = false;
+      }
+      ({ error } = await supabaseClient.from("appuntamenti").update(corpo).eq("id", appuntamentoInModifica.id));
+    } else {
+      ({ error } = await supabaseClient.from("appuntamenti").insert(corpo));
     }
-    ({ error } = await supabaseClient.from("appuntamenti").update(corpo).eq("id", appuntamentoInModifica.id));
-  } else {
-    ({ error } = await supabaseClient.from("appuntamenti").insert(corpo));
+  } finally {
+    appuntamentoSalvaBtn.disabled = false;
   }
 
   if (error) {
@@ -2663,6 +2670,7 @@ function apriNuovaTask() {
   taskModalError.classList.add("hidden");
   taskEliminaBtn.classList.add("hidden");
   taskModalOverlay.classList.remove("hidden");
+  taskTitoloInput.focus();
 }
 
 function apriModificaTask(id) {
@@ -2701,11 +2709,16 @@ async function salvaTask() {
   };
 
   let error;
-  if (taskInModifica) {
-    ({ error } = await supabaseClient.from("task_nutrizionista").update(corpo).eq("id", taskInModifica.id));
-  } else {
-    corpo.stato = "da_fare";
-    ({ error } = await supabaseClient.from("task_nutrizionista").insert(corpo));
+  taskSalvaBtn.disabled = true;
+  try {
+    if (taskInModifica) {
+      ({ error } = await supabaseClient.from("task_nutrizionista").update(corpo).eq("id", taskInModifica.id));
+    } else {
+      corpo.stato = "da_fare";
+      ({ error } = await supabaseClient.from("task_nutrizionista").insert(corpo));
+    }
+  } finally {
+    taskSalvaBtn.disabled = false;
   }
 
   if (error) {
@@ -3760,6 +3773,9 @@ function inizializza() {
   inizializzaSupabase();
 
   loginBtn.addEventListener("click", effettuaLogin);
+  loginEmailInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") effettuaLogin();
+  });
   loginPasswordInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") effettuaLogin();
   });
@@ -4258,7 +4274,17 @@ function inizializzaSidebarSezioni() {
   });
   sezioniOverlay.addEventListener("click", chiudiSidebarSezioni);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") chiudiSidebarSezioni();
+    if (e.key !== "Escape") return;
+    // Chiude con Esc il modale aperto in cima (l'ultimo nel DOM). Riusa il
+    // gestore di click sullo sfondo già presente su ogni modale descartabile:
+    // i modali non descartabili (login, 2FA, imposta password) non hanno quel
+    // gestore, quindi un click sintetico non ha effetto e restano aperti.
+    const overlaysAperti = document.querySelectorAll(".duplica-overlay:not(.hidden)");
+    if (overlaysAperti.length > 0) {
+      overlaysAperti[overlaysAperti.length - 1].click();
+      return;
+    }
+    chiudiSidebarSezioni();
   });
   sezioniLink.forEach(link => {
     link.addEventListener("click", (e) => {

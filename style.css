@@ -4,7 +4,7 @@
   --surface-alt: #fbfdfc;
   --surface-alt-2: #f6faf7;
   --text: #223229;
-  --text-muted: #7a8a82;
+  --text-muted: #63736b;
   --border: #e2e9e5;
   --border-2: #eceff0;
   --border-input: #cdd9d2;
@@ -28,7 +28,7 @@
   --shadow-strong: rgba(40, 80, 60, 0.1);
   --shadow-modal: rgba(0, 0, 0, 0.25);
   --overlay: rgba(20, 35, 27, 0.45);
-  --disabled: #b7c3bd;
+  --disabled: #93a69c;
   --focus-ring: rgba(63, 144, 104, 0.15);
 }
 
@@ -252,6 +252,10 @@ label {
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="time"],
 select {
   width: 100%;
   padding: 10px 12px;
@@ -266,6 +270,10 @@ select {
 input[type="text"]:focus,
 input[type="number"]:focus,
 input[type="date"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+input[type="time"]:focus,
 select:focus {
   outline: none;
   border-color: var(--accent);
@@ -514,7 +522,7 @@ button.danger-scuro:hover {
 }
 
 .dieta-header button {
-  margin-left: 8px;
+  margin: 0;
 }
 
 .paziente-bar-riga {
@@ -631,11 +639,11 @@ button.danger-scuro:hover {
 .pdf-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0;
+  gap: 8px;
 }
 
 .pdf-buttons button {
-  margin-left: 8px;
+  margin: 0;
 }
 
 .giorno-block {
@@ -970,7 +978,7 @@ table tfoot .riga-totale td {
   border-radius: 50%;
   border: none;
   background: white;
-  color: var(--text);
+  color: #223229;
   font-size: 1.2rem;
   line-height: 1;
   padding: 0;
@@ -1527,7 +1535,7 @@ table tfoot .riga-totale td {
   padding: 3px 8px;
   font-size: 0.78rem;
   background: var(--surface);
-  color: var(--text-body);
+  color: var(--text);
   border: 1px solid var(--border-input);
 }
 
