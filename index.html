@@ -275,7 +275,6 @@
             <div id="paziente-suggestions" class="suggestions hidden"></div>
           </div>
         </div>
-        <button type="button" id="nuovo-paziente-btn" class="secondary">+ Nuovo paziente</button>
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
         <button type="button" id="storico-btn" class="secondary" disabled>Storico piani alimentari</button>
       </div>
@@ -507,32 +506,49 @@
   <div id="gestione-utenti-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal">
       <h3>Gestione utenti</h3>
-      <p class="duplica-sottotitolo">Crea un accesso per un amministratore o per un paziente. La persona riceverà un'email di invito con cui impostare la propria password.</p>
 
-      <label for="invito-email">Email della persona da invitare</label>
-      <input type="email" id="invito-email" placeholder="email@esempio.com">
-
-      <label for="invito-ruolo">Ruolo</label>
-      <select id="invito-ruolo">
-        <option value="paziente">Paziente</option>
-        <option value="admin">Amministratore</option>
-      </select>
-
-      <div id="invito-paziente-blocco">
-        <label for="invito-paziente-select">Collega a</label>
-        <select id="invito-paziente-select">
-          <option value="nuovo">— Crea un nuovo paziente —</option>
-        </select>
-        <div id="invito-nuovo-paziente-blocco">
-          <label for="invito-nuovo-paziente-nome">Nome del nuovo paziente</label>
-          <input type="text" id="invito-nuovo-paziente-nome" placeholder="Nome e cognome">
-        </div>
+      <div class="tab-strip">
+        <button type="button" class="tab-btn attivo" data-tab="gestione-invito-tab">Invita persona</button>
+        <button type="button" class="tab-btn" data-tab="gestione-nuovo-paziente-tab">Nuovo paziente</button>
       </div>
 
-      <p id="invito-error" class="error hidden"></p>
-      <p id="invito-successo" class="hidden"></p>
-      <div class="duplica-azioni">
+      <div id="gestione-invito-tab" class="tab-pannello">
+        <p class="duplica-sottotitolo">Crea un accesso per un amministratore o per un paziente. La persona riceverà un'email di invito con cui impostare la propria password.</p>
+
+        <label for="invito-email">Email della persona da invitare</label>
+        <input type="email" id="invito-email" placeholder="email@esempio.com">
+
+        <label for="invito-ruolo">Ruolo</label>
+        <select id="invito-ruolo">
+          <option value="paziente">Paziente</option>
+          <option value="admin">Amministratore</option>
+        </select>
+
+        <div id="invito-paziente-blocco">
+          <label for="invito-paziente-select">Collega a</label>
+          <select id="invito-paziente-select">
+            <option value="nuovo">— Crea un nuovo paziente —</option>
+          </select>
+          <div id="invito-nuovo-paziente-blocco">
+            <label for="invito-nuovo-paziente-nome">Nome del nuovo paziente</label>
+            <input type="text" id="invito-nuovo-paziente-nome" placeholder="Nome e cognome">
+          </div>
+        </div>
+
+        <p id="invito-error" class="error hidden"></p>
+        <p id="invito-successo" class="hidden"></p>
         <button id="invito-invia-btn">Invia invito</button>
+      </div>
+
+      <div id="gestione-nuovo-paziente-tab" class="tab-pannello hidden">
+        <p class="duplica-sottotitolo">Crea solo la scheda anagrafica del paziente, senza inviare alcun accesso al portale. Potrai invitarlo in un secondo momento da "Invita persona".</p>
+        <label for="nuovo-paziente-nome">Nome e cognome</label>
+        <input type="text" id="nuovo-paziente-nome" placeholder="Nome e cognome">
+        <p id="nuovo-paziente-error" class="error hidden">Inserisci un nome.</p>
+        <button id="nuovo-paziente-conferma-btn">Crea paziente</button>
+      </div>
+
+      <div class="duplica-azioni">
         <button id="gestione-utenti-chiudi-btn" class="danger">Chiudi</button>
       </div>
     </div>
@@ -605,20 +621,6 @@
     <div class="off-foto-grande-contenitore">
       <button type="button" id="off-foto-chiudi-btn" class="off-foto-chiudi" aria-label="Chiudi">×</button>
       <img id="off-foto-grande" src="" alt="Foto prodotto ingrandita">
-    </div>
-  </div>
-
-  <!-- Nuovo paziente -->
-  <div id="nuovo-paziente-overlay" class="duplica-overlay hidden no-print">
-    <div class="duplica-modal">
-      <h3>Nuovo paziente</h3>
-      <label for="nuovo-paziente-nome">Nome e cognome</label>
-      <input type="text" id="nuovo-paziente-nome" placeholder="Nome e cognome">
-      <p id="nuovo-paziente-error" class="error hidden">Inserisci un nome.</p>
-      <div class="duplica-azioni">
-        <button id="nuovo-paziente-conferma-btn">Crea</button>
-        <button id="nuovo-paziente-annulla-btn" class="danger">Annulla</button>
-      </div>
     </div>
   </div>
 

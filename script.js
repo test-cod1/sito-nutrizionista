@@ -166,7 +166,6 @@ const sezioniLinkPaziente = document.querySelectorAll(".sezioni-link-paziente");
 const pazienteSearchInput = document.getElementById("paziente-search-input");
 const pazienteSuggestions = document.getElementById("paziente-suggestions");
 let pazienteSuggestionIndex = -1;
-const nuovoPazienteBtn = document.getElementById("nuovo-paziente-btn");
 const storicoBtn = document.getElementById("storico-btn");
 const profiloBtn = document.getElementById("profilo-btn");
 const anteprimaPazienteBtn = document.getElementById("anteprima-paziente-btn");
@@ -203,11 +202,9 @@ const notificheAttivaBtn = document.getElementById("notifiche-attiva-btn");
 const notificheRifiutaBtn = document.getElementById("notifiche-rifiuta-btn");
 const notificheOkBtn = document.getElementById("notifiche-ok-btn");
 
-const nuovoPazienteOverlay = document.getElementById("nuovo-paziente-overlay");
 const nuovoPazienteNomeInput = document.getElementById("nuovo-paziente-nome");
 const nuovoPazienteError = document.getElementById("nuovo-paziente-error");
 const nuovoPazienteConfermaBtn = document.getElementById("nuovo-paziente-conferma-btn");
-const nuovoPazienteAnnullaBtn = document.getElementById("nuovo-paziente-annulla-btn");
 
 const storicoOverlay = document.getElementById("storico-overlay");
 const storicoPazienteNomeEl = document.getElementById("storico-paziente-nome");
@@ -1581,11 +1578,20 @@ function apriGestioneUtenti() {
   invitoError.classList.add("hidden");
   invitoSuccesso.classList.add("hidden");
   popolaSelettorePazientiInvito();
+  nuovoPazienteNomeInput.value = "";
+  nuovoPazienteError.classList.add("hidden");
+  apriTabGestioneUtenti("gestione-invito-tab");
   gestioneUtentiOverlay.classList.remove("hidden");
 }
 
 function chiudiGestioneUtenti() {
   gestioneUtentiOverlay.classList.add("hidden");
+}
+
+function apriTabGestioneUtenti(tabId) {
+  document.querySelectorAll("#gestione-utenti-overlay .tab-btn").forEach(b => b.classList.toggle("attivo", b.dataset.tab === tabId));
+  document.querySelectorAll("#gestione-utenti-overlay .tab-pannello").forEach(p => p.classList.toggle("hidden", p.id !== tabId));
+  if (tabId === "gestione-nuovo-paziente-tab") nuovoPazienteNomeInput.focus();
 }
 
 function popolaSelettorePazientiInvito() {
@@ -1981,17 +1987,6 @@ async function selezionaPaziente(pazienteId) {
   caricaEMostraCheckinAdmin(p);
 }
 
-function apriNuovoPaziente() {
-  nuovoPazienteNomeInput.value = "";
-  nuovoPazienteError.classList.add("hidden");
-  nuovoPazienteOverlay.classList.remove("hidden");
-  nuovoPazienteNomeInput.focus();
-}
-
-function chiudiNuovoPaziente() {
-  nuovoPazienteOverlay.classList.add("hidden");
-}
-
 async function confermaNuovoPaziente() {
   const nome = nuovoPazienteNomeInput.value.trim();
   if (!nome) {
@@ -2005,7 +2000,7 @@ async function confermaNuovoPaziente() {
     return;
   }
 
-  chiudiNuovoPaziente();
+  chiudiGestioneUtenti();
   await caricaListaPazienti();
   pazienteSearchInput.value = data.nome;
   await selezionaPaziente(data.id);
@@ -3229,6 +3224,9 @@ function inizializza() {
   gestioneUtentiOverlay.addEventListener("click", (e) => {
     if (e.target === gestioneUtentiOverlay) chiudiGestioneUtenti();
   });
+  document.querySelectorAll("#gestione-utenti-overlay .tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => apriTabGestioneUtenti(btn.dataset.tab));
+  });
   invitoRuoloSelect.addEventListener("change", aggiornaVisibilitaBloccoPaziente);
   invitoPazienteSelect.addEventListener("change", aggiornaVisibilitaBloccoPaziente);
   invitoInviaBtn.addEventListener("click", inviaInvito);
@@ -3302,12 +3300,7 @@ function inizializza() {
       nascondiSuggerimentiPazienti();
     }
   });
-  nuovoPazienteBtn.addEventListener("click", apriNuovoPaziente);
   nuovoPazienteConfermaBtn.addEventListener("click", confermaNuovoPaziente);
-  nuovoPazienteAnnullaBtn.addEventListener("click", chiudiNuovoPaziente);
-  nuovoPazienteOverlay.addEventListener("click", (e) => {
-    if (e.target === nuovoPazienteOverlay) chiudiNuovoPaziente();
-  });
 
   agendaNuovoBtn.addEventListener("click", apriNuovoAppuntamento);
   agendaFiltroPazienteSelect.addEventListener("change", renderListaAppuntamenti);
