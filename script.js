@@ -277,7 +277,6 @@ const profiloFisiciContenuto = document.getElementById("profilo-fisici-contenuto
 const profiloContattiToggle = document.getElementById("profilo-contatti-toggle");
 const profiloContattiContenuto = document.getElementById("profilo-contatti-contenuto");
 // Progressi peso (paziente)
-const pesoBmiEl = document.getElementById("peso-bmi");
 const pesoGraficoEl = document.getElementById("peso-grafico");
 const pesoFiltroBtns = document.querySelectorAll(".peso-filtro-btn");
 
@@ -774,7 +773,7 @@ function toggleAccordionProfilo(bottone, contenuto, etichetta) {
   bottone.textContent = `${chiusa ? "▸" : "▾"} ${etichetta}`;
 }
 
-// ---------- Storico peso, BMI e grafico progressi ----------
+// ---------- Storico peso e grafico progressi ----------
 
 async function caricaStoricoPeso(pazienteId) {
   const { data, error } = await supabaseClient
@@ -788,28 +787,6 @@ async function caricaStoricoPeso(pazienteId) {
     return [];
   }
   return data || [];
-}
-
-function calcolaBmi(altezzaCm, pesoKg) {
-  if (!altezzaCm || !pesoKg) return null;
-  const altezzaM = altezzaCm / 100;
-  return pesoKg / (altezzaM * altezzaM);
-}
-
-function categoriaBmi(bmi) {
-  if (bmi < 18.5) return "Sottopeso";
-  if (bmi < 25) return "Normopeso";
-  if (bmi < 30) return "Sovrappeso";
-  return "Obesità";
-}
-
-function renderBmi(altezzaCm, ultimoPeso) {
-  const bmi = calcolaBmi(altezzaCm, ultimoPeso);
-  if (bmi === null) {
-    pesoBmiEl.innerHTML = '<p class="vuoto">BMI non calcolabile: mancano altezza o peso nel tuo profilo.</p>';
-    return;
-  }
-  pesoBmiEl.innerHTML = `<p><strong>BMI attuale:</strong> ${round1(bmi)} — ${categoriaBmi(bmi)}</p>`;
 }
 
 const FILTRI_PESO_GIORNI = { "1m": 30, "3m": 90, "6m": 180, "tutto": null };
@@ -982,10 +959,6 @@ async function avviaVistaPaziente(pazienteRecord) {
   await caricaProssimoAppuntamento(pazienteRecord.id);
 
   storicoPesoCompleto = await caricaStoricoPeso(pazienteRecord.id);
-  const ultimoPeso = storicoPesoCompleto.length > 0
-    ? storicoPesoCompleto[storicoPesoCompleto.length - 1].peso_kg
-    : pazienteRecord.peso_kg;
-  renderBmi(pazienteRecord.altezza_cm, ultimoPeso);
   aggiornaFiltroPeso(filtroPesoAttivo);
 
   const rigaDieta = await caricaDietaAttivaPaziente(pazienteRecord.id);
@@ -1055,10 +1028,6 @@ async function apriAnteprimaPaziente() {
   await caricaProssimoAppuntamento(data.id);
 
   storicoPesoCompleto = await caricaStoricoPeso(data.id);
-  const ultimoPeso = storicoPesoCompleto.length > 0
-    ? storicoPesoCompleto[storicoPesoCompleto.length - 1].peso_kg
-    : data.peso_kg;
-  renderBmi(data.altezza_cm, ultimoPeso);
   aggiornaFiltroPeso(filtroPesoAttivo);
 
   pazienteHaDieta = !dietaVuota();
