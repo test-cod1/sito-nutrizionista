@@ -827,15 +827,44 @@ table th:nth-child(6), table td:nth-child(6) { width: 10%; }
 table th:nth-child(7), table td:nth-child(7) { width: 14%; }
 table th:nth-child(8), table td:nth-child(8) { width: 5%; }
 
-/* Tabella di dettaglio pasto (panoramica settimanale): 7 colonne, senza la
-   colonna azione della tabella di modifica dieta, quindi larghezze proprie. */
-.pan-dettaglio-tabella th:nth-child(1), .pan-dettaglio-tabella td:nth-child(1) { width: 26%; }
-.pan-dettaglio-tabella th:nth-child(2), .pan-dettaglio-tabella td:nth-child(2) { width: 13%; }
-.pan-dettaglio-tabella th:nth-child(3), .pan-dettaglio-tabella td:nth-child(3) { width: 19%; }
-.pan-dettaglio-tabella th:nth-child(4), .pan-dettaglio-tabella td:nth-child(4) { width: 12%; }
-.pan-dettaglio-tabella th:nth-child(5), .pan-dettaglio-tabella td:nth-child(5) { width: 12%; }
-.pan-dettaglio-tabella th:nth-child(6), .pan-dettaglio-tabella td:nth-child(6) { width: 9%; }
-.pan-dettaglio-tabella th:nth-child(7), .pan-dettaglio-tabella td:nth-child(7) { width: 9%; }
+/* Tabella di dettaglio pasto (panoramica settimanale): le colonne si
+   dimensionano sul contenuto (non sono compresse come nella tabella di
+   modifica dieta a larghezza fissa). Se non c'è spazio, il contenitore
+   scorre in orizzontale invece di spezzare i numeri su più righe. */
+.pan-dettaglio-scroll {
+  overflow-x: auto;
+  margin: 8px 0 4px;
+}
+
+.pan-dettaglio-tabella {
+  table-layout: auto;
+  min-width: 520px;
+  margin: 0;
+}
+
+/* Alimento, Quantità e Note possono andare a capo; i valori numerici no. */
+.pan-dettaglio-tabella th,
+.pan-dettaglio-tabella td {
+  white-space: nowrap;
+}
+
+.pan-dettaglio-tabella th:nth-child(1),
+.pan-dettaglio-tabella td:nth-child(1) {
+  white-space: normal;
+  min-width: 130px;
+}
+
+.pan-dettaglio-tabella th:nth-child(2),
+.pan-dettaglio-tabella td:nth-child(2),
+.pan-dettaglio-tabella th:nth-child(3),
+.pan-dettaglio-tabella td:nth-child(3) {
+  white-space: normal;
+  min-width: 84px;
+}
+
+.pan-dettaglio-tabella th {
+  letter-spacing: 0;
+}
 
 table th {
   color: var(--text-muted);
@@ -1229,6 +1258,12 @@ table tfoot .riga-totale td {
 
 .duplica-modal-larga {
   max-width: 560px;
+}
+
+/* Il dettaglio pasto ha una tabella a 7 colonne: più spazio su desktop per
+   evitare lo scorrimento orizzontale (su mobile la tabella scorre da sé). */
+#panoramica-dettaglio-overlay .duplica-modal {
+  max-width: 680px;
 }
 
 .duplica-modal h3 {

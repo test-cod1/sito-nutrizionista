@@ -3809,23 +3809,25 @@ function apriDettaglioPasto(giorno, pasto) {
   const totale = totaliPasto(items);
 
   panoramicaDettaglioContenuto.innerHTML = `
-    <table class="pan-dettaglio-tabella">
-      <thead>
-        <tr>
-          <th>Alimento</th><th>Quantità</th><th>Note</th><th>Calorie</th><th>Proteine</th><th>Grassi</th><th>Carboidrati</th>
-        </tr>
-      </thead>
-      <tbody>${righe}</tbody>
-      <tfoot>
-        <tr class="riga-totale">
-          <td colspan="3">Totale</td>
-          <td>${round1(totale.kcal)} kcal</td>
-          <td>${round1(totale.proteine)} g</td>
-          <td>${round1(totale.grassi)} g</td>
-          <td>${round1(totale.carboidrati)} g</td>
-        </tr>
-      </tfoot>
-    </table>
+    <div class="pan-dettaglio-scroll">
+      <table class="pan-dettaglio-tabella">
+        <thead>
+          <tr>
+            <th>Alimento</th><th>Quantità</th><th>Note</th><th>Calorie</th><th>Proteine</th><th>Grassi</th><th>Carboidrati</th>
+          </tr>
+        </thead>
+        <tbody>${righe}</tbody>
+        <tfoot>
+          <tr class="riga-totale">
+            <td colspan="3">Totale</td>
+            <td>${round1(totale.kcal)} kcal</td>
+            <td>${round1(totale.proteine)} g</td>
+            <td>${round1(totale.grassi)} g</td>
+            <td>${round1(totale.carboidrati)} g</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   `;
 
   panoramicaDettaglioOverlay.classList.remove("hidden");
