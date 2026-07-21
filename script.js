@@ -276,9 +276,6 @@ const profiloFisiciToggle = document.getElementById("profilo-fisici-toggle");
 const profiloFisiciContenuto = document.getElementById("profilo-fisici-contenuto");
 const profiloContattiToggle = document.getElementById("profilo-contatti-toggle");
 const profiloContattiContenuto = document.getElementById("profilo-contatti-contenuto");
-const profiloClinicheToggle = document.getElementById("profilo-cliniche-toggle");
-const profiloClinicheContenuto = document.getElementById("profilo-cliniche-contenuto");
-
 // Progressi peso (paziente)
 const pesoBmiEl = document.getElementById("peso-bmi");
 const pesoGraficoEl = document.getElementById("peso-grafico");
@@ -770,10 +767,6 @@ function renderProfiloPazienteVista(p) {
   profiloContattiContenuto.innerHTML =
     rigaProfiloVista("Telefono", p.telefono) +
     rigaProfiloVista("Email", p.email);
-
-  profiloClinicheContenuto.innerHTML =
-    rigaProfiloVista("Allergie / intolleranze", p.allergie) +
-    rigaProfiloVista("Note generali", p.note);
 }
 
 function toggleAccordionProfilo(bottone, contenuto, etichetta) {
@@ -3274,7 +3267,6 @@ function inizializza() {
 
   profiloFisiciToggle.addEventListener("click", () => toggleAccordionProfilo(profiloFisiciToggle, profiloFisiciContenuto, "Dati fisici"));
   profiloContattiToggle.addEventListener("click", () => toggleAccordionProfilo(profiloContattiToggle, profiloContattiContenuto, "Contatti"));
-  profiloClinicheToggle.addEventListener("click", () => toggleAccordionProfilo(profiloClinicheToggle, profiloClinicheContenuto, "Note cliniche"));
 
   pesoFiltroBtns.forEach(b => {
     b.addEventListener("click", () => aggiornaFiltroPeso(b.dataset.filtro));
