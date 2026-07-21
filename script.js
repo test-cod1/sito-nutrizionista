@@ -361,6 +361,11 @@ const taskContatoreEl = {
   in_corso: document.getElementById("task-contatore-in_corso"),
   fatto: document.getElementById("task-contatore-fatto")
 };
+const taskContatorePrioritaEl = {
+  alta: document.getElementById("task-contatore-da_fare-alta"),
+  media: document.getElementById("task-contatore-da_fare-media"),
+  bassa: document.getElementById("task-contatore-da_fare-bassa")
+};
 const taskVediTutteBtn = document.getElementById("task-vedi-tutte-btn");
 
 const taskModalOverlay = document.getElementById("task-modal-overlay");
@@ -387,6 +392,7 @@ let taskInModifica = null;
 const TASK_FATTO_LIMITE = 15;
 const TASK_STATO_LABEL = { da_fare: "Da fare", in_corso: "In corso", fatto: "Fatto" };
 const TASK_PRIORITA_LABEL = { bassa: "Bassa", media: "Media", alta: "Alta" };
+const TASK_PRIORITA_ORDINE = { alta: 0, media: 1, bassa: 2 };
 const appuntamentoOverlay = document.getElementById("appuntamento-overlay");
 const appuntamentoTitolo = document.getElementById("appuntamento-titolo");
 const appuntamentoPazienteSelect = document.getElementById("appuntamento-paziente-select");
@@ -2546,11 +2552,23 @@ async function caricaTask() {
 function renderBachecaTask() {
   ["da_fare", "in_corso", "fatto"].forEach(stato => {
     const attive = listaTask.filter(t => t.stato === stato && !taskArchiviata(t));
-    attive.sort((a, b) => stato === "fatto"
-      ? new Date(b.completato_il || b.creato_il) - new Date(a.completato_il || a.creato_il)
-      : new Date(a.creato_il) - new Date(b.creato_il));
+    attive.sort((a, b) => {
+      if (stato === "fatto") {
+        return new Date(b.completato_il || b.creato_il) - new Date(a.completato_il || a.creato_il);
+      }
+      // Priorità alta sempre in cima, anche se creata dopo; a parità di
+      // priorità, la più vecchia resta in cima (ordine di creazione).
+      const differenzaPriorita = TASK_PRIORITA_ORDINE[a.priorita] - TASK_PRIORITA_ORDINE[b.priorita];
+      return differenzaPriorita !== 0 ? differenzaPriorita : new Date(a.creato_il) - new Date(b.creato_il);
+    });
 
     taskContatoreEl[stato].textContent = attive.length;
+
+    if (stato === "da_fare") {
+      ["alta", "media", "bassa"].forEach(priorita => {
+        taskContatorePrioritaEl[priorita].textContent = attive.filter(t => t.priorita === priorita).length;
+      });
+    }
 
     if (stato === "fatto") {
       const daMostrare = attive.slice(0, TASK_FATTO_LIMITE);

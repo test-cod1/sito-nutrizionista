@@ -24,6 +24,7 @@
   --danger-scuro-hover: #551717;
   --secondary: #2b6f8a;
   --secondary-hover: #215671;
+  --priorita-media: #b8860b;
   --shadow: rgba(40, 80, 60, 0.06);
   --shadow-strong: rgba(40, 80, 60, 0.1);
   --shadow-modal: rgba(0, 0, 0, 0.25);
@@ -58,6 +59,7 @@
   --danger-scuro-hover: #8a2b2b;
   --secondary: #6fa8c4;
   --secondary-hover: #85b9d3;
+  --priorita-media: #d4a72c;
   --shadow: rgba(0, 0, 0, 0.35);
   --shadow-strong: rgba(0, 0, 0, 0.5);
   --shadow-modal: rgba(0, 0, 0, 0.55);
@@ -1452,6 +1454,37 @@ table tfoot .riga-totale td {
   padding: 2px 9px;
 }
 
+.task-contatori-priorita {
+  display: inline-flex;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.task-contatore-priorita {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-contatore-priorita-alta {
+  background: var(--danger);
+}
+
+.task-contatore-priorita-media {
+  background: var(--priorita-media);
+}
+
+.task-contatore-priorita-bassa {
+  background: var(--accent);
+}
+
 .task-lista {
   display: flex;
   flex-direction: column;
@@ -1488,11 +1521,11 @@ table tfoot .riga-totale td {
 }
 
 .task-card.task-priorita-bassa {
-  border-left-color: var(--secondary);
+  border-left-color: var(--accent);
 }
 
 .task-card.task-priorita-media {
-  border-left-color: var(--accent);
+  border-left-color: var(--priorita-media);
 }
 
 .task-card.task-priorita-alta {
