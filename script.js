@@ -760,8 +760,7 @@ function renderProfiloPazienteVista(p) {
   profiloFisiciContenuto.innerHTML =
     rigaProfiloVista("Sesso", p.sesso) +
     rigaProfiloVista("Altezza", p.altezza_cm ? `${p.altezza_cm} cm` : null) +
-    rigaProfiloVista("Peso attuale", p.peso_kg ? `${p.peso_kg} kg` : null) +
-    rigaProfiloVista("Livello di attività", p.attivita);
+    rigaProfiloVista("Peso attuale", p.peso_kg ? `${p.peso_kg} kg` : null);
 
   profiloContattiContenuto.innerHTML =
     rigaProfiloVista("Telefono", p.telefono) +
