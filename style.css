@@ -504,7 +504,7 @@ button.danger:hover {
 
 .paziente-selettore {
   flex: 0 1 340px;
-  min-width: 225px;
+  min-width: 140px;
 }
 
 .paziente-selettore label {
