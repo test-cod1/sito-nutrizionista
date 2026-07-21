@@ -238,7 +238,7 @@
     <nav id="sezioni-sidebar" class="sezioni-sidebar no-print">
       <div class="sezioni-sidebar-titolo">Sezioni</div>
       <a href="#paziente-bar" class="sezioni-link" data-target="paziente-bar">Paziente in lavorazione</a>
-      <a href="#impostazioni" class="sezioni-link sezioni-link-paziente" data-target="impostazioni">Dati piano alimentare</a>
+      <a href="#piano-info-riga" class="sezioni-link sezioni-link-paziente" data-target="piano-info-riga">Prossimo appuntamento e dati piano</a>
       <a href="#checkin-admin" class="sezioni-link sezioni-link-paziente" data-target="checkin-admin">Check-in periodico</a>
       <a href="#calcolatore" class="sezioni-link sezioni-link-paziente" data-target="calcolatore">Calcolatore alimento</a>
       <a href="#pasto-corrente" class="sezioni-link sezioni-link-paziente" data-target="pasto-corrente">Pasto in corso</a>
@@ -281,36 +281,39 @@
       </div>
     </section>
 
-    <section id="prossimo-appuntamento-admin" class="card no-print">
-      <h2>Prossimo appuntamento</h2>
-      <div id="prossimo-appuntamento-admin-contenuto">
-        <p class="vuoto">Nessun appuntamento programmato.</p>
-      </div>
-    </section>
-
     <div id="area-lavoro" class="hidden">
-      <section id="impostazioni" class="card no-print">
-        <h2>Dati piano alimentare</h2>
-        <label for="max-kcal-input">Calorie massime giornaliere</label>
-        <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
-
-        <button id="impostazioni-stampa-toggle" class="impostazioni-stampa-toggle" type="button">⚙ Impostazioni di stampa ▸</button>
-        <div id="impostazioni-stampa-contenuto" class="hidden">
-          <label for="sostituzioni-input">Sostituzioni possibili (stampate in fondo al PDF cliente)</label>
-          <textarea id="sostituzioni-input" rows="3" placeholder="es. Il petto di pollo può essere sostituito con tacchino o pesce bianco; la pasta con riso o farro…"></textarea>
-
-          <label for="info-studio-input">Informazioni studio (a piè di pagina nei PDF)</label>
-          <input type="text" id="info-studio-input" placeholder="es. Dott.ssa Nome Cognome · Tel. 000 000000 · email@studio.it">
-
-          <label>Validità del piano (opzionale, stampata in ogni PDF)</label>
-          <div class="riga-validita">
-            <div>
-              <label for="valido-dal-input" class="sotto-etichetta">Dal</label>
-              <input type="date" id="valido-dal-input">
+      <section id="piano-info-riga" class="card no-print">
+        <div class="griglia-2">
+          <div>
+            <h2>Prossimo appuntamento</h2>
+            <div id="prossimo-appuntamento-admin-contenuto">
+              <p class="vuoto">Nessun appuntamento programmato.</p>
             </div>
-            <div>
-              <label for="valido-al-input" class="sotto-etichetta">Al</label>
-              <input type="date" id="valido-al-input">
+          </div>
+          <div>
+            <h2>Dati piano alimentare</h2>
+            <label for="max-kcal-input">Calorie massime giornaliere</label>
+            <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
+
+            <button id="impostazioni-stampa-toggle" class="impostazioni-stampa-toggle" type="button">⚙ Impostazioni di stampa ▸</button>
+            <div id="impostazioni-stampa-contenuto" class="hidden">
+              <label for="sostituzioni-input">Sostituzioni possibili (stampate in fondo al PDF cliente)</label>
+              <textarea id="sostituzioni-input" rows="3" placeholder="es. Il petto di pollo può essere sostituito con tacchino o pesce bianco; la pasta con riso o farro…"></textarea>
+
+              <label for="info-studio-input">Informazioni studio (a piè di pagina nei PDF)</label>
+              <input type="text" id="info-studio-input" placeholder="es. Dott.ssa Nome Cognome · Tel. 000 000000 · email@studio.it">
+
+              <label>Validità del piano (opzionale, stampata in ogni PDF)</label>
+              <div class="riga-validita">
+                <div>
+                  <label for="valido-dal-input" class="sotto-etichetta">Dal</label>
+                  <input type="date" id="valido-dal-input">
+                </div>
+                <div>
+                  <label for="valido-al-input" class="sotto-etichetta">Al</label>
+                  <input type="date" id="valido-al-input">
+                </div>
+              </div>
             </div>
           </div>
         </div>
