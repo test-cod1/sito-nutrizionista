@@ -825,8 +825,19 @@
           <input type="date" id="appuntamento-data-input">
         </div>
         <div>
-          <label for="appuntamento-ora-input">Ora</label>
-          <input type="time" id="appuntamento-ora-input" step="900">
+          <label for="appuntamento-ora-ore-select">Ora</label>
+          <div class="ora-select-riga">
+            <select id="appuntamento-ora-ore-select" aria-label="Ora">
+              <option value="">--</option>
+            </select>
+            <span class="ora-select-separatore">:</span>
+            <select id="appuntamento-ora-minuti-select" aria-label="Minuti">
+              <option value="00">00</option>
+              <option value="15">15</option>
+              <option value="30">30</option>
+              <option value="45">45</option>
+            </select>
+          </div>
         </div>
       </div>
 

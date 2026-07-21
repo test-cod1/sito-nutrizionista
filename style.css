@@ -447,6 +447,22 @@ button.danger-scuro:hover {
   grid-column: 1 / -1;
 }
 
+.ora-select-riga {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ora-select-riga select {
+  width: auto;
+  flex: 1;
+}
+
+.ora-select-separatore {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
 @media (max-width: 640px) {
   .griglia-2 {
     grid-template-columns: 1fr;

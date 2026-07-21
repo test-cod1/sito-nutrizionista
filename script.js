@@ -397,7 +397,45 @@ const appuntamentoOverlay = document.getElementById("appuntamento-overlay");
 const appuntamentoTitolo = document.getElementById("appuntamento-titolo");
 const appuntamentoPazienteSelect = document.getElementById("appuntamento-paziente-select");
 const appuntamentoDataInput = document.getElementById("appuntamento-data-input");
-const appuntamentoOraInput = document.getElementById("appuntamento-ora-input");
+// Ore e minuti sono due <select> separati (minuti solo 00/15/30/45): molti
+// picker nativi di <input type="time"> ignorano l'attributo "step" e
+// mostrano comunque tutti i 60 minuti, quindi si usano due tendine per
+// garantire l'intervallo su ogni browser. Questo oggetto espone un'unica
+// proprietà "value" in formato "HH:MM" per non dover toccare il resto del
+// codice che legge/scrive l'orario dell'appuntamento.
+const appuntamentoOraOreSelect = document.getElementById("appuntamento-ora-ore-select");
+const appuntamentoOraMinutiSelect = document.getElementById("appuntamento-ora-minuti-select");
+for (let h = 0; h < 24; h++) {
+  const ora = String(h).padStart(2, "0");
+  const opzione = document.createElement("option");
+  opzione.value = ora;
+  opzione.textContent = ora;
+  appuntamentoOraOreSelect.appendChild(opzione);
+}
+const appuntamentoOraInput = {
+  get value() {
+    // Se l'ora non è stata scelta, il valore resta vuoto (come il vecchio
+    // input type="time" vuoto), per mantenere invariata la validazione
+    // "inserisci data e ora" in salvaAppuntamento().
+    if (!appuntamentoOraOreSelect.value) return "";
+    return `${appuntamentoOraOreSelect.value}:${appuntamentoOraMinutiSelect.value}`;
+  },
+  set value(orario) {
+    if (!orario) {
+      appuntamentoOraOreSelect.value = "";
+      appuntamentoOraMinutiSelect.value = "00";
+      return;
+    }
+    const [ore, minuti] = orario.split(":");
+    appuntamentoOraOreSelect.value = ore;
+    // Arrotonda ai 15 minuti più vicini, per compatibilità con eventuali
+    // appuntamenti salvati in passato con un orario non allineato.
+    const minutiArrotondati = [0, 15, 30, 45].reduce((piuVicino, valore) =>
+      Math.abs(valore - Number(minuti)) < Math.abs(piuVicino - Number(minuti)) ? valore : piuVicino
+    );
+    appuntamentoOraMinutiSelect.value = String(minutiArrotondati).padStart(2, "0");
+  }
+};
 const appuntamentoTipologiaSelect = document.getElementById("appuntamento-tipologia-select");
 const appuntamentoNoteInput = document.getElementById("appuntamento-note-input");
 const appuntamentoErrore = document.getElementById("appuntamento-error");
