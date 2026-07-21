@@ -264,6 +264,13 @@ const pazienteLogoutBtn = document.getElementById("paziente-logout-btn");
 const pzTemaChiaroBtn = document.getElementById("pz-tema-chiaro-btn");
 const pzTemaNotteBtn = document.getElementById("pz-tema-notte-btn");
 
+// Reimposta password (paziente)
+const pazienteSicurezzaBtn = document.getElementById("paziente-sicurezza-btn");
+const pazienteSicurezzaOverlay = document.getElementById("paziente-sicurezza-overlay");
+const pazienteSicurezzaMsg = document.getElementById("paziente-sicurezza-msg");
+const pazienteSicurezzaInviaBtn = document.getElementById("paziente-sicurezza-invia-btn");
+const pazienteSicurezzaChiudiBtn = document.getElementById("paziente-sicurezza-chiudi-btn");
+
 // Profilo paziente (accordion, sola lettura)
 const profiloFisiciToggle = document.getElementById("profilo-fisici-toggle");
 const profiloFisiciContenuto = document.getElementById("profilo-fisici-contenuto");
@@ -465,6 +472,45 @@ async function inviaRecuperoPassword() {
 
   recuperoSuccesso.textContent = "Se l'email è registrata, riceverai a breve un'email con il link per reimpostare la password.";
   recuperoSuccesso.classList.remove("hidden");
+}
+
+// ---------- Reimposta password (paziente già loggato) ----------
+// Stesso meccanismo del recupero password self-service dalla schermata di
+// login: invia un'email con link di reset monouso, senza bisogno di
+// conoscere la password attuale. L'indirizzo è quello dell'account con cui
+// il paziente ha effettuato l'accesso (non un campo digitabile).
+
+function apriPazienteSicurezza() {
+  pazienteSicurezzaMsg.classList.add("hidden");
+  pazienteSicurezzaOverlay.classList.remove("hidden");
+}
+
+function chiudiPazienteSicurezza() {
+  pazienteSicurezzaOverlay.classList.add("hidden");
+}
+
+async function inviaResetPasswordPazienteProprio() {
+  pazienteSicurezzaMsg.classList.add("hidden");
+
+  const { data: { user }, error: erroreUser } = await supabaseClient.auth.getUser();
+  if (erroreUser || !user || !user.email) {
+    pazienteSicurezzaMsg.textContent = "Errore nel recupero dell'account: " + (erroreUser ? erroreUser.message : "email non disponibile.");
+    pazienteSicurezzaMsg.classList.remove("hidden");
+    return;
+  }
+
+  pazienteSicurezzaInviaBtn.disabled = true;
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(user.email);
+  pazienteSicurezzaInviaBtn.disabled = false;
+
+  if (error) {
+    pazienteSicurezzaMsg.textContent = "Errore nell'invio dell'email: " + error.message;
+    pazienteSicurezzaMsg.classList.remove("hidden");
+    return;
+  }
+
+  pazienteSicurezzaMsg.textContent = `Ti abbiamo inviato un'email a ${user.email} con le istruzioni per reimpostare la password.`;
+  pazienteSicurezzaMsg.classList.remove("hidden");
 }
 
 function mostraImpostaPassword() {
@@ -3200,6 +3246,13 @@ function inizializza() {
   });
   recuperoPasswordOverlay.addEventListener("click", (e) => {
     if (e.target === recuperoPasswordOverlay) chiudiRecuperoPassword();
+  });
+
+  pazienteSicurezzaBtn.addEventListener("click", apriPazienteSicurezza);
+  pazienteSicurezzaInviaBtn.addEventListener("click", inviaResetPasswordPazienteProprio);
+  pazienteSicurezzaChiudiBtn.addEventListener("click", chiudiPazienteSicurezza);
+  pazienteSicurezzaOverlay.addEventListener("click", (e) => {
+    if (e.target === pazienteSicurezzaOverlay) chiudiPazienteSicurezza();
   });
 
   impostaPasswordBtn.addEventListener("click", confermaImpostaPassword);

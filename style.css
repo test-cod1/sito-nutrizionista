@@ -185,7 +185,8 @@ body {
 
 #gestione-utenti-btn,
 #sicurezza-btn,
-#agenda-btn {
+#agenda-btn,
+#paziente-sicurezza-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -205,7 +206,8 @@ body {
 
 #gestione-utenti-btn:hover,
 #sicurezza-btn:hover,
-#agenda-btn:hover {
+#agenda-btn:hover,
+#paziente-sicurezza-btn:hover {
   background: #eef4f0;
   transform: none;
 }
