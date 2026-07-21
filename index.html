@@ -238,7 +238,6 @@
     <nav id="sezioni-sidebar" class="sezioni-sidebar no-print">
       <div class="sezioni-sidebar-titolo">Sezioni</div>
       <a href="#paziente-bar" class="sezioni-link" data-target="paziente-bar">Paziente in lavorazione</a>
-      <a href="#agenda-admin" class="sezioni-link" data-target="agenda-admin">Agenda appuntamenti</a>
       <a href="#impostazioni" class="sezioni-link sezioni-link-paziente" data-target="impostazioni">Dati piano alimentare</a>
       <a href="#checkin-admin" class="sezioni-link sezioni-link-paziente" data-target="checkin-admin">Check-in periodico</a>
       <a href="#calcolatore" class="sezioni-link sezioni-link-paziente" data-target="calcolatore">Calcolatore alimento</a>
@@ -250,6 +249,7 @@
       <div class="gestione-utenti-fisso">
         <button type="button" id="gestione-utenti-btn" title="Gestione utenti" aria-label="Gestione utenti">👤</button>
         <button type="button" id="sicurezza-btn" title="Sicurezza account" aria-label="Sicurezza account">🔒</button>
+        <button type="button" id="agenda-btn" title="Agenda appuntamenti" aria-label="Agenda appuntamenti">📅</button>
       </div>
       <div class="header-azioni-destra">
         <button type="button" id="logout-btn" class="esci-header-btn">Esci</button>
@@ -277,19 +277,15 @@
         </div>
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
         <button type="button" id="storico-btn" class="secondary" disabled>Storico piani alimentari</button>
+        <button type="button" id="agenda-nuovo-btn" class="secondary" disabled>+ Nuovo appuntamento</button>
       </div>
     </section>
 
-    <section id="agenda-admin" class="card no-print">
-      <div class="paziente-bar-riga">
-        <h2>Agenda appuntamenti</h2>
-        <button type="button" id="agenda-nuovo-btn" class="secondary">+ Nuovo appuntamento</button>
+    <section id="prossimo-appuntamento-admin" class="card no-print">
+      <h2>Prossimo appuntamento</h2>
+      <div id="prossimo-appuntamento-admin-contenuto">
+        <p class="vuoto">Nessun appuntamento programmato.</p>
       </div>
-      <label for="agenda-filtro-paziente">Filtra per paziente</label>
-      <select id="agenda-filtro-paziente">
-        <option value="">Tutti i pazienti</option>
-      </select>
-      <div id="agenda-lista"></div>
     </section>
 
     <div id="area-lavoro" class="hidden">
@@ -621,6 +617,21 @@
     <div class="off-foto-grande-contenitore">
       <button type="button" id="off-foto-chiudi-btn" class="off-foto-chiudi" aria-label="Chiudi">×</button>
       <img id="off-foto-grande" src="" alt="Foto prodotto ingrandita">
+    </div>
+  </div>
+
+  <!-- Agenda appuntamenti (elenco completo) -->
+  <div id="agenda-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal duplica-modal-larga">
+      <h3>Agenda appuntamenti</h3>
+      <label for="agenda-filtro-paziente">Filtra per paziente</label>
+      <select id="agenda-filtro-paziente">
+        <option value="">Tutti i pazienti</option>
+      </select>
+      <div id="agenda-lista"></div>
+      <div class="duplica-azioni">
+        <button id="agenda-chiudi-btn" class="danger">Chiudi</button>
+      </div>
     </div>
   </div>
 

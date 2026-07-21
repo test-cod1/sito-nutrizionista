@@ -184,7 +184,8 @@ body {
 }
 
 #gestione-utenti-btn,
-#sicurezza-btn {
+#sicurezza-btn,
+#agenda-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -203,7 +204,8 @@ body {
 }
 
 #gestione-utenti-btn:hover,
-#sicurezza-btn:hover {
+#sicurezza-btn:hover,
+#agenda-btn:hover {
   background: #eef4f0;
   transform: none;
 }

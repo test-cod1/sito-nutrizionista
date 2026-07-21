@@ -305,9 +305,13 @@ const offFotoGrande = document.getElementById("off-foto-grande");
 const offFotoChiudiBtn = document.getElementById("off-foto-chiudi-btn");
 
 // Agenda appuntamenti (admin)
+const agendaBtn = document.getElementById("agenda-btn");
+const agendaOverlay = document.getElementById("agenda-overlay");
+const agendaChiudiBtn = document.getElementById("agenda-chiudi-btn");
 const agendaListaEl = document.getElementById("agenda-lista");
 const agendaNuovoBtn = document.getElementById("agenda-nuovo-btn");
 const agendaFiltroPazienteSelect = document.getElementById("agenda-filtro-paziente");
+const prossimoAppuntamentoAdminContenuto = document.getElementById("prossimo-appuntamento-admin-contenuto");
 const appuntamentoOverlay = document.getElementById("appuntamento-overlay");
 const appuntamentoTitolo = document.getElementById("appuntamento-titolo");
 const appuntamentoPazienteSelect = document.getElementById("appuntamento-paziente-select");
@@ -1926,8 +1930,10 @@ async function selezionaPaziente(pazienteId) {
     storicoBtn.disabled = true;
     profiloBtn.disabled = true;
     anteprimaPazienteBtn.disabled = true;
+    agendaNuovoBtn.disabled = true;
     areaLavoro.classList.add("hidden");
     aggiornaDisponibilitaSezioniPaziente();
+    renderProssimoAppuntamentoAdmin();
     return;
   }
 
@@ -1979,8 +1985,10 @@ async function selezionaPaziente(pazienteId) {
   storicoBtn.disabled = false;
   profiloBtn.disabled = false;
   anteprimaPazienteBtn.disabled = false;
+  agendaNuovoBtn.disabled = false;
   areaLavoro.classList.remove("hidden");
   aggiornaDisponibilitaSezioniPaziente();
+  renderProssimoAppuntamentoAdmin();
 
   renderDraft();
   renderDieta();
@@ -2028,6 +2036,49 @@ async function caricaAppuntamenti() {
   }
   popolaFiltroAgenda();
   renderListaAppuntamenti();
+  renderProssimoAppuntamentoAdmin();
+}
+
+function apriAgendaModale() {
+  popolaFiltroAgenda();
+  renderListaAppuntamenti();
+  agendaOverlay.classList.remove("hidden");
+}
+
+function chiudiAgendaModale() {
+  agendaOverlay.classList.add("hidden");
+}
+
+// Prossimo appuntamento futuro del paziente in lavorazione, calcolato da
+// listaAppuntamenti (già caricata) senza una nuova interrogazione al database.
+function renderProssimoAppuntamentoAdmin() {
+  if (!pazienteCorrente) {
+    prossimoAppuntamentoAdminContenuto.innerHTML = '<p class="vuoto">Nessun appuntamento programmato.</p>';
+    return;
+  }
+
+  const ora = new Date();
+  const prossimo = listaAppuntamenti
+    .filter(a => a.paziente_id === pazienteCorrente.id && new Date(a.data_ora) >= ora)
+    .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora))[0];
+
+  if (!prossimo) {
+    prossimoAppuntamentoAdminContenuto.innerHTML = '<p class="vuoto">Nessun appuntamento programmato.</p>';
+    return;
+  }
+
+  const dataOra = new Date(prossimo.data_ora);
+  const tipologiaLabel = prossimo.tipologia === "remoto" ? "Da remoto" : "In studio";
+  prossimoAppuntamentoAdminContenuto.innerHTML = `
+    <div class="prossimo-appuntamento-riga">
+      <div>
+        <strong>${dataOra.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</strong>
+        <p>${dataOra.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })} · ${tipologiaLabel}</p>
+        ${prossimo.note ? `<p class="hint">${escapeHtml(prossimo.note)}</p>` : ""}
+      </div>
+      <button type="button" class="secondary agenda-modifica-btn" data-id="${prossimo.id}">Modifica</button>
+    </div>
+  `;
 }
 
 function popolaFiltroAgenda() {
@@ -3302,9 +3353,18 @@ function inizializza() {
   });
   nuovoPazienteConfermaBtn.addEventListener("click", confermaNuovoPaziente);
 
+  agendaBtn.addEventListener("click", apriAgendaModale);
+  agendaChiudiBtn.addEventListener("click", chiudiAgendaModale);
+  agendaOverlay.addEventListener("click", (e) => {
+    if (e.target === agendaOverlay) chiudiAgendaModale();
+  });
   agendaNuovoBtn.addEventListener("click", apriNuovoAppuntamento);
   agendaFiltroPazienteSelect.addEventListener("change", renderListaAppuntamenti);
   agendaListaEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".agenda-modifica-btn");
+    if (btn) apriModificaAppuntamento(btn.dataset.id);
+  });
+  prossimoAppuntamentoAdminContenuto.addEventListener("click", (e) => {
     const btn = e.target.closest(".agenda-modifica-btn");
     if (btn) apriModificaAppuntamento(btn.dataset.id);
   });
