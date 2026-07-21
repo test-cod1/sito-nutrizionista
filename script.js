@@ -285,6 +285,7 @@ const cancellazioneStep2 = document.getElementById("cancellazione-step-2");
 const cancellazioneStep3 = document.getElementById("cancellazione-step-3");
 const cancellazioneStep1AvantiBtn = document.getElementById("cancellazione-step-1-avanti-btn");
 const cancellazioneStep1AnnullaBtn = document.getElementById("cancellazione-step-1-annulla-btn");
+const cancellazioneMessaggioInput = document.getElementById("cancellazione-messaggio-input");
 const cancellazionePasswordInput = document.getElementById("cancellazione-password-input");
 const cancellazioneError = document.getElementById("cancellazione-error");
 const cancellazioneStep2InviaBtn = document.getElementById("cancellazione-step-2-invia-btn");
@@ -606,6 +607,7 @@ function mostraStepCancellazione(step) {
 }
 
 function apriCancellazione() {
+  cancellazioneMessaggioInput.value = "";
   cancellazionePasswordInput.value = "";
   cancellazioneError.classList.add("hidden");
   mostraStepCancellazione(1);
@@ -650,7 +652,8 @@ async function inviaRichiestaCancellazione() {
   const { error } = await supabaseClient.from("richieste_cancellazione").insert({
     paziente_id: pazienteCorrente.id,
     paziente_nome_snapshot: pazienteCorrente.nome,
-    paziente_email_snapshot: user.email
+    paziente_email_snapshot: user.email,
+    messaggio_paziente: cancellazioneMessaggioInput.value.trim() || null
   });
 
   if (error) {
@@ -2423,6 +2426,7 @@ function renderListaRichieste() {
             <strong>${escapeHtml(r.paziente_nome_snapshot)}</strong>
             <span class="hint">${escapeHtml(r.paziente_email_snapshot || "")}</span>
             <span class="hint">Richiesta il ${data}</span>
+            ${r.messaggio_paziente ? `<span class="hint">Messaggio: ${escapeHtml(r.messaggio_paziente)}</span>` : ""}
           </div>
           <div class="richiesta-riga-azioni">
             <button type="button" class="secondary richiesta-accetta-btn" data-id="${r.id}">Accetta e cancella</button>
@@ -2443,6 +2447,7 @@ function renderListaRichieste() {
           <strong>${escapeHtml(r.paziente_nome_snapshot)}</strong>
           <span class="hint">${escapeHtml(r.paziente_email_snapshot || "")}</span>
           <span class="hint">Richiesta il ${data} — ${STATO_LABEL[r.stato] || r.stato}</span>
+          ${r.messaggio_paziente ? `<span class="hint">Messaggio: ${escapeHtml(r.messaggio_paziente)}</span>` : ""}
           ${r.motivazione_rifiuto ? `<span class="hint">Motivo: ${escapeHtml(r.motivazione_rifiuto)}</span>` : ""}
         </div>
       </div>
