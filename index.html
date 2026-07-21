@@ -241,7 +241,6 @@
       <a href="#agenda-admin" class="sezioni-link" data-target="agenda-admin">Agenda appuntamenti</a>
       <a href="#impostazioni" class="sezioni-link sezioni-link-paziente" data-target="impostazioni">Dati piano alimentare</a>
       <a href="#checkin-admin" class="sezioni-link sezioni-link-paziente" data-target="checkin-admin">Check-in periodico</a>
-      <a href="#off-ricerca-admin" class="sezioni-link sezioni-link-paziente" data-target="off-ricerca-admin">Ricerca prodotti</a>
       <a href="#calcolatore" class="sezioni-link sezioni-link-paziente" data-target="calcolatore">Calcolatore alimento</a>
       <a href="#pasto-corrente" class="sezioni-link sezioni-link-paziente" data-target="pasto-corrente">Pasto in corso</a>
       <a href="#panoramica" class="sezioni-link sezioni-link-paziente" data-target="panoramica">Panoramica settimanale</a>
@@ -348,27 +347,29 @@
         </div>
       </section>
 
-      <section id="off-ricerca-admin" class="card no-print">
-        <h2>Ricerca prodotti (Open Food Facts)</h2>
-        <p class="hint">Consulta i valori nutrizionali di un prodotto confezionato, senza uscire dal sito. Solo consultazione: non viene importato nulla nel calcolatore.</p>
-        <div class="griglia-2">
-          <div>
-            <label for="off-admin-query-input">Nome prodotto o marca</label>
-            <input type="text" id="off-admin-query-input" placeholder="es. Nutella, Barilla penne...">
-          </div>
-          <div>
-            <label for="off-admin-barcode-input">Oppure codice a barre</label>
-            <input type="text" id="off-admin-barcode-input" placeholder="es. 3017620422003" inputmode="numeric">
-          </div>
-        </div>
-        <button id="off-admin-cerca-btn">Cerca</button>
-        <p id="off-admin-error" class="error hidden"></p>
-        <div id="off-admin-risultati"></div>
-        <p class="off-attribuzione">Dati nutrizionali forniti da <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, disponibili sotto licenza <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License (ODbL)</a>.</p>
-      </section>
-
       <section id="calcolatore" class="card no-print">
-        <h2>Calcolatore alimento</h2>
+        <div class="calcolatore-intestazione">
+          <h2>Calcolatore alimento</h2>
+          <button type="button" id="off-ricerca-toggle-btn" class="off-ricerca-toggle-btn" title="Ricerca prodotti confezionati (Open Food Facts)" aria-label="Ricerca prodotti confezionati (Open Food Facts)">🔍</button>
+        </div>
+
+        <div id="off-ricerca-admin-contenuto" class="hidden">
+          <p class="hint">Consulta i valori nutrizionali di un prodotto confezionato, senza uscire dal sito. Solo consultazione: non viene importato nulla nel calcolatore.</p>
+          <div class="griglia-2">
+            <div>
+              <label for="off-admin-query-input">Nome prodotto o marca</label>
+              <input type="text" id="off-admin-query-input" placeholder="es. Nutella, Barilla penne...">
+            </div>
+            <div>
+              <label for="off-admin-barcode-input">Oppure codice a barre</label>
+              <input type="text" id="off-admin-barcode-input" placeholder="es. 3017620422003" inputmode="numeric">
+            </div>
+          </div>
+          <button id="off-admin-cerca-btn">Cerca</button>
+          <p id="off-admin-error" class="error hidden"></p>
+          <div id="off-admin-risultati"></div>
+          <p class="off-attribuzione">Dati nutrizionali forniti da <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a>, disponibili sotto licenza <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License (ODbL)</a>.</p>
+        </div>
 
         <label for="food-input">Alimento</label>
         <div class="riga-alimento">

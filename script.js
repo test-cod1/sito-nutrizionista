@@ -286,6 +286,8 @@ let pazienteHaDieta = false;
 let profiloPesoOriginale = null;
 
 // Open Food Facts (admin)
+const offRicercaToggleBtn = document.getElementById("off-ricerca-toggle-btn");
+const offRicercaAdminContenuto = document.getElementById("off-ricerca-admin-contenuto");
 const offAdminQueryInput = document.getElementById("off-admin-query-input");
 const offAdminBarcodeInput = document.getElementById("off-admin-barcode-input");
 const offAdminCercaBtn = document.getElementById("off-admin-cerca-btn");
@@ -2947,6 +2949,12 @@ function renderPanoramica() {
   panoramicaGriglia.innerHTML = html;
 }
 
+function toggleOffRicerca() {
+  const aperto = offRicercaAdminContenuto.classList.toggle("hidden") === false;
+  offRicercaToggleBtn.classList.toggle("attivo", aperto);
+  if (aperto) offAdminQueryInput.focus();
+}
+
 function togglePanoramica() {
   const chiusa = panoramicaContenuto.classList.toggle("hidden");
   panoramicaToggle.textContent = `${chiusa ? "▸" : "▾"} Panoramica settimanale`;
@@ -3183,6 +3191,7 @@ function inizializza() {
     btn.addEventListener("click", () => apriTabCheckin(btn.dataset.tab));
   });
 
+  offRicercaToggleBtn.addEventListener("click", toggleOffRicerca);
   offAdminCercaBtn.addEventListener("click", cercaOFFAdmin);
   offScannerAvviaBtn.addEventListener("click", avviaScannerBarcode);
   offScannerStopBtn.addEventListener("click", fermaScannerBarcode);
