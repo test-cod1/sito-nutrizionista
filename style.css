@@ -560,9 +560,8 @@ button.danger:hover {
 
 .paziente-bar-riga > button {
   margin-top: 0;
-  flex: 1 1 0;
-  min-width: 220px;
-  text-align: center;
+  white-space: nowrap;
+  flex: 0 1 auto;
 }
 
 .storico-riga {
