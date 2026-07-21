@@ -20,6 +20,8 @@
   --danger-hover: #822d2d;
   --danger-tint: #fdeaea;
   --danger-text: #7a1f1f;
+  --danger-scuro: #6e1f1f;
+  --danger-scuro-hover: #551717;
   --secondary: #2b6f8a;
   --secondary-hover: #215671;
   --shadow: rgba(40, 80, 60, 0.06);
@@ -52,6 +54,8 @@
   --danger-hover: #e0917f;
   --danger-tint: #3a2422;
   --danger-text: #f0b8ac;
+  --danger-scuro: #6e1f1f;
+  --danger-scuro-hover: #8a2b2b;
   --secondary: #6fa8c4;
   --secondary-hover: #85b9d3;
   --shadow: rgba(0, 0, 0, 0.35);
@@ -310,6 +314,14 @@ button.danger {
 
 button.danger:hover {
   background: var(--danger-hover);
+}
+
+button.danger-scuro {
+  background: var(--danger-scuro);
+}
+
+button.danger-scuro:hover {
+  background: var(--danger-scuro-hover);
 }
 
 .riga-alimento {
@@ -1280,6 +1292,11 @@ table tfoot .riga-totale td {
 
 .duplica-azioni button {
   flex: 1;
+}
+
+#paziente-impostazioni-overlay .duplica-azioni {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* ==================== Sidebar di navigazione rapida (drawer) ==================== */
