@@ -827,6 +827,16 @@ table th:nth-child(6), table td:nth-child(6) { width: 10%; }
 table th:nth-child(7), table td:nth-child(7) { width: 14%; }
 table th:nth-child(8), table td:nth-child(8) { width: 5%; }
 
+/* Tabella di dettaglio pasto (panoramica settimanale): 7 colonne, senza la
+   colonna azione della tabella di modifica dieta, quindi larghezze proprie. */
+.pan-dettaglio-tabella th:nth-child(1), .pan-dettaglio-tabella td:nth-child(1) { width: 26%; }
+.pan-dettaglio-tabella th:nth-child(2), .pan-dettaglio-tabella td:nth-child(2) { width: 13%; }
+.pan-dettaglio-tabella th:nth-child(3), .pan-dettaglio-tabella td:nth-child(3) { width: 19%; }
+.pan-dettaglio-tabella th:nth-child(4), .pan-dettaglio-tabella td:nth-child(4) { width: 12%; }
+.pan-dettaglio-tabella th:nth-child(5), .pan-dettaglio-tabella td:nth-child(5) { width: 12%; }
+.pan-dettaglio-tabella th:nth-child(6), .pan-dettaglio-tabella td:nth-child(6) { width: 9%; }
+.pan-dettaglio-tabella th:nth-child(7), .pan-dettaglio-tabella td:nth-child(7) { width: 9%; }
+
 table th {
   color: var(--text-muted);
   font-weight: 600;
@@ -2109,6 +2119,15 @@ textarea:focus {
   min-height: 40px;
   color: var(--text);
   line-height: 1.35;
+}
+
+.pan-cella:not(.pan-vuota):not(.pan-tot) {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pan-cella:not(.pan-vuota):not(.pan-tot):hover {
+  background: var(--accent-tint-strong);
 }
 
 .pan-cella.pan-vuota {

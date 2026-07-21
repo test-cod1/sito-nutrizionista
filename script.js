@@ -130,6 +130,10 @@ const dietaContainer = document.getElementById("dieta-container");
 const panoramicaToggle = document.getElementById("panoramica-toggle");
 const panoramicaContenuto = document.getElementById("panoramica-contenuto");
 const panoramicaGriglia = document.getElementById("panoramica-griglia");
+const panoramicaDettaglioOverlay = document.getElementById("panoramica-dettaglio-overlay");
+const panoramicaDettaglioTitolo = document.getElementById("panoramica-dettaglio-titolo");
+const panoramicaDettaglioContenuto = document.getElementById("panoramica-dettaglio-contenuto");
+const panoramicaDettaglioChiudiBtn = document.getElementById("panoramica-dettaglio-chiudi-btn");
 const pdfDietaBtn = document.getElementById("pdf-dieta-btn");
 const pdfSpesaBtn = document.getElementById("pdf-spesa-btn");
 const pdfNutrizionistaBtn = document.getElementById("pdf-nutrizionista-btn");
@@ -3755,8 +3759,8 @@ function renderPanoramica() {
         html += `<div class="pan-cella pan-vuota">—</div>`;
       } else {
         const t = totaliPasto(items);
-        const testo = items.map(i => i.libero ? "Pasto libero" : i.alimento).join(", ");
-        html += `<div class="pan-cella"><div class="pan-testo">${testo}</div><div class="pan-kcal">${round1(t.kcal)} kcal</div></div>`;
+        const testo = items.map(i => i.libero ? "Pasto libero" : escapeHtml(i.alimento)).join(", ");
+        html += `<div class="pan-cella" data-giorno="${giorno}" data-pasto="${escapeHtml(pasto)}" title="Vedi dettagli"><div class="pan-testo">${testo}</div><div class="pan-kcal">${round1(t.kcal)} kcal</div></div>`;
       }
     });
   });
@@ -3769,6 +3773,66 @@ function renderPanoramica() {
   });
 
   panoramicaGriglia.innerHTML = html;
+}
+
+function apriDettaglioPasto(giorno, pasto) {
+  const items = state.dieta[giorno][pasto];
+  if (!items || items.length === 0) return;
+
+  panoramicaDettaglioTitolo.textContent = `${pasto} — ${giorno}`;
+
+  const righe = items.map(item => {
+    let cellaQta;
+    if (item.libero) {
+      cellaQta = "—";
+    } else if (item.mostraPorzione) {
+      cellaQta = `${escapeHtml(item.porzione || "porzione")} (${item.grammi} g)`;
+    } else {
+      cellaQta = `${item.grammi} g`;
+    }
+    const cellaKcal = item.libero
+      ? (item.kcal ? `${item.kcal} kcal (stima)` : "—")
+      : `${item.kcal} kcal`;
+    return `
+      <tr${item.libero ? ' class="riga-libero"' : ''}>
+        <td>${escapeHtml(item.alimento)}</td>
+        <td>${cellaQta}</td>
+        <td>${item.nota ? escapeHtml(item.nota) : "-"}</td>
+        <td>${cellaKcal}</td>
+        <td>${item.libero ? "—" : `${item.proteine} g`}</td>
+        <td>${item.libero ? "—" : `${item.grassi} g`}</td>
+        <td>${item.libero ? "—" : `${item.carboidrati} g`}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const totale = totaliPasto(items);
+
+  panoramicaDettaglioContenuto.innerHTML = `
+    <table class="pan-dettaglio-tabella">
+      <thead>
+        <tr>
+          <th>Alimento</th><th>Quantità</th><th>Note</th><th>Calorie</th><th>Proteine</th><th>Grassi</th><th>Carboidrati</th>
+        </tr>
+      </thead>
+      <tbody>${righe}</tbody>
+      <tfoot>
+        <tr class="riga-totale">
+          <td colspan="3">Totale</td>
+          <td>${round1(totale.kcal)} kcal</td>
+          <td>${round1(totale.proteine)} g</td>
+          <td>${round1(totale.grassi)} g</td>
+          <td>${round1(totale.carboidrati)} g</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  panoramicaDettaglioOverlay.classList.remove("hidden");
+}
+
+function chiudiDettaglioPasto() {
+  panoramicaDettaglioOverlay.classList.add("hidden");
 }
 
 function toggleOffRicerca() {
@@ -4347,6 +4411,14 @@ function inizializza() {
 
   pastoLiberoBtn.addEventListener("click", inserisciPastoLibero);
   panoramicaToggle.addEventListener("click", togglePanoramica);
+  panoramicaGriglia.addEventListener("click", (e) => {
+    const cella = e.target.closest(".pan-cella:not(.pan-vuota):not(.pan-tot)");
+    if (cella) apriDettaglioPasto(cella.dataset.giorno, cella.dataset.pasto);
+  });
+  panoramicaDettaglioChiudiBtn.addEventListener("click", chiudiDettaglioPasto);
+  panoramicaDettaglioOverlay.addEventListener("click", (e) => {
+    if (e.target === panoramicaDettaglioOverlay) chiudiDettaglioPasto();
+  });
   impostazioniStampaToggle.addEventListener("click", toggleImpostazioniStampa);
 
   draftContainer.addEventListener("click", (e) => {
