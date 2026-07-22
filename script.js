@@ -385,6 +385,7 @@ const taskModalTitolo = document.getElementById("task-modal-titolo");
 const taskTitoloInput = document.getElementById("task-titolo-input");
 const taskNotaInput = document.getElementById("task-nota-input");
 const taskPrioritaSelect = document.getElementById("task-priorita-select");
+const taskScadenzaInput = document.getElementById("task-scadenza-input");
 const taskPazienteSelect = creaComboPazienteRicerca(
   document.getElementById("task-paziente-select"),
   document.getElementById("task-paziente-suggestions"),
@@ -402,6 +403,12 @@ const taskVediTutteChiudiBtn = document.getElementById("task-vedi-tutte-chiudi-b
 const taskArchivioOverlay = document.getElementById("task-archivio-overlay");
 const taskArchivioLista = document.getElementById("task-archivio-lista");
 const taskArchivioChiudiBtn = document.getElementById("task-archivio-chiudi-btn");
+
+const taskScadenzaBanner = document.getElementById("task-scadenza-banner");
+const taskScadenzaBannerTesto = document.getElementById("task-scadenza-banner-testo");
+const taskScadenzaBannerVaiBtn = document.getElementById("task-scadenza-banner-vai-btn");
+const taskScadenzaBannerChiudiBtn = document.getElementById("task-scadenza-banner-chiudi-btn");
+const TASK_SCADENZA_SOGLIA_MS = 24 * 60 * 60 * 1000;
 
 let listaTask = [];
 let taskInModifica = null;
@@ -964,6 +971,7 @@ async function avviaAppAdmin() {
   await caricaListaPazienti();
   await caricaAppuntamenti();
   await caricaRichieste();
+  await caricaTask();
 
   renderDraft();
   renderDieta();
@@ -2730,6 +2738,56 @@ function taskArchiviata(task) {
   return !!(task.paziente_id && task.pazienti && task.pazienti.attivo === false);
 }
 
+// Scadenza salvata come data (YYYY-MM-DD): la consideriamo valida fino alla
+// fine di quel giorno, così una task "in scadenza oggi" resta tale per
+// l'intera giornata invece di scattare a mezzanotte.
+function taskScadenzaTimestamp(task) {
+  return task.scadenza ? new Date(task.scadenza + "T23:59:59").getTime() : null;
+}
+
+function taskUrgente(task) {
+  if (!task.scadenza || task.stato === "fatto") return false;
+  return taskScadenzaTimestamp(task) - Date.now() <= TASK_SCADENZA_SOGLIA_MS;
+}
+
+function formatTempoTrascorso(dataIso) {
+  const diffMs = Date.now() - new Date(dataIso).getTime();
+  const minuti = Math.floor(diffMs / 60000);
+  if (minuti < 1) return "adesso";
+  if (minuti < 60) return `${minuti} minut${minuti === 1 ? "o" : "i"} fa`;
+  const ore = Math.floor(minuti / 60);
+  if (ore < 24) return `${ore} or${ore === 1 ? "a" : "e"} fa`;
+  const giorni = Math.floor(ore / 24);
+  if (giorni < 30) return `${giorni} giorn${giorni === 1 ? "o" : "i"} fa`;
+  const mesi = Math.floor(giorni / 30);
+  if (mesi < 12) return `${mesi} mes${mesi === 1 ? "e" : "i"} fa`;
+  const anni = Math.floor(mesi / 12);
+  return `${anni} ann${anni === 1 ? "o" : "i"} fa`;
+}
+
+function formatScadenza(task) {
+  const dataFormattata = new Date(task.scadenza).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const diffMs = taskScadenzaTimestamp(task) - Date.now();
+  if (diffMs < 0) return `⚠️ Scaduta il ${dataFormattata}`;
+  if (diffMs <= TASK_SCADENZA_SOGLIA_MS) {
+    const oreRimanenti = Math.max(1, Math.round(diffMs / (60 * 60 * 1000)));
+    return `⚠️ Scade tra ${oreRimanenti} or${oreRimanenti === 1 ? "a" : "e"} (${dataFormattata})`;
+  }
+  return `Scadenza: ${dataFormattata}`;
+}
+
+function verificaTaskInScadenza() {
+  const urgenti = listaTask.filter(t => taskUrgente(t) && !taskArchiviata(t));
+  if (urgenti.length === 0) {
+    taskScadenzaBanner.classList.add("hidden");
+    return;
+  }
+  taskScadenzaBannerTesto.textContent = urgenti.length === 1
+    ? `⚠️ Task in scadenza entro 24 ore: "${urgenti[0].titolo}"`
+    : `⚠️ ${urgenti.length} task in scadenza entro 24 ore`;
+  taskScadenzaBanner.classList.remove("hidden");
+}
+
 async function caricaTask() {
   const { data, error } = await supabaseClient
     .from("task_nutrizionista")
@@ -2752,8 +2810,12 @@ function renderBachecaTask() {
       if (stato === "fatto") {
         return new Date(b.completato_il || b.creato_il) - new Date(a.completato_il || a.creato_il);
       }
-      // Priorità alta sempre in cima, anche se creata dopo; a parità di
-      // priorità, la più vecchia resta in cima (ordine di creazione).
+      // Le task in scadenza entro 24 ore vanno sempre in cima, a
+      // prescindere dalla priorità. A parità, priorità alta prima; a
+      // parità di priorità, la più vecchia resta in cima (ordine creazione).
+      const urgenzaA = taskUrgente(a);
+      const urgenzaB = taskUrgente(b);
+      if (urgenzaA !== urgenzaB) return urgenzaA ? -1 : 1;
       const differenzaPriorita = TASK_PRIORITA_ORDINE[a.priorita] - TASK_PRIORITA_ORDINE[b.priorita];
       return differenzaPriorita !== 0 ? differenzaPriorita : new Date(a.creato_il) - new Date(b.creato_il);
     });
@@ -2778,10 +2840,13 @@ function renderBachecaTask() {
         : attive.map(renderTaskCard).join("");
     }
   });
+
+  verificaTaskInScadenza();
 }
 
 function renderTaskCard(task) {
   const nomePaziente = task.pazienti ? task.pazienti.nome : null;
+  const urgente = taskUrgente(task);
   const pulsantiSposta = {
     da_fare: `<button type="button" class="task-sposta-btn" data-id="${task.id}" data-nuovo-stato="in_corso">In corso →</button>`,
     in_corso: `<button type="button" class="task-sposta-btn" data-id="${task.id}" data-nuovo-stato="da_fare">← Da fare</button><button type="button" class="task-sposta-btn" data-id="${task.id}" data-nuovo-stato="fatto">Fatto →</button>`,
@@ -2789,9 +2854,13 @@ function renderTaskCard(task) {
   };
 
   return `
-    <div class="task-card task-priorita-${task.priorita}" draggable="true" data-id="${task.id}">
-      <div class="task-card-titolo" data-id="${task.id}">${escapeHtml(task.titolo)}</div>
+    <div class="task-card task-priorita-${task.priorita}${urgente ? " task-urgente" : ""}" draggable="true" data-id="${task.id}">
+      <div class="task-card-titolo" data-id="${task.id}">${urgente ? '<span class="task-card-allarme" title="In scadenza">⚠️</span> ' : ""}${escapeHtml(task.titolo)}</div>
       ${task.nota ? `<div class="task-card-nota">${escapeHtml(task.nota)}</div>` : ""}
+      <div class="task-card-meta">
+        <span class="task-card-creato" title="${new Date(task.creato_il).toLocaleString("it-IT")}">Creata ${formatTempoTrascorso(task.creato_il)}</span>
+        ${task.scadenza ? `<span class="task-card-scadenza${urgente ? " task-card-scadenza-urgente" : ""}">${formatScadenza(task)}</span>` : ""}
+      </div>
       <div class="task-card-riga">
         ${nomePaziente ? `<span class="task-card-paziente">${escapeHtml(nomePaziente)}</span>` : "<span></span>"}
         <div class="task-card-sposta">${pulsantiSposta[task.stato]}</div>
@@ -2880,6 +2949,7 @@ function apriNuovaTask() {
   taskTitoloInput.value = "";
   taskNotaInput.value = "";
   taskPrioritaSelect.value = "media";
+  taskScadenzaInput.value = "";
   popolaSelectPazienteTask("");
   taskModalError.classList.add("hidden");
   taskEliminaBtn.classList.add("hidden");
@@ -2895,6 +2965,7 @@ function apriModificaTask(id) {
   taskTitoloInput.value = task.titolo;
   taskNotaInput.value = task.nota || "";
   taskPrioritaSelect.value = task.priorita;
+  taskScadenzaInput.value = task.scadenza || "";
   popolaSelectPazienteTask(task.paziente_id || "");
   taskModalError.classList.add("hidden");
   taskEliminaBtn.classList.remove("hidden");
@@ -2919,6 +2990,7 @@ async function salvaTask() {
     titolo,
     nota: taskNotaInput.value.trim() || null,
     priorita: taskPrioritaSelect.value,
+    scadenza: taskScadenzaInput.value || null,
     paziente_id: taskPazienteSelect.value || null
   };
 
@@ -4551,6 +4623,12 @@ function inizializza() {
     const riga = e.target.closest(".task-riga-compatta");
     if (riga) apriModificaTask(riga.dataset.id);
   });
+
+  taskScadenzaBannerVaiBtn.addEventListener("click", () => {
+    taskScadenzaBanner.classList.add("hidden");
+    apriTaskBoard();
+  });
+  taskScadenzaBannerChiudiBtn.addEventListener("click", () => taskScadenzaBanner.classList.add("hidden"));
 
   inizializzaTaskBoardDragDrop();
 

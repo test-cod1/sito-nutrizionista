@@ -302,6 +302,13 @@
   </div>
 
   <div id="app-shell" class="hidden">
+    <div id="task-scadenza-banner" class="task-scadenza-banner no-print hidden">
+      <span id="task-scadenza-banner-testo"></span>
+      <div class="task-scadenza-banner-azioni">
+        <button type="button" id="task-scadenza-banner-vai-btn">Vai alla bacheca</button>
+        <button type="button" id="task-scadenza-banner-chiudi-btn" aria-label="Chiudi">✕</button>
+      </div>
+    </div>
     <button type="button" id="sezioni-toggle-btn" class="sezioni-toggle-btn no-print" title="Sezioni" aria-label="Mostra le sezioni del sito">☰</button>
     <div id="sezioni-overlay" class="sezioni-overlay hidden no-print"></div>
     <nav id="sezioni-sidebar" class="sezioni-sidebar no-print">
@@ -634,6 +641,9 @@
         <option value="media">Media</option>
         <option value="alta">Alta</option>
       </select>
+
+      <label for="task-scadenza-input">Scadenza (opzionale)</label>
+      <input type="date" id="task-scadenza-input">
 
       <label for="task-paziente-select">Paziente collegato (opzionale)</label>
       <div class="autocomplete-wrapper paziente-combo">

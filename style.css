@@ -1682,10 +1682,19 @@ table tfoot .riga-totale td {
   opacity: 0.4;
 }
 
+.task-card.task-urgente {
+  border-left-color: var(--danger);
+  background: var(--danger-tint);
+}
+
 .task-card-titolo {
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
+}
+
+.task-card-allarme {
+  margin-right: 2px;
 }
 
 .task-card-nota {
@@ -1694,6 +1703,20 @@ table tfoot .riga-totale td {
   margin-top: 4px;
   white-space: pre-line;
   overflow-wrap: break-word;
+}
+
+.task-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.task-card-scadenza-urgente {
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .task-card-riga {
@@ -2352,6 +2375,48 @@ textarea:focus {
 .anteprima-banner button:hover {
   background: rgba(255, 255, 255, 0.85);
   transform: none;
+}
+
+.task-scadenza-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--danger);
+  color: white;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.task-scadenza-banner.hidden {
+  display: none;
+}
+
+.task-scadenza-banner-azioni {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-scadenza-banner button {
+  margin: 0;
+  background: white;
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+.task-scadenza-banner button:hover {
+  background: rgba(255, 255, 255, 0.85);
+  transform: none;
+}
+
+#task-scadenza-banner-chiudi-btn {
+  padding: 6px 10px;
 }
 
 /* ---------- Vista paziente (sola lettura) ---------- */
