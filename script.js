@@ -137,6 +137,9 @@ const panoramicaDettaglioChiudiBtn = document.getElementById("panoramica-dettagl
 const pdfDietaBtn = document.getElementById("pdf-dieta-btn");
 const pdfSpesaBtn = document.getElementById("pdf-spesa-btn");
 const pdfNutrizionistaBtn = document.getElementById("pdf-nutrizionista-btn");
+const inviaEmailBtn = document.getElementById("invia-email-btn");
+const inviaEmailError = document.getElementById("invia-email-error");
+const inviaEmailSuccesso = document.getElementById("invia-email-successo");
 const salvaStoricoBtn = document.getElementById("salva-storico-btn");
 const resetBtn = document.getElementById("reset-btn");
 const printRunningTitle = document.getElementById("print-running-title");
@@ -2285,7 +2288,7 @@ async function selezionaPaziente(pazienteId) {
 
   const p = listaPazienti.find(p => p.id === pazienteId);
   if (!p) return;
-  pazienteCorrente = { id: p.id, nome: p.nome, frequenza_checkin: p.frequenza_checkin };
+  pazienteCorrente = { id: p.id, nome: p.nome, email: p.email, frequenza_checkin: p.frequenza_checkin };
 
   const { data: dieteAttive, error } = await supabaseClient
     .from("diete")
@@ -4017,6 +4020,103 @@ function generaPdfSpesa() {
   window.print();
 }
 
+// ---------- Invio email al paziente ----------
+// Riusa gli stessi costruttori di contenuto della stampa (costruisciContenutoPrintDieta,
+// costruisciSostituzioniHtml, costruisciContenutoListaSpesa): il documento email è
+// un HTML autonomo (niente dipendenza da style.css, che i client di posta ignorano),
+// con un proprio <style> che riproduce solo le regole "vista cliente" (nasconde
+// .solo-nutrizionista e .solo-non-cliente, così il paziente non vede kcal/macro).
+
+function costruisciEmailHtml() {
+  const paziente = pazienteCorrente ? pazienteCorrente.nome : "";
+  const infoStudio = (state.infoStudio || "").trim();
+
+  return `<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.5; color: #1f2a22; margin: 0; padding: 0 8px 24px; }
+  h1 { font-size: 20px; color: #2f6d4f; margin: 0 0 2px; }
+  .meta { font-size: 13px; color: #5c6b62; margin-bottom: 20px; }
+  h2.sezione { font-size: 17px; color: #2f6d4f; border-bottom: 2px solid #2f6d4f; padding-bottom: 4px; margin-top: 28px; }
+  .solo-nutrizionista, .solo-non-cliente, .freccia-giorno { display: none; }
+  .p-giorno { margin: 18px 0 6px; }
+  .p-giorno-titolo { font-size: 15px; font-weight: 700; border-bottom: 1px solid #cfdccf; padding-bottom: 4px; margin-bottom: 8px; }
+  .p-pasto { margin: 0 0 12px; }
+  .p-pasto-titolo { font-size: 12px; font-weight: 700; color: #2f6d4f; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
+  .p-tabella { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 6px; }
+  .p-tabella th { text-align: left; font-size: 11px; color: #7a8a7e; text-transform: uppercase; border-bottom: 1px solid #cfdccf; padding: 4px 6px; }
+  .p-tabella td { padding: 5px 6px; border-bottom: 1px solid #eceff0; }
+  .p-riga-libero td { font-style: italic; color: #35543f; }
+  .p-checkbox { width: 20px; font-size: 14px; text-align: center; }
+  .print-sostituzioni { margin-top: 20px; }
+  .print-sostituzioni h3 { color: #2f6d4f; font-size: 14px; }
+  .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #cfdccf; font-size: 11px; color: #7a8a7e; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>Il tuo piano alimentare</h1>
+  <div class="meta">${paziente ? `Paziente: ${escapeHtml(paziente)} · ` : ""}${escapeHtml(formattaValidita())}</div>
+
+  <h2 class="sezione">Piano alimentare</h2>
+  ${costruisciContenutoPrintDieta()}
+  ${costruisciSostituzioniHtml()}
+
+  <h2 class="sezione">Lista della spesa settimanale</h2>
+  ${costruisciContenutoListaSpesa()}
+
+  ${infoStudio ? `<div class="footer">${escapeHtml(infoStudio)}</div>` : ""}
+</body>
+</html>`;
+}
+
+async function inviaEmailPiano() {
+  inviaEmailError.classList.add("hidden");
+  inviaEmailSuccesso.classList.add("hidden");
+
+  if (!pazienteCorrente) return;
+
+  if (!pazienteCorrente.email) {
+    inviaEmailError.textContent = "Il paziente non ha un'email registrata: aggiungila nel profilo prima di inviare.";
+    inviaEmailError.classList.remove("hidden");
+    return;
+  }
+
+  const html = costruisciEmailHtml();
+  const { data: { session } } = await supabaseClient.auth.getSession();
+
+  inviaEmailBtn.disabled = true;
+  let risposta;
+  try {
+    risposta = await fetch("/api/invia-email-piano", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + session.access_token
+      },
+      body: JSON.stringify({ pazienteId: pazienteCorrente.id, html })
+    });
+  } catch (e) {
+    inviaEmailBtn.disabled = false;
+    inviaEmailError.textContent = "Errore di rete: " + e.message;
+    inviaEmailError.classList.remove("hidden");
+    return;
+  }
+  inviaEmailBtn.disabled = false;
+
+  const risultato = await risposta.json().catch(() => ({}));
+
+  if (!risposta.ok) {
+    inviaEmailError.textContent = "Errore: " + (risultato.error || "sconosciuto");
+    inviaEmailError.classList.remove("hidden");
+    return;
+  }
+
+  inviaEmailSuccesso.textContent = `Email inviata a ${pazienteCorrente.email}.`;
+  inviaEmailSuccesso.classList.remove("hidden");
+}
+
 // ---------- Inizializzazione ----------
 
 function inizializza() {
@@ -4503,6 +4603,7 @@ function inizializza() {
   pdfDietaBtn.addEventListener("click", generaPdfDieta);
   pdfSpesaBtn.addEventListener("click", generaPdfSpesa);
   pdfNutrizionistaBtn.addEventListener("click", generaPdfNutrizionista);
+  inviaEmailBtn.addEventListener("click", inviaEmailPiano);
   resetBtn.addEventListener("click", svuotaDieta);
 
   window.addEventListener("afterprint", () => {
