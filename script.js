@@ -3668,11 +3668,19 @@ function renderDieta() {
     titolo.dataset.giorno = giorno;
     titolo.innerHTML = `
       <span class="giorno-nome"><span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${giorno}</span>
-      <span class="giorno-duplica-slot">${giornoHaAlimenti(giorno) ? `
-        <button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">Duplica</button>
-        <button class="svuota-giorno-btn no-print" data-giorno="${giorno}" title="Svuota tutti i pasti di ${giorno}" aria-label="Svuota tutti i pasti di ${giorno}">🗑</button>
-      ` : ''}</span>
+      <span class="giorno-duplica-slot">${giornoHaAlimenti(giorno) ? `<button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">Duplica</button>` : ''}</span>
       <span class="solo-nutrizionista giorno-totale">${superato ? '<span class="totale-warning">! ' : ''}Totale: ${formattaTotali(totaleGiorno)}${superato ? '</span>' : ''}</span>
+      <span class="giorno-svuota-slot">${giornoHaAlimenti(giorno) ? `
+        <button class="svuota-giorno-btn no-print" data-giorno="${giorno}" title="Svuota tutti i pasti di ${giorno}" aria-label="Svuota tutti i pasti di ${giorno}">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+          </svg>
+        </button>
+      ` : ''}</span>
     `;
     blocco.appendChild(titolo);
 

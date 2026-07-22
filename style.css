@@ -717,7 +717,7 @@ button.danger-scuro:hover {
   color: white;
   padding: 10px 16px;
   display: grid;
-  grid-template-columns: 140px auto 1fr;
+  grid-template-columns: 140px auto 1fr auto;
   align-items: center;
   column-gap: 10px;
   font-weight: 600;
@@ -727,10 +727,10 @@ button.danger-scuro:hover {
 
 @media (max-width: 480px) {
   .giorno-titolo {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     grid-template-areas:
-      "nome duplica"
-      "totale totale";
+      "nome duplica svuota"
+      "totale totale totale";
     row-gap: 6px;
   }
 
@@ -745,6 +745,10 @@ button.danger-scuro:hover {
 
   .giorno-titolo .giorno-totale {
     grid-area: totale;
+  }
+
+  .giorno-titolo .giorno-svuota-slot {
+    grid-area: svuota;
   }
 }
 
@@ -764,9 +768,10 @@ button.danger-scuro:hover {
 
 .giorno-duplica-slot {
   justify-self: start;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+}
+
+.giorno-svuota-slot {
+  justify-self: end;
 }
 
 .duplica-giorno-btn {
@@ -790,18 +795,23 @@ button.danger-scuro:hover {
   background: var(--danger);
   border: none;
   color: white;
-  font-size: 0.8rem;
   line-height: 1;
   padding: 0;
   margin: 0;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: background 0.15s ease;
+}
+
+.svuota-giorno-btn svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
 }
 
 .svuota-giorno-btn:hover {
