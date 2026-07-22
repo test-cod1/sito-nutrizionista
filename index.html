@@ -558,14 +558,16 @@
 
       <section id="dieta" class="card">
         <div class="dieta-header no-print">
-          <h2>Piano alimentare settimanale</h2>
+          <div class="dieta-titolo-riga">
+            <h2>Piano alimentare settimanale</h2>
+            <button type="button" id="reset-btn" class="reset-piccolo-btn" title="Svuota piano alimentare" aria-label="Svuota piano alimentare">Svuota</button>
+          </div>
           <div class="pdf-buttons">
             <button id="salva-storico-btn" class="secondary">Salva come versione storica</button>
             <button id="pdf-dieta-btn" class="secondary">PDF Piano alimentare (cliente)</button>
             <button id="pdf-spesa-btn" class="secondary">PDF Lista della spesa</button>
             <button id="pdf-nutrizionista-btn" class="secondary">PDF Scheda nutrizionista</button>
             <button id="invia-email-btn" class="secondary">Invia email al paziente</button>
-            <button id="reset-btn" class="danger">Svuota piano alimentare</button>
           </div>
           <p id="invia-email-error" class="error hidden no-print"></p>
           <p id="invia-email-successo" class="hidden no-print"></p>
