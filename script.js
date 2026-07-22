@@ -207,6 +207,7 @@ const consensoPrivacyOverlay = document.getElementById("consenso-privacy-overlay
 const consensoPrivacyErrore = document.getElementById("consenso-privacy-errore");
 const consensoPrivacyAccettaBtn = document.getElementById("consenso-privacy-accetta-btn");
 const impostazioniPrivacyBtn = document.getElementById("impostazioni-privacy-btn");
+const impostazioniEsportaBtn = document.getElementById("impostazioni-esporta-btn");
 
 // Notifiche push
 const notificheOverlay = document.getElementById("notifiche-overlay");
@@ -676,6 +677,60 @@ async function inviaResetPasswordPazienteProprio() {
 
   pazienteSicurezzaMsg.textContent = `Ti abbiamo inviato un'email a ${user.email} con le istruzioni per reimpostare la password.`;
   pazienteSicurezzaMsg.classList.remove("hidden");
+}
+
+// ---------- Esportazione dati personali (paziente, diritto alla portabilità) ----------
+// Scarica in un unico file JSON tutti i dati collegati al paziente loggato:
+// profilo, tutti i piani alimentari (non solo quello attivo), check-in,
+// storico peso e appuntamenti. Le query filtrano per il proprio paziente_id,
+// coerentemente con le stesse policy RLS che già permettono al paziente di
+// leggere solo i propri dati nella vista normale.
+
+async function esportaDatiPersonali() {
+  impostazioniEsportaBtn.disabled = true;
+  try {
+    const pazienteId = pazienteCorrente.id;
+
+    const [
+      { data: profilo, error: erroreProfilo },
+      { data: diete, error: erroreDiete },
+      { data: appuntamenti, error: erroreApp }
+    ] = await Promise.all([
+      supabaseClient.from("pazienti").select("*").eq("id", pazienteId).single(),
+      supabaseClient.from("diete").select("*").eq("paziente_id", pazienteId).order("created_at", { ascending: false }),
+      supabaseClient.from("appuntamenti").select("*").eq("paziente_id", pazienteId).order("data_ora", { ascending: false })
+    ]);
+
+    const errore = erroreProfilo || erroreDiete || erroreApp;
+    if (errore) {
+      alert("Errore nell'esportazione dei dati: " + errore.message);
+      return;
+    }
+
+    const checkin = await caricaCheckin(pazienteId);
+    const storicoPeso = await caricaStoricoPeso(pazienteId);
+
+    const pacchetto = {
+      generato_il: new Date().toISOString(),
+      profilo,
+      diete,
+      checkin,
+      storico_peso: storicoPeso,
+      appuntamenti
+    };
+
+    const blob = new Blob([JSON.stringify(pacchetto, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `i-tuoi-dati-nutriplan-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } finally {
+    impostazioniEsportaBtn.disabled = false;
+  }
 }
 
 // ---------- Richiesta di cancellazione dati (paziente) ----------
@@ -2338,6 +2393,21 @@ function aggiornaDisponibilitaSezioniPaziente() {
   sezioniLinkPaziente.forEach(link => link.classList.toggle("non-disponibile", !disponibili));
 }
 
+// Registra, senza bloccare l'interfaccia, che l'amministratore ha aperto la
+// scheda di questo paziente: è la base tecnica del registro degli accessi
+// richiesto per la conformità privacy (chi ha visto i dati sanitari di chi,
+// e quando). Un eventuale errore non deve impedire all'amministratore di
+// lavorare: viene solo segnalato in console.
+async function registraAccessoAdmin(pazienteId) {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) return;
+  const { error } = await supabaseClient.from("log_accessi_admin").insert({
+    admin_user_id: user.id,
+    paziente_id: pazienteId
+  });
+  if (error) console.error("Errore nella registrazione del log di accesso:", error);
+}
+
 async function selezionaPaziente(pazienteId) {
   if (!pazienteId) {
     pazienteCorrente = null;
@@ -2355,6 +2425,7 @@ async function selezionaPaziente(pazienteId) {
   const p = listaPazienti.find(p => p.id === pazienteId);
   if (!p) return;
   pazienteCorrente = { id: p.id, nome: p.nome, email: p.email, frequenza_checkin: p.frequenza_checkin };
+  registraAccessoAdmin(pazienteId);
 
   const { data: dieteAttive, error } = await supabaseClient
     .from("diete")
@@ -4451,6 +4522,7 @@ function inizializza() {
   impostazioniPrivacyBtn.addEventListener("click", () => {
     window.open("privacy.html", "_blank", "noopener");
   });
+  impostazioniEsportaBtn.addEventListener("click", esportaDatiPersonali);
 
   consensoPrivacyAccettaBtn.addEventListener("click", confermaConsensoPrivacy);
 
