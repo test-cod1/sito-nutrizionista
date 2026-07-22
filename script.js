@@ -2439,10 +2439,29 @@ function popolaFiltroAgenda() {
 function renderListaAppuntamenti() {
   const filtroPaziente = agendaFiltroPazienteSelect.value;
   const ora = new Date();
-  const righe = listaAppuntamenti.filter(a => !filtroPaziente || a.paziente_id === filtroPaziente);
+  const righeFiltrate = listaAppuntamenti.filter(a => !filtroPaziente || a.paziente_id === filtroPaziente);
+
+  const futuri = righeFiltrate
+    .filter(a => new Date(a.data_ora) >= ora)
+    .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora));
+
+  let righe;
+  if (!filtroPaziente) {
+    // Senza filtro: solo gli appuntamenti futuri, dal più vicino al più lontano.
+    righe = futuri;
+  } else {
+    // Con un paziente selezionato: il prossimo appuntamento in alto, poi lo
+    // storico dei passati (dal più recente al più lontano) sotto.
+    const passati = righeFiltrate
+      .filter(a => new Date(a.data_ora) < ora)
+      .sort((a, b) => new Date(b.data_ora) - new Date(a.data_ora));
+    righe = futuri.concat(passati);
+  }
 
   if (righe.length === 0) {
-    agendaListaEl.innerHTML = '<p class="vuoto">Nessun appuntamento registrato.</p>';
+    agendaListaEl.innerHTML = filtroPaziente
+      ? '<p class="vuoto">Nessun appuntamento registrato per questo paziente.</p>'
+      : '<p class="vuoto">Nessun appuntamento futuro in programma.</p>';
     return;
   }
 
