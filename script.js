@@ -4021,54 +4021,149 @@ function generaPdfSpesa() {
 }
 
 // ---------- Invio email al paziente ----------
-// Riusa gli stessi costruttori di contenuto della stampa (costruisciContenutoPrintDieta,
-// costruisciSostituzioniHtml, costruisciContenutoListaSpesa): il documento email è
-// un HTML autonomo (niente dipendenza da style.css, che i client di posta ignorano),
-// con un proprio <style> che riproduce solo le regole "vista cliente" (nasconde
-// .solo-nutrizionista e .solo-non-cliente, così il paziente non vede kcal/macro).
+// I due PDF vengono generati lato client con jsPDF/autotable (stessi dati di
+// stato usati per la stampa: state.dieta, calcolaListaSpesa) e inviati come
+// allegati veri tramite l'endpoint server, invece che come HTML nel corpo:
+// i client di posta rendono l'HTML in modo inaffidabile, un PDF allegato no.
 
-function costruisciEmailHtml() {
+function creaDocumentoPdf() {
+  const { jsPDF } = window.jspdf;
+  return new jsPDF({ unit: "pt", format: "a4" });
+}
+
+function intestazionePdf(doc, titolo) {
+  const margine = 40;
   const paziente = pazienteCorrente ? pazienteCorrente.nome : "";
+  doc.setFontSize(16);
+  doc.setTextColor(47, 109, 79);
+  doc.text(titolo, margine, 50);
+  doc.setFontSize(10);
+  doc.setTextColor(92, 107, 98);
+  const meta = `${paziente ? "Paziente: " + paziente + " · " : ""}${formattaValidita()}`;
+  doc.text(meta, margine, 66);
+  return 90;
+}
+
+function piedePdf(doc) {
   const infoStudio = (state.infoStudio || "").trim();
+  if (!infoStudio) return;
+  const pageCount = doc.internal.getNumberOfPages();
+  doc.setFontSize(8);
+  doc.setTextColor(122, 138, 126);
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.text(infoStudio, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 20, { align: "center" });
+  }
+}
 
-  return `<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<style>
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.5; color: #1f2a22; margin: 0; padding: 0 8px 24px; }
-  h1 { font-size: 20px; color: #2f6d4f; margin: 0 0 2px; }
-  .meta { font-size: 13px; color: #5c6b62; margin-bottom: 20px; }
-  h2.sezione { font-size: 17px; color: #2f6d4f; border-bottom: 2px solid #2f6d4f; padding-bottom: 4px; margin-top: 28px; }
-  .solo-nutrizionista, .solo-non-cliente, .freccia-giorno { display: none; }
-  .p-giorno { margin: 18px 0 6px; }
-  .p-giorno-titolo { font-size: 15px; font-weight: 700; border-bottom: 1px solid #cfdccf; padding-bottom: 4px; margin-bottom: 8px; }
-  .p-pasto { margin: 0 0 12px; }
-  .p-pasto-titolo { font-size: 12px; font-weight: 700; color: #2f6d4f; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
-  .p-tabella { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 6px; }
-  .p-tabella th { text-align: left; font-size: 11px; color: #7a8a7e; text-transform: uppercase; border-bottom: 1px solid #cfdccf; padding: 4px 6px; }
-  .p-tabella td { padding: 5px 6px; border-bottom: 1px solid #eceff0; }
-  .p-riga-libero td { font-style: italic; color: #35543f; }
-  .p-checkbox { width: 20px; font-size: 14px; text-align: center; }
-  .print-sostituzioni { margin-top: 20px; }
-  .print-sostituzioni h3 { color: #2f6d4f; font-size: 14px; }
-  .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #cfdccf; font-size: 11px; color: #7a8a7e; text-align: center; }
-</style>
-</head>
-<body>
-  <h1>Il tuo piano alimentare</h1>
-  <div class="meta">${paziente ? `Paziente: ${escapeHtml(paziente)} · ` : ""}${escapeHtml(formattaValidita())}</div>
+function generaPdfPianoBase64() {
+  const doc = creaDocumentoPdf();
+  const margine = 40;
+  const larghezzaPagina = doc.internal.pageSize.getWidth();
+  const altezzaPagina = doc.internal.pageSize.getHeight();
+  let y = intestazionePdf(doc, "Piano alimentare");
 
-  <h2 class="sezione">Piano alimentare</h2>
-  ${costruisciContenutoPrintDieta()}
-  ${costruisciSostituzioniHtml()}
+  const giorniConDati = GIORNI.filter(giornoHaAlimenti);
 
-  <h2 class="sezione">Lista della spesa settimanale</h2>
-  ${costruisciContenutoListaSpesa()}
+  if (giorniConDati.length === 0) {
+    doc.setFontSize(11);
+    doc.setTextColor(31, 42, 34);
+    doc.text("Il piano alimentare è vuoto.", margine, y + 10);
+  } else {
+    giorniConDati.forEach(giorno => {
+      if (y > altezzaPagina - 100) {
+        doc.addPage();
+        y = margine;
+      }
+      doc.setFontSize(13);
+      doc.setTextColor(31, 42, 34);
+      doc.setFont(undefined, "bold");
+      doc.text(giorno, margine, y);
+      doc.setFont(undefined, "normal");
+      y += 10;
 
-  ${infoStudio ? `<div class="footer">${escapeHtml(infoStudio)}</div>` : ""}
-</body>
-</html>`;
+      PASTI.filter(p => state.dieta[giorno][p].length > 0).forEach(pasto => {
+        const righe = state.dieta[giorno][pasto].map(item => {
+          let quantita;
+          if (item.libero) quantita = "—";
+          else if (item.mostraPorzione) quantita = item.porzione || "";
+          else quantita = `${item.grammi} g`;
+          return [item.alimento, quantita, item.nota || "-"];
+        });
+
+        if (y > altezzaPagina - 90) {
+          doc.addPage();
+          y = margine;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setTextColor(47, 109, 79);
+        doc.text(pasto.toUpperCase(), margine, y + 12);
+
+        doc.autoTable({
+          startY: y + 18,
+          margin: { left: margine, right: margine },
+          head: [["Alimento", "Quantità", "Note"]],
+          body: righe,
+          styles: { fontSize: 9, cellPadding: 4 },
+          headStyles: { fillColor: [242, 246, 243], textColor: [122, 138, 126], fontStyle: "bold" },
+          theme: "grid"
+        });
+        y = doc.lastAutoTable.finalY + 16;
+      });
+    });
+  }
+
+  const sostituzioni = (state.sostituzioni || "").trim();
+  if (sostituzioni) {
+    if (y > altezzaPagina - 100) {
+      doc.addPage();
+      y = margine;
+    }
+    doc.setFontSize(12);
+    doc.setTextColor(47, 109, 79);
+    doc.text("Sostituzioni possibili", margine, y + 10);
+    doc.setFontSize(10);
+    doc.setTextColor(31, 42, 34);
+    const righeTesto = doc.splitTextToSize(sostituzioni, larghezzaPagina - margine * 2);
+    doc.text(righeTesto, margine, y + 26);
+  }
+
+  piedePdf(doc);
+  return doc.output("datauristring").split(",")[1];
+}
+
+function generaPdfSpesaBase64() {
+  const doc = creaDocumentoPdf();
+  const margine = 40;
+  const y = intestazionePdf(doc, "Lista della spesa settimanale");
+  const lista = calcolaListaSpesa();
+
+  if (lista.length === 0) {
+    doc.setFontSize(11);
+    doc.setTextColor(31, 42, 34);
+    doc.text("Il piano alimentare è vuoto: nessun alimento da acquistare.", margine, y + 10);
+  } else {
+    doc.autoTable({
+      startY: y + 10,
+      margin: { left: margine, right: margine },
+      head: [["", "Alimento", "Quantità totale settimanale"]],
+      body: lista.map(voce => ["", voce.nome, `${voce.grammi} g`]),
+      styles: { fontSize: 10, cellPadding: 5 },
+      headStyles: { fillColor: [242, 246, 243], textColor: [122, 138, 126], fontStyle: "bold" },
+      columnStyles: { 0: { cellWidth: 22 } },
+      theme: "grid",
+      didDrawCell(dati) {
+        if (dati.section === "body" && dati.column.index === 0) {
+          const lato = 9;
+          doc.rect(dati.cell.x + (dati.cell.width - lato) / 2, dati.cell.y + (dati.cell.height - lato) / 2, lato, lato);
+        }
+      }
+    });
+  }
+
+  piedePdf(doc);
+  return doc.output("datauristring").split(",")[1];
 }
 
 async function inviaEmailPiano() {
@@ -4083,7 +4178,11 @@ async function inviaEmailPiano() {
     return;
   }
 
-  const html = costruisciEmailHtml();
+  const pdfPiano = generaPdfPianoBase64();
+  const pdfSpesa = generaPdfSpesaBase64();
+  const nomePaziente = pazienteCorrente.nome ? escapeHtml(pazienteCorrente.nome) : "";
+  const html = `<p>Ciao${nomePaziente ? " " + nomePaziente : ""},</p><p>in allegato trovi il tuo piano alimentare aggiornato e la lista della spesa settimanale.</p><p>${escapeHtml(formattaValidita())}</p>`;
+
   const { data: { session } } = await supabaseClient.auth.getSession();
 
   inviaEmailBtn.disabled = true;
@@ -4095,7 +4194,14 @@ async function inviaEmailPiano() {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + session.access_token
       },
-      body: JSON.stringify({ pazienteId: pazienteCorrente.id, html })
+      body: JSON.stringify({
+        pazienteId: pazienteCorrente.id,
+        html,
+        allegati: [
+          { nome: "piano-alimentare.pdf", contenuto: pdfPiano },
+          { nome: "lista-della-spesa.pdf", contenuto: pdfSpesa }
+        ]
+      })
     });
   } catch (e) {
     inviaEmailBtn.disabled = false;

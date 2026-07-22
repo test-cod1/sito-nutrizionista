@@ -48,9 +48,13 @@ export async function onRequestPost(context) {
 
   const pazienteId = body.pazienteId;
   const html = (body.html || "").trim();
+  const allegati = Array.isArray(body.allegati) ? body.allegati : [];
 
   if (!pazienteId || !html) {
     return risposta(400, { error: "pazienteId e html sono obbligatori." });
+  }
+  if (allegati.some(a => !a || !a.nome || !a.contenuto)) {
+    return risposta(400, { error: "Ogni allegato richiede nome e contenuto." });
   }
 
   const paziente = await recuperaPaziente(secretKey, pazienteId);
@@ -66,7 +70,8 @@ export async function onRequestPost(context) {
       destinatarioEmail: paziente.email,
       destinatarioNome: paziente.nome || "",
       oggetto: "Il tuo piano alimentare e lista della spesa",
-      html
+      html,
+      allegati
     });
   } catch (e) {
     return risposta(502, { error: e.message });
@@ -111,19 +116,24 @@ async function recuperaPaziente(secretKey, pazienteId) {
   return righe[0] || null;
 }
 
-async function inviaEmailBrevo(brevoKey, mittenteEmail, { destinatarioEmail, destinatarioNome, oggetto, html }) {
+async function inviaEmailBrevo(brevoKey, mittenteEmail, { destinatarioEmail, destinatarioNome, oggetto, html, allegati }) {
+  const corpo = {
+    sender: { email: mittenteEmail, name: "NutriPlan" },
+    to: [{ email: destinatarioEmail, name: destinatarioNome || undefined }],
+    subject: oggetto,
+    htmlContent: html
+  };
+  if (allegati && allegati.length > 0) {
+    corpo.attachment = allegati.map(a => ({ name: a.nome, content: a.contenuto }));
+  }
+
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
       "api-key": brevoKey,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      sender: { email: mittenteEmail, name: "NutriPlan" },
-      to: [{ email: destinatarioEmail, name: destinatarioNome || undefined }],
-      subject: oggetto,
-      htmlContent: html
-    })
+    body: JSON.stringify(corpo)
   });
   if (!res.ok) {
     throw new Error(`Errore invio email (${res.status}): ${await res.text()}`);
