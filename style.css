@@ -559,21 +559,24 @@ button.danger-scuro:hover {
 }
 
 .reset-piccolo-btn {
-  background: none;
-  border: 1px solid var(--danger);
-  color: var(--danger);
+  background: var(--danger);
+  border: none;
+  color: white;
   font-size: 0.8rem;
   font-weight: 600;
-  padding: 4px 10px;
+  line-height: 1;
+  padding: 0 10px;
   margin: 0;
+  height: 1.2rem;
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
   cursor: pointer;
 }
 
 .reset-piccolo-btn:hover {
-  background: var(--danger-tint);
-  color: var(--danger-hover);
-  border-color: var(--danger-hover);
+  background: var(--danger-hover);
+  color: white;
   transform: none;
 }
 
