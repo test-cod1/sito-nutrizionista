@@ -71,6 +71,7 @@
         <button id="login-btn">Accedi</button>
       </div>
       <p class="login-recupero-riga"><a href="#" id="recupero-password-link">Password dimenticata?</a></p>
+      <p class="login-recupero-riga"><a href="privacy.html" target="_blank" rel="noopener">Informativa privacy</a></p>
     </div>
   </div>
 
@@ -105,6 +106,19 @@
     </div>
   </div>
 
+  <!-- Presa visione informativa privacy (mostrata automaticamente finché il paziente non l'ha accettata) -->
+  <div id="consenso-privacy-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3>Informativa privacy</h3>
+      <p class="duplica-sottotitolo">Prima di continuare, leggi l'informativa su come trattiamo i tuoi dati (compresi i dati relativi alla tua salute: peso, allergie, piano alimentare).</p>
+      <p><a href="privacy.html" target="_blank" rel="noopener">Leggi l'informativa privacy completa</a></p>
+      <p id="consenso-privacy-errore" class="error hidden"></p>
+      <div class="duplica-azioni">
+        <button id="consenso-privacy-accetta-btn">Ho letto e accetto</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Richiesta consenso notifiche (mostrata automaticamente al primo accesso paziente) -->
   <div id="notifiche-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal">
@@ -124,6 +138,7 @@
       <h3>Impostazioni</h3>
       <div class="duplica-azioni">
         <button type="button" id="impostazioni-reset-password-btn" class="secondary">Reimposta password</button>
+        <button type="button" id="impostazioni-privacy-btn" class="secondary">Leggi l'informativa privacy</button>
         <button type="button" id="impostazioni-cancellazione-btn" class="danger-scuro">Richiedi la cancellazione dei tuoi dati</button>
         <button type="button" id="paziente-impostazioni-chiudi-btn" class="danger">Chiudi</button>
       </div>

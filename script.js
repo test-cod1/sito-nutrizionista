@@ -202,6 +202,12 @@ const checkinFrequenzaSelect = document.getElementById("checkin-frequenza-select
 const checkinFrequenzaSalvaBtn = document.getElementById("checkin-frequenza-salva-btn");
 const checkinFrequenzaSuccesso = document.getElementById("checkin-frequenza-successo");
 
+// Consenso informativa privacy (primo accesso paziente, o dopo un aggiornamento dell'informativa)
+const consensoPrivacyOverlay = document.getElementById("consenso-privacy-overlay");
+const consensoPrivacyErrore = document.getElementById("consenso-privacy-errore");
+const consensoPrivacyAccettaBtn = document.getElementById("consenso-privacy-accetta-btn");
+const impostazioniPrivacyBtn = document.getElementById("impostazioni-privacy-btn");
+
 // Notifiche push
 const notificheOverlay = document.getElementById("notifiche-overlay");
 const notificheTesto = document.getElementById("notifiche-testo");
@@ -555,6 +561,12 @@ function escapeHtml(testo) {
 
 let passwordRecoveryEventRicevuto = false;
 
+// Versione dell'informativa privacy attualmente in vigore: cambiarla forza
+// tutti i pazienti che avevano accettato una versione precedente (o nessuna)
+// a rivedere e riaccettare l'informativa aggiornata al prossimo accesso.
+const VERSIONE_INFORMATIVA_PRIVACY = "1.0";
+let pazienteInAttesaConsensoPrivacy = null;
+
 function inizializzaSupabase() {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   supabaseClient.auth.onAuthStateChange((event) => {
@@ -868,12 +880,58 @@ async function avviaDopoLogin() {
   if (ruoloInfo.ruolo === "admin") {
     await avviaAppAdmin();
   } else if (ruoloInfo.ruolo === "paziente") {
+    if (ruoloInfo.paziente.consenso_privacy_versione !== VERSIONE_INFORMATIVA_PRIVACY) {
+      mostraConsensoPrivacy(ruoloInfo.paziente);
+      return;
+    }
     await avviaVistaPaziente(ruoloInfo.paziente);
   } else {
     alert("Il tuo account non è collegato a nessun profilo attivo. Contatta lo studio.");
     await supabaseClient.auth.signOut();
     mostraLogin();
   }
+}
+
+// ---------- Presa visione informativa privacy (paziente) ----------
+// Bloccante: finché il paziente non ha accettato la versione corrente
+// dell'informativa (VERSIONE_INFORMATIVA_PRIVACY), non entra nella sua area
+// personale. La data e la versione accettata restano registrate sulla riga
+// del paziente, così da poter dimostrare quando e cosa è stato accettato.
+
+function mostraConsensoPrivacy(paziente) {
+  pazienteInAttesaConsensoPrivacy = paziente;
+  consensoPrivacyErrore.classList.add("hidden");
+  consensoPrivacyOverlay.classList.remove("hidden");
+}
+
+async function confermaConsensoPrivacy() {
+  consensoPrivacyErrore.classList.add("hidden");
+  consensoPrivacyAccettaBtn.disabled = true;
+
+  const oraAccettazione = new Date().toISOString();
+  const { error } = await supabaseClient
+    .from("pazienti")
+    .update({
+      consenso_privacy_versione: VERSIONE_INFORMATIVA_PRIVACY,
+      consenso_privacy_data: oraAccettazione
+    })
+    .eq("id", pazienteInAttesaConsensoPrivacy.id);
+
+  consensoPrivacyAccettaBtn.disabled = false;
+
+  if (error) {
+    consensoPrivacyErrore.textContent = "Errore: " + error.message;
+    consensoPrivacyErrore.classList.remove("hidden");
+    return;
+  }
+
+  pazienteInAttesaConsensoPrivacy.consenso_privacy_versione = VERSIONE_INFORMATIVA_PRIVACY;
+  pazienteInAttesaConsensoPrivacy.consenso_privacy_data = oraAccettazione;
+  consensoPrivacyOverlay.classList.add("hidden");
+
+  const paziente = pazienteInAttesaConsensoPrivacy;
+  pazienteInAttesaConsensoPrivacy = null;
+  await avviaVistaPaziente(paziente);
 }
 
 // ---------- Verifica 2FA al login ----------
@@ -4390,6 +4448,11 @@ function inizializza() {
     chiudiPazienteImpostazioni();
     apriCancellazione();
   });
+  impostazioniPrivacyBtn.addEventListener("click", () => {
+    window.open("privacy.html", "_blank", "noopener");
+  });
+
+  consensoPrivacyAccettaBtn.addEventListener("click", confermaConsensoPrivacy);
 
   pazienteSicurezzaInviaBtn.addEventListener("click", inviaResetPasswordPazienteProprio);
   pazienteSicurezzaChiudiBtn.addEventListener("click", chiudiPazienteSicurezza);

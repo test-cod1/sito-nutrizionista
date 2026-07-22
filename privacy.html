@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Informativa privacy — NutriPlan</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("dieta-nutrizionista-tema");
+        if (t !== "chiaro" && t !== "notte") {
+          t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "notte" : "chiaro";
+        }
+        if (t === "notte") document.documentElement.classList.add("tema-notte");
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .informativa-pagina {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .informativa-pagina h1 { font-size: 1.6rem; margin-bottom: 4px; }
+    .informativa-pagina h2 { font-size: 1.15rem; margin-top: 32px; color: var(--accent); }
+    .informativa-pagina table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .informativa-pagina th, .informativa-pagina td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 0.92rem;
+      vertical-align: top;
+    }
+    .informativa-pagina th { background: var(--surface-alt); }
+    .informativa-pagina .versione { color: var(--text-muted); font-size: 0.85rem; margin-top: 40px; }
+    .informativa-pagina .torna-link { display: inline-block; margin-bottom: 20px; }
+    .informativa-pagina ul { padding-left: 20px; }
+    body { background: var(--bg-gradient); }
+  </style>
+</head>
+<body>
+  <div class="informativa-pagina">
+    <a href="index.html" class="torna-link">← Torna al sito</a>
+    <h1>Informativa sul trattamento dei dati personali</h1>
+    <p class="hint">Ai sensi degli articoli 13-14 del Regolamento (UE) 2016/679 (GDPR)</p>
+
+    <h2>Titolare del trattamento</h2>
+    <p>[Nome e Cognome], libero professionista, P.IVA [in fase di attribuzione — studio non ancora attivo], iscritto/a a [Ordine/Albo, n. iscrizione], con studio in [indirizzo], contattabile all'indirizzo email [___] e al numero [___].</p>
+
+    <h2>Perché raccogliamo i tuoi dati</h2>
+    <table>
+      <tr><th>Finalità</th><th>Dati trattati</th><th>Base giuridica</th></tr>
+      <tr><td>Consulenza nutrizionale (piani alimentari, monitoraggio peso/circonferenze, check-in periodici)</td><td>Anagrafica, peso, circonferenze, allergie, dieta assegnata, note di check-in</td><td>Art. 9(2)(h) GDPR — prestazione sanitaria, soggetta a segreto professionale (art. 9(3))</td></tr>
+      <tr><td>Gestione appuntamenti e promemoria</td><td>Nome, email, data/ora appuntamento</td><td>Art. 6(1)(b) — esecuzione del rapporto professionale</td></tr>
+      <tr><td>Invio via email del piano alimentare</td><td>Email, contenuto del piano</td><td>Art. 6(1)(b)</td></tr>
+      <tr><td>Notifiche push di promemoria check-in</td><td>Identificativo tecnico del dispositivo</td><td>Art. 6(1)(a) — consenso specifico del browser</td></tr>
+      <tr><td>Sicurezza dell'account</td><td>Log di accesso</td><td>Art. 6(1)(f) — legittimo interesse alla sicurezza</td></tr>
+    </table>
+    <p>Non usiamo i tuoi dati per marketing, profilazione o finalità diverse da quelle sopra. Non ci sono cookie di tracciamento o analytics di terze parti sul sito: solo i cookie/token tecnici necessari per mantenere la sessione di accesso.</p>
+
+    <h2>Pazienti minorenni</h2>
+    <p>Se il paziente è minorenne, questa informativa è rivolta a chi esercita la responsabilità genitoriale, che presta il consenso e riceve le comunicazioni per conto del minore.</p>
+
+    <h2>Chi tratta i tuoi dati per nostro conto</h2>
+    <ul>
+      <li><strong>Supabase</strong> — database e autenticazione</li>
+      <li><strong>Cloudflare</strong> — hosting del sito e delle funzioni server</li>
+      <li><strong>Brevo</strong> — invio email transazionali (piani alimentari, promemoria appuntamenti)</li>
+      <li><strong>Servizio push del browser</strong> (Google/Mozilla/Apple, a seconda del browser) — riceve solo un identificativo tecnico cifrato, mai il contenuto in chiaro</li>
+    </ul>
+    <p>Nessun dato viene ceduto a terzi per finalità commerciali.</p>
+
+    <h2>Per quanto tempo conserviamo i dati</h2>
+    <p>I dati sono conservati per la durata del rapporto professionale e per 10 anni dalla sua cessazione, in linea con i termini di prescrizione della responsabilità professionale, salvo richiesta di cancellazione anticipata da parte tua. Puoi richiedere la cancellazione dei tuoi dati in qualsiasi momento dalla tua area personale (Impostazioni → Richiedi la cancellazione dei tuoi dati).</p>
+
+    <h2>I tuoi diritti</h2>
+    <p>Puoi in ogni momento chiedere l'accesso ai tuoi dati, la rettifica, la cancellazione, la limitazione del trattamento, la portabilità, e opporti al trattamento, scrivendo a [email di contatto]. Hai inoltre diritto di proporre reclamo al Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">www.garanteprivacy.it</a>).</p>
+
+    <h2>Sicurezza</h2>
+    <p>I dati sono protetti tramite controllo degli accessi basato su ruoli (amministratore/paziente), autenticazione a due fattori disponibile per l'amministratore, cifratura in transito (HTTPS) e a riposo, e ogni paziente può vedere esclusivamente i propri dati.</p>
+
+    <p class="versione">Versione 1.0 — testo definitivo in attesa dei soli dati identificativi dello studio (in apertura).</p>
+  </div>
+</body>
+</html>
