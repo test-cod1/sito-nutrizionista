@@ -717,7 +717,7 @@ button.danger-scuro:hover {
   color: white;
   padding: 10px 16px;
   display: grid;
-  grid-template-columns: 140px 90px 1fr;
+  grid-template-columns: 140px auto 1fr;
   align-items: center;
   column-gap: 10px;
   font-weight: 600;
@@ -764,6 +764,9 @@ button.danger-scuro:hover {
 
 .giorno-duplica-slot {
   justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .duplica-giorno-btn {
@@ -780,6 +783,29 @@ button.danger-scuro:hover {
 
 .duplica-giorno-btn:hover {
   background: rgba(255, 255, 255, 0.32);
+  transform: none;
+}
+
+.svuota-giorno-btn {
+  background: var(--danger);
+  border: none;
+  color: white;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.svuota-giorno-btn:hover {
+  background: var(--danger-hover);
   transform: none;
 }
 

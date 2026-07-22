@@ -3668,7 +3668,10 @@ function renderDieta() {
     titolo.dataset.giorno = giorno;
     titolo.innerHTML = `
       <span class="giorno-nome"><span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${giorno}</span>
-      <span class="giorno-duplica-slot">${giornoHaAlimenti(giorno) ? `<button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">Duplica</button>` : ''}</span>
+      <span class="giorno-duplica-slot">${giornoHaAlimenti(giorno) ? `
+        <button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">Duplica</button>
+        <button class="svuota-giorno-btn no-print" data-giorno="${giorno}" title="Svuota tutti i pasti di ${giorno}" aria-label="Svuota tutti i pasti di ${giorno}">🗑</button>
+      ` : ''}</span>
       <span class="solo-nutrizionista giorno-totale">${superato ? '<span class="totale-warning">! ' : ''}Totale: ${formattaTotali(totaleGiorno)}${superato ? '</span>' : ''}</span>
     `;
     blocco.appendChild(titolo);
@@ -3865,6 +3868,15 @@ function rimuoviElemento(giorno, pasto, index) {
 function svuotaDieta() {
   if (!confirm("Vuoi davvero svuotare tutto il piano alimentare? L'operazione non è reversibile.")) return;
   state.dieta = creaDietaVuota();
+  salvaStateRemoto();
+  renderDieta();
+}
+
+function svuotaGiorno(giorno) {
+  if (!confirm(`Vuoi davvero svuotare tutti i pasti di ${giorno}? L'operazione non è reversibile.`)) return;
+  PASTI.forEach(pasto => {
+    state.dieta[giorno][pasto] = [];
+  });
   salvaStateRemoto();
   renderDieta();
 }
@@ -4690,6 +4702,11 @@ function inizializza() {
     const duplicaGiornoBtn = e.target.closest(".duplica-giorno-btn");
     if (duplicaGiornoBtn) {
       apriDuplicaGiorno(duplicaGiornoBtn.dataset.giorno);
+      return;
+    }
+    const svuotaGiornoBtn = e.target.closest(".svuota-giorno-btn");
+    if (svuotaGiornoBtn) {
+      svuotaGiorno(svuotaGiornoBtn.dataset.giorno);
       return;
     }
     const duplicaPastoBtn = e.target.closest(".duplica-pasto-btn");
