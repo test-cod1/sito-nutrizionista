@@ -64,6 +64,9 @@ export async function onRequestPost(context) {
   if (!paziente.email) {
     return risposta(400, { error: "Il paziente non ha un'email registrata nel profilo." });
   }
+  if (paziente.email.split("@")[1]?.trim().toLowerCase() === "gmail.com") {
+    return risposta(400, { error: "Non è possibile inviare a un indirizzo Gmail: Google scarta in modo silenzioso le email da un mittente non autenticato per il dominio gmail.com." });
+  }
 
   try {
     await inviaEmailBrevo(brevoKey, mittenteEmail, {

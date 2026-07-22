@@ -4166,6 +4166,11 @@ function generaPdfSpesaBase64() {
   return doc.output("datauristring").split(",")[1];
 }
 
+function dominioEmail(email) {
+  const indice = (email || "").lastIndexOf("@");
+  return indice === -1 ? "" : email.slice(indice + 1).trim().toLowerCase();
+}
+
 async function inviaEmailPiano() {
   inviaEmailError.classList.add("hidden");
   inviaEmailSuccesso.classList.add("hidden");
@@ -4174,6 +4179,12 @@ async function inviaEmailPiano() {
 
   if (!pazienteCorrente.email) {
     inviaEmailError.textContent = "Il paziente non ha un'email registrata: aggiungila nel profilo prima di inviare.";
+    inviaEmailError.classList.remove("hidden");
+    return;
+  }
+
+  if (dominioEmail(pazienteCorrente.email) === "gmail.com") {
+    inviaEmailError.textContent = "Non è possibile inviare a un indirizzo Gmail: Google applica una policy molto rigida (DMARC) che scarta in modo silenzioso le email inviate da un mittente non autenticato per il dominio gmail.com. Poiché gmail.com non è un dominio nostro, non possiamo autenticarci come tale. Usa un altro indirizzo email per questo paziente (aggiornalo nel profilo) oppure contattalo con altri mezzi.";
     inviaEmailError.classList.remove("hidden");
     return;
   }
