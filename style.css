@@ -111,6 +111,23 @@ body {
   .hero h1 {
     font-size: 1.5rem;
   }
+
+  /* Nell'header amministratore il pulsante ☰ delle sezioni (fisso, sempre
+     visibile) condivide l'angolo in alto a sinistra con il gruppo di icone
+     e, sulla destra, con "Esci" e il selettore tema: su schermi stretti non
+     ci stanno tutti sulla stessa riga. Le due fasce di controlli vengono
+     impilate su due righe distinte, lasciando spazio al pulsante ☰. */
+  #app-shell .hero {
+    padding-top: calc(120px + env(safe-area-inset-top, 0px));
+  }
+
+  #app-shell .gestione-utenti-fisso {
+    left: 68px;
+  }
+
+  #app-shell .header-azioni-destra {
+    top: calc(60px + env(safe-area-inset-top, 0px));
+  }
 }
 
 .hero-sub {
