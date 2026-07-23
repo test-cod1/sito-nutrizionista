@@ -11,6 +11,10 @@
   --g-abbina-dark: #17925a;
   --g-pasto: #ff8a3d;
   --g-pasto-dark: #e56f22;
+  --g-fakenews: #ff4f81;
+  --g-fakenews-dark: #d43764;
+  --g-etichette: #12b6c9;
+  --g-etichette-dark: #0f93a3;
   --g-danger: #e34b6f;
   --g-shadow: rgba(90, 60, 160, 0.15);
 }
@@ -104,6 +108,8 @@ body {
 .gioco-card-quiz { background: linear-gradient(135deg, var(--g-quiz), var(--g-quiz-dark)); }
 .gioco-card-abbina { background: linear-gradient(135deg, var(--g-abbina), var(--g-abbina-dark)); }
 .gioco-card-pasto { background: linear-gradient(135deg, var(--g-pasto), var(--g-pasto-dark)); }
+.gioco-card-fakenews { background: linear-gradient(135deg, var(--g-fakenews), var(--g-fakenews-dark)); }
+.gioco-card-etichette { background: linear-gradient(135deg, var(--g-etichette), var(--g-etichette-dark)); }
 
 .gioco-card-icona {
   font-size: 2.4rem;
@@ -329,4 +335,169 @@ body {
   .giochi-quiz-bottoni {
     flex-direction: column;
   }
+}
+
+/* Caccia alla fake news (swipe) */
+
+.fakenews-progresso {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.fakenews-pila {
+  position: relative;
+  margin: 10px 0 18px;
+}
+
+.fakenews-card {
+  position: relative;
+  background: var(--g-surface);
+  border: 1px solid var(--g-border);
+  border-radius: 20px;
+  padding: 28px 22px;
+  box-shadow: 0 12px 26px var(--g-shadow);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.fakenews-card:active {
+  cursor: grabbing;
+}
+
+.fakenews-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--tint-color, transparent);
+  opacity: var(--tint-opacity, 0);
+  pointer-events: none;
+}
+
+.fakenews-etichetta-post {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--g-fakenews-dark);
+  background: var(--g-bg2);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+.fakenews-testo {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.45;
+  position: relative;
+  z-index: 1;
+}
+
+.fakenews-swipe-hint {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--g-text-muted);
+  margin-top: 14px;
+}
+
+.fakenews-azioni {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.fakenews-azioni button {
+  flex: 1;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.fakenews-azioni button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.fakenews-azioni button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.fakenews-azioni .fakenews-bufala-btn { background: var(--g-danger); }
+.fakenews-azioni .fakenews-vero-btn { background: var(--g-abbina); }
+
+/* Decodifica l'etichetta */
+
+.etichetta-card {
+  background: var(--g-bg1);
+  border: 2px dashed var(--g-border);
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.etichetta-prodotto-nome {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.etichetta-ingredienti {
+  font-size: 0.85rem;
+  color: var(--g-text-muted);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.etichetta-badge {
+  background: var(--g-surface);
+  color: var(--g-text);
+  border: 2px solid var(--g-border);
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0 8px 8px 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.etichetta-badge:hover:not(:disabled) {
+  border-color: var(--g-etichette);
+  transform: translateY(-2px);
+}
+
+.etichetta-badge.selezionato {
+  background: var(--g-etichette);
+  border-color: var(--g-etichette);
+  color: #fff;
+}
+
+.etichetta-badge.corretto {
+  background: var(--g-abbina);
+  border-color: var(--g-abbina);
+  color: #fff;
+}
+
+.etichetta-badge.sbagliato {
+  background: var(--g-danger);
+  border-color: var(--g-danger);
+  color: #fff;
+}
+
+.etichetta-badge:disabled {
+  cursor: default;
+}
+
+.etichetta-spiegazioni p {
+  margin: 6px 0;
+  font-weight: 500;
 }

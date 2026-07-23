@@ -313,9 +313,284 @@ giochiPastoContenuto.addEventListener("click", (e) => {
   }
 });
 
+// ---------- Caccia alla fake news (swipe) ----------
+
+const GIOCHI_FAKENEWS_NOTIZIE = [
+  { testo: "🔥 TREND VIRALE: aggiungi bicarbonato all'acqua al mattino per 'alcalinizzare' il corpo e dimagrire più in fretta.", risposta: false, spiegazione: "Il corpo regola da solo il proprio pH tramite polmoni e reni: bere acqua e bicarbonato non cambia la composizione corporea né fa dimagrire." },
+  { testo: "📢 Le etichette 'ad alto contenuto di fibre' indicano davvero un contenuto di fibre superiore alla media, perché è un claim regolamentato.", risposta: true, spiegazione: "Claim come 'fonte di fibre' o 'alto contenuto di fibre' sono regolamentati e richiedono di superare soglie minime stabilite dalla legge." },
+  { testo: "💊 Gli integratori 'brucia grassi' venduti online possono sostituire l'attività fisica per perdere peso.", risposta: false, spiegazione: "Nessun integratore sostituisce l'attività fisica: il dimagrimento dipende dal bilancio energetico complessivo, non da una pillola." },
+  { testo: "🥑 Post virale: 'L'avocado ha troppi grassi, va eliminato del tutto se vuoi dimagrire.'", risposta: false, spiegazione: "I grassi dell'avocado sono in gran parte monoinsaturi (salutari): non serve eliminarlo, conta la quantità nel contesto della dieta complessiva." },
+  { testo: "🍋 'Bere acqua e limone al mattino a digiuno depura il fegato dalle tossine.'", risposta: false, spiegazione: "Il fegato non ha bisogno di alimenti 'depurativi' per funzionare: svolge già autonomamente questo compito." },
+  { testo: "🧊 'Le bibite ghiacciate fanno dimagrire perché il corpo consuma calorie extra per riscaldarle.'", risposta: false, spiegazione: "L'effetto termico di una bevanda fredda è trascurabile rispetto alle calorie che la bevanda stessa apporta." },
+  { testo: "🌾 'Tutti i carboidrati mangiati la sera si trasformano subito in grasso.'", risposta: false, spiegazione: "Conta il bilancio energetico complessivo della giornata, non l'orario in cui si assumono i carboidrati." },
+  { testo: "🧴 Un integratore multivitaminico può essere utile in caso di carenze specifiche accertate da un professionista.", risposta: true, spiegazione: "In presenza di carenze diagnosticate, un supplemento mirato può essere indicato; non sostituisce comunque una dieta varia ed equilibrata." },
+  { testo: "🍬 'I dolcificanti senza calorie fanno ingrassare più dello zucchero.'", risposta: false, spiegazione: "Non apportano calorie significative: l'effetto sul peso dipende dal contesto complessivo della dieta, non dal dolcificante in sé." },
+  { testo: "🥛 'Il latte scremato ha circa le stesse proteine di quello intero: cambia soprattutto il contenuto di grassi.'", risposta: true, spiegazione: "Scremare il latte riduce i grassi ma lascia pressoché invariato il contenuto proteico." },
+];
+
+const giochiFakenewsContenuto = document.getElementById("giochi-fakenews-contenuto");
+let giochiFakenewsOrdine = [];
+let giochiFakenewsIndice = 0;
+let giochiFakenewsPunteggio = 0;
+let giochiFakenewsRisposto = false;
+
+function renderGiochiFakenews() {
+  if (giochiFakenewsIndice >= giochiFakenewsOrdine.length) {
+    giochiFakenewsContenuto.innerHTML = `
+      <p class="giochi-risultato">🏁 Hai scorso tutti i post!<br>Punteggio: <strong>${giochiFakenewsPunteggio} / ${giochiFakenewsOrdine.length}</strong></p>
+      <button type="button" class="giochi-rigioca-btn" data-azione="fakenews-ricomincia">Rigioca</button>
+    `;
+    return;
+  }
+  const notizia = GIOCHI_FAKENEWS_NOTIZIE[giochiFakenewsOrdine[giochiFakenewsIndice]];
+  giochiFakenewsContenuto.innerHTML = `
+    <div class="fakenews-progresso">
+      <span class="hint">Post ${giochiFakenewsIndice + 1} di ${giochiFakenewsOrdine.length}</span>
+      <span class="hint">Punteggio: ${giochiFakenewsPunteggio}</span>
+    </div>
+    <div class="fakenews-pila">
+      <div class="fakenews-card" id="fakenews-card-corrente">
+        <span class="fakenews-etichetta-post">📱 Visto sui social</span>
+        <p class="fakenews-testo">${escapeHtml(notizia.testo)}</p>
+      </div>
+    </div>
+    <p class="fakenews-swipe-hint">👉 Trascina la card oppure tocca un pulsante 👇</p>
+    <div class="fakenews-azioni">
+      <button type="button" class="fakenews-bufala-btn" data-azione="fakenews-rispondi" data-valore="false">👈 Bufala</button>
+      <button type="button" class="fakenews-vero-btn" data-azione="fakenews-rispondi" data-valore="true">Vero 👉</button>
+    </div>
+    <div id="giochi-fakenews-feedback"></div>
+  `;
+  abilitaSwipeFakenews(document.getElementById("fakenews-card-corrente"));
+}
+
+function abilitaSwipeFakenews(card) {
+  if (!card) return;
+  let stato = null;
+
+  card.addEventListener("pointerdown", (e) => {
+    if (giochiFakenewsRisposto) return;
+    stato = { startX: e.clientX, dx: 0 };
+    card.setPointerCapture(e.pointerId);
+  });
+
+  card.addEventListener("pointermove", (e) => {
+    if (!stato) return;
+    stato.dx = e.clientX - stato.startX;
+    card.style.transform = `translateX(${stato.dx}px) rotate(${stato.dx / 18}deg)`;
+    card.style.setProperty("--tint-opacity", Math.min(Math.abs(stato.dx) / 120, 0.35));
+    card.style.setProperty("--tint-color", stato.dx > 0 ? "var(--g-abbina)" : "var(--g-danger)");
+  });
+
+  const rilascia = () => {
+    if (!stato) return;
+    const dx = stato.dx;
+    stato = null;
+    if (Math.abs(dx) > 90) {
+      rispondiFakenews(dx > 0);
+    } else {
+      card.style.transform = "";
+      card.style.setProperty("--tint-opacity", 0);
+    }
+  };
+
+  card.addEventListener("pointerup", rilascia);
+  card.addEventListener("pointercancel", rilascia);
+}
+
+function rispondiFakenews(valoreScelto) {
+  if (giochiFakenewsRisposto) return;
+  giochiFakenewsRisposto = true;
+  const notizia = GIOCHI_FAKENEWS_NOTIZIE[giochiFakenewsOrdine[giochiFakenewsIndice]];
+  const corretto = valoreScelto === notizia.risposta;
+  if (corretto) giochiFakenewsPunteggio++;
+
+  const card = document.getElementById("fakenews-card-corrente");
+  if (card) {
+    card.style.transform = `translateX(${valoreScelto ? 400 : -400}px) rotate(${valoreScelto ? 20 : -20}deg)`;
+    card.style.setProperty("--tint-opacity", 0.35);
+    card.style.setProperty("--tint-color", valoreScelto ? "var(--g-abbina)" : "var(--g-danger)");
+  }
+  giochiFakenewsContenuto.querySelectorAll('[data-azione="fakenews-rispondi"]').forEach(b => b.disabled = true);
+
+  const feedback = document.getElementById("giochi-fakenews-feedback");
+  feedback.innerHTML = `
+    <p class="${corretto ? "giochi-corretto" : "giochi-sbagliato"}">${corretto ? "✅ Esatto!" : `❌ Sbagliato — in realtà è ${notizia.risposta ? "Vero" : "Bufala"}.`}</p>
+    <p class="hint">${escapeHtml(notizia.spiegazione)}</p>
+    <button type="button" class="giochi-prossimo-btn" data-azione="fakenews-avanti">Prossimo post →</button>
+  `;
+}
+
+giochiFakenewsContenuto.addEventListener("click", (e) => {
+  const bottone = e.target.closest("button[data-azione]");
+  if (!bottone) return;
+  if (bottone.dataset.azione === "fakenews-rispondi") {
+    rispondiFakenews(bottone.dataset.valore === "true");
+  } else if (bottone.dataset.azione === "fakenews-avanti") {
+    giochiFakenewsIndice++;
+    giochiFakenewsRisposto = false;
+    renderGiochiFakenews();
+  } else if (bottone.dataset.azione === "fakenews-ricomincia") {
+    giochiFakenewsOrdine = mescolaArray(GIOCHI_FAKENEWS_NOTIZIE.map((_, i) => i));
+    giochiFakenewsIndice = 0;
+    giochiFakenewsPunteggio = 0;
+    giochiFakenewsRisposto = false;
+    renderGiochiFakenews();
+  }
+});
+
+// ---------- Decodifica l'etichetta ----------
+
+const GIOCHI_ETICHETTE_PRODOTTI = [
+  {
+    prodotto: "Fette biscottate \"BenEssere\"",
+    ingredienti: "Farina di frumento, zucchero, olio di palma, sciroppo di glucosio-fruttosio, emulsionante: lecitina di soia, sale.",
+    claim: [
+      { testo: "🌿 100% Naturale", fuorviante: true, spiegazione: "Contiene sciroppo di glucosio-fruttosio ed emulsionanti: 'naturale' non è un termine regolamentato ed è fuorviante su un prodotto così trasformato." },
+      { testo: "🍬 Senza zuccheri aggiunti", fuorviante: true, spiegazione: "Lo zucchero e lo sciroppo di glucosio-fruttosio sono a tutti gli effetti zuccheri aggiunti: il claim è contraddetto dagli ingredienti." },
+      { testo: "🌾 A base di cereali", fuorviante: false, spiegazione: "La farina di frumento è realmente il primo ingrediente: il claim corrisponde alla lista ingredienti." },
+    ],
+  },
+  {
+    prodotto: "Yogurt alla frutta \"FruttaViva\"",
+    ingredienti: "Latte parzialmente scremato, zucchero, preparato di fragola (10%: fragole, zucchero, aromi), fermenti lattici, addensante: pectina.",
+    claim: [
+      { testo: "🍓 Con vera frutta", fuorviante: false, spiegazione: "Il preparato di fragola è effettivamente presente tra gli ingredienti, anche se in quantità limitata (10%)." },
+      { testo: "💪 Ricco di proteine", fuorviante: true, spiegazione: "Non è indicato alcun contenuto proteico elevato negli ingredienti: è un normale yogurt, non uno yogurt proteico arricchito." },
+      { testo: "🥛 Fonte di calcio", fuorviante: false, spiegazione: "Essendo a base di latte, contiene naturalmente calcio: il claim è plausibile." },
+    ],
+  },
+  {
+    prodotto: "Barretta \"EnergyFit\"",
+    ingredienti: "Sciroppo di glucosio, cioccolato (24%), cereali soffiati, olio di girasole, zucchero, aromi.",
+    claim: [
+      { testo: "⚡ Energia naturale", fuorviante: true, spiegazione: "L'energia proviene principalmente da sciroppo di glucosio e zucchero raffinato: definirla 'naturale' è fuorviante." },
+      { testo: "🍫 Con vero cioccolato", fuorviante: false, spiegazione: "Il cioccolato è effettivamente presente e quantificato (24%) nella lista ingredienti." },
+      { testo: "🏃 Ideale per lo sport", fuorviante: true, spiegazione: "È principalmente uno snack zuccherato: non ci sono elementi (proteine, elettroliti) che la rendano specificamente 'sportiva'." },
+    ],
+  },
+  {
+    prodotto: "Succo \"FrescoSole\"",
+    ingredienti: "Acqua, zucchero, succo di arancia da concentrato (12%), acido citrico, aromi, colorante: beta-carotene.",
+    claim: [
+      { testo: "🍊 100% Frutta", fuorviante: true, spiegazione: "Il succo di arancia è solo il 12% e l'ingrediente principale è acqua con zucchero aggiunto: non è '100% frutta'." },
+      { testo: "🎨 Con coloranti", fuorviante: false, spiegazione: "Il beta-carotene come colorante è effettivamente elencato tra gli ingredienti: il claim è corretto (anche se non è un vanto salutistico)." },
+      { testo: "💧 Dissetante", fuorviante: false, spiegazione: "Essendo composto per lo più da acqua, l'effetto dissetante è plausibile: non è un claim nutrizionale fuorviante." },
+    ],
+  },
+  {
+    prodotto: "Cracker \"LeggerezzaOro\"",
+    ingredienti: "Farina di frumento raffinata, olio di palma, sale, lievito, estratto di malto.",
+    claim: [
+      { testo: "🪶 Leggero", fuorviante: true, spiegazione: "'Leggero' non è un claim regolamentato come 'light': a parità di porzione le calorie possono essere simili a un cracker normale." },
+      { testo: "🌾 Con farina di frumento", fuorviante: false, spiegazione: "La farina di frumento è realmente il primo ingrediente: il claim corrisponde alla realtà." },
+      { testo: "🌿 Senza conservanti", fuorviante: false, spiegazione: "Nella lista ingredienti non compaiono conservanti: il claim è verificabile e corretto." },
+    ],
+  },
+  {
+    prodotto: "Bevanda \"VitaBoost\"",
+    ingredienti: "Acqua, zucchero, anidride carbonica, acidificante: acido citrico, aromi, vitamina C, caffeina.",
+    claim: [
+      { testo: "💊 Con vitamine", fuorviante: false, spiegazione: "La vitamina C è effettivamente presente tra gli ingredienti: il claim è corretto." },
+      { testo: "🚫 Senza zuccheri", fuorviante: true, spiegazione: "Lo zucchero è il secondo ingrediente in lista: il claim 'senza zuccheri' è direttamente smentito dagli ingredienti." },
+      { testo: "🔋 Energizzante", fuorviante: false, spiegazione: "La presenza di zucchero e caffeina rende plausibile un effetto energizzante a breve termine." },
+    ],
+  },
+];
+
+const giochiEtichetteContenuto = document.getElementById("giochi-etichette-contenuto");
+let giochiEtichetteOrdine = [];
+let giochiEtichetteIndice = 0;
+let giochiEtichettePunteggioTotale = 0;
+let giochiEtichetteSelezionati = new Set();
+let giochiEtichetteVerificato = false;
+
+function renderGiochiEtichette() {
+  if (giochiEtichetteIndice >= giochiEtichetteOrdine.length) {
+    const totaleClaim = GIOCHI_ETICHETTE_PRODOTTI.reduce((s, p) => s + p.claim.length, 0);
+    giochiEtichetteContenuto.innerHTML = `
+      <p class="giochi-risultato">🏁 Hai analizzato tutte le etichette!<br>Claim riconosciuti correttamente: <strong>${giochiEtichettePunteggioTotale} / ${totaleClaim}</strong></p>
+      <button type="button" class="giochi-rigioca-btn" data-azione="etichette-ricomincia">Rigioca</button>
+    `;
+    return;
+  }
+
+  const prodotto = GIOCHI_ETICHETTE_PRODOTTI[giochiEtichetteOrdine[giochiEtichetteIndice]];
+  const badgeHtml = prodotto.claim.map((c, i) => {
+    const selezionato = giochiEtichetteSelezionati.has(i);
+    let classeExtra = selezionato ? "selezionato" : "";
+    if (giochiEtichetteVerificato) {
+      const corretto = selezionato === c.fuorviante;
+      classeExtra = corretto ? "corretto" : "sbagliato";
+    }
+    return `<button type="button" class="etichetta-badge ${classeExtra}" data-azione="etichetta-toggle" data-indice="${i}" ${giochiEtichetteVerificato ? "disabled" : ""}>${escapeHtml(c.testo)}</button>`;
+  }).join("");
+
+  let spiegazioniHtml = "";
+  if (giochiEtichetteVerificato) {
+    spiegazioniHtml = `<div class="etichetta-spiegazioni">${prodotto.claim.map(c => `<p>${c.fuorviante ? "🚩" : "✅"} ${escapeHtml(c.testo)}: ${escapeHtml(c.spiegazione)}</p>`).join("")}</div>`;
+  }
+
+  giochiEtichetteContenuto.innerHTML = `
+    <p class="hint">Prodotto ${giochiEtichetteIndice + 1} di ${giochiEtichetteOrdine.length} — tocca i claim che ti sembrano fuorvianti rispetto agli ingredienti, poi verifica.</p>
+    <div class="etichetta-card">
+      <p class="etichetta-prodotto-nome">${escapeHtml(prodotto.prodotto)}</p>
+      <p class="etichetta-ingredienti"><strong>Ingredienti:</strong> ${escapeHtml(prodotto.ingredienti)}</p>
+      <div>${badgeHtml}</div>
+    </div>
+    ${spiegazioniHtml}
+    <div>
+      ${!giochiEtichetteVerificato
+        ? `<button type="button" class="giochi-verifica-btn" data-azione="etichetta-verifica">Verifica etichetta</button>`
+        : `<button type="button" class="giochi-prossimo-btn" data-azione="etichetta-avanti">Prodotto successivo →</button>`}
+    </div>
+  `;
+}
+
+giochiEtichetteContenuto.addEventListener("click", (e) => {
+  const toggleBtn = e.target.closest('[data-azione="etichetta-toggle"]');
+  if (toggleBtn && !giochiEtichetteVerificato) {
+    const indice = Number(toggleBtn.dataset.indice);
+    if (giochiEtichetteSelezionati.has(indice)) giochiEtichetteSelezionati.delete(indice);
+    else giochiEtichetteSelezionati.add(indice);
+    renderGiochiEtichette();
+    return;
+  }
+  if (e.target.closest('[data-azione="etichetta-verifica"]')) {
+    giochiEtichetteVerificato = true;
+    const prodotto = GIOCHI_ETICHETTE_PRODOTTI[giochiEtichetteOrdine[giochiEtichetteIndice]];
+    prodotto.claim.forEach((c, i) => {
+      if (giochiEtichetteSelezionati.has(i) === c.fuorviante) giochiEtichettePunteggioTotale++;
+    });
+    renderGiochiEtichette();
+    return;
+  }
+  if (e.target.closest('[data-azione="etichetta-avanti"]')) {
+    giochiEtichetteIndice++;
+    giochiEtichetteSelezionati = new Set();
+    giochiEtichetteVerificato = false;
+    renderGiochiEtichette();
+    return;
+  }
+  if (e.target.closest('[data-azione="etichette-ricomincia"]')) {
+    giochiEtichetteOrdine = mescolaArray(GIOCHI_ETICHETTE_PRODOTTI.map((_, i) => i));
+    giochiEtichetteIndice = 0;
+    giochiEtichettePunteggioTotale = 0;
+    giochiEtichetteSelezionati = new Set();
+    giochiEtichetteVerificato = false;
+    renderGiochiEtichette();
+  }
+});
+
 // ---------- Avvio ----------
 
 giochiQuizOrdine = mescolaArray(GIOCHI_QUIZ_DOMANDE.map((_, i) => i));
 renderGiochiQuiz();
 renderGiochiAbbina();
 renderGiochiPasto();
+
+giochiFakenewsOrdine = mescolaArray(GIOCHI_FAKENEWS_NOTIZIE.map((_, i) => i));
+renderGiochiFakenews();
+
+giochiEtichetteOrdine = mescolaArray(GIOCHI_ETICHETTE_PRODOTTI.map((_, i) => i));
+renderGiochiEtichette();
