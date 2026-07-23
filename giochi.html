@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Giochi — NutriPlan</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="stylesheet" href="giochi.css">
+</head>
+<body>
+  <div class="giochi-pagina">
+    <a href="index.html" class="giochi-torna">← Torna al sito</a>
+
+    <header class="giochi-header">
+      <h1>🎮 Giochi Nutrizionali</h1>
+      <p class="giochi-sottotitolo">Mettiti alla prova: quiz, sfide e mini-giochi su alimentazione e fake news.</p>
+    </header>
+
+    <div id="giochi-hub" class="giochi-hub">
+      <button type="button" class="gioco-card gioco-card-quiz" data-apri="quiz">
+        <span class="gioco-card-icona">🧠</span>
+        <span class="gioco-card-titolo">Quiz Vero o Falso</span>
+        <span class="gioco-card-desc">Smonta 12 fake news alimentari molto diffuse</span>
+        <span class="gioco-card-play">Gioca ▶</span>
+      </button>
+      <button type="button" class="gioco-card gioco-card-abbina" data-apri="abbina">
+        <span class="gioco-card-icona">🍎</span>
+        <span class="gioco-card-titolo">Abbina le categorie</span>
+        <span class="gioco-card-desc">Assegna 15 alimenti alla categoria giusta</span>
+        <span class="gioco-card-play">Gioca ▶</span>
+      </button>
+      <button type="button" class="gioco-card gioco-card-pasto" data-apri="pasto">
+        <span class="gioco-card-icona">🍽️</span>
+        <span class="gioco-card-titolo">Componi il pasto</span>
+        <span class="gioco-card-desc">Costruisci un pranzo equilibrato</span>
+        <span class="gioco-card-play">Gioca ▶</span>
+      </button>
+    </div>
+
+    <div id="giochi-panello" class="giochi-panello hidden">
+      <button type="button" id="giochi-indietro-btn" class="giochi-indietro">← Tutti i giochi</button>
+
+      <div id="giochi-quiz-tab" class="giochi-tab hidden">
+        <h2>🧠 Quiz Vero o Falso</h2>
+        <div id="giochi-quiz-contenuto"></div>
+      </div>
+
+      <div id="giochi-abbina-tab" class="giochi-tab hidden">
+        <h2>🍎 Abbina le categorie</h2>
+        <div id="giochi-abbina-contenuto"></div>
+      </div>
+
+      <div id="giochi-pasto-tab" class="giochi-tab hidden">
+        <h2>🍽️ Componi il pasto</h2>
+        <div id="giochi-pasto-contenuto"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="giochi.js"></script>
+</body>
+</html>

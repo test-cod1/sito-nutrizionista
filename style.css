@@ -1038,190 +1038,28 @@ table tfoot .riga-totale td {
   display: none;
 }
 
-/* ---------- Giochi (paziente) ---------- */
+/* ---------- Invito ai Giochi (paziente) ---------- */
 
-.giochi-quiz-affermazione {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 14px 0;
+.giochi-cta-card {
+  background: linear-gradient(135deg, #7b3fe4, #e4457b 55%, #ff9a3f);
+  border: none;
+  color: #ffffff;
 }
 
-.giochi-quiz-bottoni {
-  display: flex;
-  gap: 10px;
+.giochi-cta-card h2,
+.giochi-cta-card .hint {
+  color: #ffffff;
 }
 
-.giochi-corretto {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.giochi-sbagliato {
-  color: var(--danger);
-  font-weight: 600;
-}
-
-.giochi-risultato {
+.giochi-cta-btn {
+  background: #ffffff;
+  color: #7b3fe4;
   font-size: 1.05rem;
-  margin: 16px 0;
 }
 
-.giochi-chip {
-  background: var(--surface-alt);
-  color: var(--text);
-  border: 1.5px solid var(--border-input);
-  border-radius: 20px;
-  padding: 8px 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin: 0 8px 8px 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
-}
-
-.giochi-chip:hover:not(:disabled) {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.giochi-chip.selezionato {
-  background: var(--accent-tint);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.giochi-chip.corretto {
-  background: var(--accent-tint-2);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.giochi-chip.sbagliato {
-  background: var(--danger-tint);
-  border-color: var(--danger);
-  color: var(--danger-text);
-}
-
-.giochi-chip:disabled {
-  cursor: default;
-  opacity: 0.85;
-}
-
-.giochi-kcal {
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.giochi-abbina-pool {
-  border: 1.5px dashed var(--border-input);
-  border-radius: 10px;
-  padding: 12px;
-  margin: 10px 0 16px;
-  min-height: 48px;
-}
-
-.giochi-categorie-griglia {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.giochi-categoria-box {
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: var(--surface-alt-2);
-  min-height: 70px;
-}
-
-.giochi-categoria-box h4 {
-  margin: 0 0 8px;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-.giochi-categoria-chips {
-  min-height: 34px;
-}
-
-.giochi-abbina-azioni {
-  margin-top: 10px;
-}
-
-.giochi-pasto-opzioni {
-  display: flex;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-
-.giochi-pasto-totale {
-  font-weight: 600;
-  margin: 8px 0;
-}
-
-.giochi-valutazione {
-  background: var(--surface-alt-2);
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin: 12px 0;
-  border-left: 4px solid var(--border);
-}
-
-.giochi-valutazione.giochi-corretto {
-  border-left-color: var(--accent);
-}
-
-.giochi-valutazione.giochi-sbagliato {
-  border-left-color: var(--danger);
-}
-
-.giochi-valutazione p {
-  margin: 4px 0;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.variazione {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.tabella-checkin {
-  table-layout: fixed;
-}
-
-.tabella-checkin th:nth-child(1), .tabella-checkin td:nth-child(1) { width: 16%; }
-.tabella-checkin th:nth-child(2), .tabella-checkin td:nth-child(2) { width: 17%; }
-.tabella-checkin th:nth-child(3), .tabella-checkin td:nth-child(3) { width: 17%; }
-.tabella-checkin th:nth-child(4), .tabella-checkin td:nth-child(4) { width: 17%; }
-.tabella-checkin th:nth-child(5), .tabella-checkin td:nth-child(5) { width: 17%; }
-.tabella-checkin th:nth-child(6), .tabella-checkin td:nth-child(6) { width: 16%; }
-
-.badge-checkin {
-  display: inline-block;
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-
-.badge-checkin.in-ritardo {
-  background: var(--danger-tint);
-  color: var(--danger-text);
-  border: 1px solid var(--danger);
-}
-
-.badge-checkin.in-linea {
-  background: var(--accent-tint);
-  color: var(--accent);
-  border: 1px solid var(--accent-border);
+.giochi-cta-btn:hover {
+  background: #fff2fa;
+  color: #e4457b;
 }
 
 /* ---------- Open Food Facts (ricerca admin + scanner paziente) ---------- */

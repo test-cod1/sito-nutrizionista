@@ -1,0 +1,332 @@
+:root {
+  --g-bg1: #f7f3ff;
+  --g-bg2: #fff0f7;
+  --g-text: #2c2140;
+  --g-text-muted: #6a5f85;
+  --g-surface: #ffffff;
+  --g-border: #ece4fb;
+  --g-quiz: #4f6df5;
+  --g-quiz-dark: #3a52c9;
+  --g-abbina: #21b06f;
+  --g-abbina-dark: #17925a;
+  --g-pasto: #ff8a3d;
+  --g-pasto-dark: #e56f22;
+  --g-danger: #e34b6f;
+  --g-shadow: rgba(90, 60, 160, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --g-bg1: #1b1530;
+    --g-bg2: #241a33;
+    --g-text: #f1ecff;
+    --g-text-muted: #b6a9d9;
+    --g-surface: #241c38;
+    --g-border: #382a52;
+    --g-shadow: rgba(0, 0, 0, 0.4);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: linear-gradient(160deg, var(--g-bg1), var(--g-bg2));
+  color: var(--g-text);
+  min-height: 100vh;
+}
+
+.giochi-pagina {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 20px 64px;
+}
+
+.giochi-torna {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: var(--g-text-muted);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.giochi-torna:hover {
+  color: var(--g-text);
+}
+
+.giochi-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.giochi-header h1 {
+  font-size: 2rem;
+  margin: 4px 0;
+}
+
+.giochi-sottotitolo {
+  color: var(--g-text-muted);
+  font-size: 1.05rem;
+}
+
+.giochi-hub {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.gioco-card {
+  border: none;
+  border-radius: 20px;
+  padding: 28px 20px;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 10px 24px var(--g-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gioco-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 14px 30px var(--g-shadow);
+}
+
+.gioco-card:active {
+  transform: translateY(-1px) scale(1);
+}
+
+.gioco-card-quiz { background: linear-gradient(135deg, var(--g-quiz), var(--g-quiz-dark)); }
+.gioco-card-abbina { background: linear-gradient(135deg, var(--g-abbina), var(--g-abbina-dark)); }
+.gioco-card-pasto { background: linear-gradient(135deg, var(--g-pasto), var(--g-pasto-dark)); }
+
+.gioco-card-icona {
+  font-size: 2.4rem;
+}
+
+.gioco-card-titolo {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.gioco-card-desc {
+  font-size: 0.92rem;
+  opacity: 0.92;
+}
+
+.gioco-card-play {
+  margin-top: 10px;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.22);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.giochi-panello.hidden,
+.giochi-hub.hidden,
+.giochi-tab.hidden {
+  display: none;
+}
+
+.giochi-indietro {
+  background: none;
+  border: none;
+  color: var(--g-text-muted);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 18px;
+  font-size: 0.95rem;
+}
+
+.giochi-indietro:hover {
+  color: var(--g-text);
+}
+
+.giochi-tab {
+  background: var(--g-surface);
+  border: 1px solid var(--g-border);
+  border-radius: 20px;
+  padding: 26px 24px;
+  box-shadow: 0 10px 24px var(--g-shadow);
+}
+
+.giochi-tab h2 {
+  margin-top: 0;
+}
+
+.giochi-hint,
+.hint {
+  color: var(--g-text-muted);
+}
+
+/* Quiz */
+
+.giochi-quiz-affermazione {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 16px 0;
+  line-height: 1.4;
+}
+
+.giochi-quiz-bottoni {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.giochi-quiz-bottoni button {
+  flex: 1 1 140px;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.1s ease;
+}
+
+.giochi-quiz-bottoni button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.giochi-quiz-bottoni button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.giochi-quiz-bottoni button[data-valore="true"] { background: var(--g-abbina); }
+.giochi-quiz-bottoni button[data-valore="false"] { background: var(--g-danger); }
+
+.giochi-corretto { color: var(--g-abbina-dark); font-weight: 700; }
+.giochi-sbagliato { color: var(--g-danger); font-weight: 700; }
+
+.giochi-risultato {
+  font-size: 1.15rem;
+  margin: 18px 0;
+  font-weight: 600;
+}
+
+.giochi-prossimo-btn,
+.giochi-rigioca-btn,
+.giochi-verifica-btn,
+.giochi-nuovo-btn {
+  margin-top: 14px;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  background: var(--g-quiz);
+}
+
+.giochi-prossimo-btn:hover,
+.giochi-rigioca-btn:hover,
+.giochi-verifica-btn:hover,
+.giochi-nuovo-btn:hover {
+  filter: brightness(1.08);
+}
+
+.giochi-verifica-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* Chip condivisi (abbina + pasto) */
+
+.giochi-chip {
+  background: var(--g-surface);
+  color: var(--g-text);
+  border: 2px solid var(--g-border);
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0 8px 8px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.giochi-chip:hover:not(:disabled) {
+  border-color: var(--g-quiz);
+  transform: translateY(-2px);
+}
+
+.giochi-chip.selezionato { background: var(--g-quiz); border-color: var(--g-quiz); color: #fff; }
+.giochi-chip.corretto { background: var(--g-abbina); border-color: var(--g-abbina); color: #fff; }
+.giochi-chip.sbagliato { background: var(--g-danger); border-color: var(--g-danger); color: #fff; }
+
+.giochi-chip:disabled {
+  cursor: default;
+}
+
+.giochi-abbina-pool {
+  border: 2px dashed var(--g-border);
+  border-radius: 16px;
+  padding: 14px;
+  margin: 12px 0 18px;
+  min-height: 50px;
+}
+
+.giochi-categorie-griglia {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.giochi-categoria-box {
+  border: 2px solid var(--g-border);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: var(--g-bg1);
+  min-height: 74px;
+}
+
+.giochi-categoria-box h4 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  color: var(--g-text-muted);
+}
+
+.giochi-pasto-opzioni {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.giochi-valutazione {
+  background: var(--g-bg1);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin: 14px 0;
+  border-left: 5px solid var(--g-border);
+}
+
+.giochi-valutazione.giochi-corretto { border-left-color: var(--g-abbina); }
+.giochi-valutazione.giochi-sbagliato { border-left-color: var(--g-danger); }
+
+.giochi-valutazione p {
+  margin: 5px 0;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .giochi-quiz-bottoni {
+    flex-direction: column;
+  }
+}
