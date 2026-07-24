@@ -139,6 +139,7 @@
       <div class="duplica-azioni">
         <button type="button" id="impostazioni-reset-password-btn" class="secondary">Reimposta password</button>
         <button type="button" id="impostazioni-privacy-btn" class="secondary">Leggi l'informativa privacy</button>
+        <button type="button" id="impostazioni-storico-btn" class="secondary">Le mie diete precedenti</button>
         <button type="button" id="impostazioni-esporta-btn" class="secondary">Scarica i tuoi dati</button>
         <button type="button" id="impostazioni-cancellazione-btn" class="danger-scuro">Richiedi la cancellazione dei tuoi dati</button>
         <button type="button" id="paziente-impostazioni-chiudi-btn" class="danger">Chiudi</button>
@@ -193,6 +194,32 @@
         <p class="duplica-sottotitolo">La tua richiesta di cancellazione dati è stata inviata al tuo nutrizionista. Verrai contattato/a per proseguire.</p>
         <div class="duplica-azioni">
           <button id="cancellazione-step-3-chiudi-btn">Ho capito</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Le mie diete precedenti (paziente): rivede in sola lettura le versioni archiviate -->
+  <div id="paziente-storico-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal duplica-modal-larga">
+
+      <div id="paziente-storico-lista-vista">
+        <h3>Le mie diete precedenti</h3>
+        <p class="duplica-sottotitolo">Le versioni precedenti del tuo piano alimentare. Aprine una per rivederla; il tuo piano attuale non viene modificato.</p>
+        <div id="paziente-storico-lista"></div>
+        <div class="duplica-azioni">
+          <button id="paziente-storico-chiudi-btn" class="danger">Chiudi</button>
+        </div>
+      </div>
+
+      <div id="paziente-storico-dettaglio-vista" class="hidden">
+        <div class="dieta-header no-print">
+          <h3 id="paziente-storico-dettaglio-titolo"></h3>
+        </div>
+        <div id="paziente-storico-dettaglio"></div>
+        <div class="duplica-azioni">
+          <button id="paziente-storico-indietro-btn" class="secondary">← Torna all'elenco</button>
         </div>
       </div>
 

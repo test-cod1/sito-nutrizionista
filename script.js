@@ -208,6 +208,17 @@ const consensoPrivacyErrore = document.getElementById("consenso-privacy-errore")
 const consensoPrivacyAccettaBtn = document.getElementById("consenso-privacy-accetta-btn");
 const impostazioniPrivacyBtn = document.getElementById("impostazioni-privacy-btn");
 const impostazioniEsportaBtn = document.getElementById("impostazioni-esporta-btn");
+const impostazioniStoricoBtn = document.getElementById("impostazioni-storico-btn");
+
+// Le mie diete precedenti (paziente)
+const pazienteStoricoOverlay = document.getElementById("paziente-storico-overlay");
+const pazienteStoricoListaVista = document.getElementById("paziente-storico-lista-vista");
+const pazienteStoricoLista = document.getElementById("paziente-storico-lista");
+const pazienteStoricoDettaglioVista = document.getElementById("paziente-storico-dettaglio-vista");
+const pazienteStoricoDettaglio = document.getElementById("paziente-storico-dettaglio");
+const pazienteStoricoDettaglioTitolo = document.getElementById("paziente-storico-dettaglio-titolo");
+const pazienteStoricoChiudiBtn = document.getElementById("paziente-storico-chiudi-btn");
+const pazienteStoricoIndietroBtn = document.getElementById("paziente-storico-indietro-btn");
 
 // Notifiche push
 const notificheOverlay = document.getElementById("notifiche-overlay");
@@ -744,6 +755,78 @@ async function esportaDatiPersonali() {
   } finally {
     impostazioniEsportaBtn.disabled = false;
   }
+}
+
+// ---------- Le mie diete precedenti (paziente) ----------
+// Il paziente rivede in sola lettura le versioni archiviate del proprio piano.
+// La dieta storica viene renderizzata facendo backup/ripristino di `state`,
+// così la vista del piano attivo non viene mai alterata (stessa tecnica dello
+// storico admin). Richiede la policy RLS che consente al paziente di leggere
+// le proprie diete, non solo quella attiva.
+
+async function apriPazienteStorico() {
+  if (!pazienteCorrente) return;
+  pazienteStoricoDettaglioVista.classList.add("hidden");
+  pazienteStoricoListaVista.classList.remove("hidden");
+  pazienteStoricoLista.innerHTML = '<p class="vuoto">Caricamento…</p>';
+  pazienteStoricoOverlay.classList.remove("hidden");
+
+  const { data, error } = await supabaseClient
+    .from("diete")
+    .select("id, created_at")
+    .eq("paziente_id", pazienteCorrente.id)
+    .eq("stato", "archiviata")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    pazienteStoricoLista.innerHTML = `<p class="error">Errore nel caricamento: ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+  if (!data || data.length === 0) {
+    pazienteStoricoLista.innerHTML = '<p class="vuoto">Non ci sono ancora versioni precedenti del tuo piano.</p>';
+    return;
+  }
+
+  pazienteStoricoLista.innerHTML = data.map(riga => {
+    const dataStr = new Date(riga.created_at).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+    return `
+      <div class="storico-riga">
+        <div class="storico-riga-info">
+          <div class="storico-data">${dataStr}</div>
+        </div>
+        <button type="button" class="secondary paziente-storico-apri-btn" data-id="${riga.id}">Rivedi</button>
+      </div>
+    `;
+  }).join("");
+}
+
+async function mostraDietaStorica(dietaId) {
+  const { data, error } = await supabaseClient.from("diete").select("dati, created_at").eq("id", dietaId).single();
+  if (error) {
+    alert("Errore nel caricamento della dieta: " + error.message);
+    return;
+  }
+
+  // Backup e ripristino di `state`: genero l'HTML del piano storico senza
+  // toccare la vista del piano attivo del paziente.
+  const backupState = JSON.parse(JSON.stringify(state));
+  applicaDatiDieta(data.dati);
+  const html = costruisciContenutoPrintDieta();
+  Object.assign(state, backupState);
+
+  pazienteStoricoDettaglioTitolo.textContent = "Piano del " + new Date(data.created_at).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+  pazienteStoricoDettaglio.innerHTML = html;
+  pazienteStoricoListaVista.classList.add("hidden");
+  pazienteStoricoDettaglioVista.classList.remove("hidden");
+}
+
+function tornaElencoStoricoPaziente() {
+  pazienteStoricoDettaglioVista.classList.add("hidden");
+  pazienteStoricoListaVista.classList.remove("hidden");
+}
+
+function chiudiPazienteStorico() {
+  pazienteStoricoOverlay.classList.add("hidden");
 }
 
 // ---------- Richiesta di cancellazione dati (paziente) ----------
@@ -4493,6 +4576,19 @@ function inizializza() {
     window.open("privacy.html", "_blank", "noopener");
   });
   impostazioniEsportaBtn.addEventListener("click", esportaDatiPersonali);
+  impostazioniStoricoBtn.addEventListener("click", () => {
+    chiudiPazienteImpostazioni();
+    apriPazienteStorico();
+  });
+  pazienteStoricoChiudiBtn.addEventListener("click", chiudiPazienteStorico);
+  pazienteStoricoIndietroBtn.addEventListener("click", tornaElencoStoricoPaziente);
+  pazienteStoricoOverlay.addEventListener("click", (e) => {
+    if (e.target === pazienteStoricoOverlay) chiudiPazienteStorico();
+  });
+  pazienteStoricoLista.addEventListener("click", (e) => {
+    const btn = e.target.closest(".paziente-storico-apri-btn");
+    if (btn) mostraDietaStorica(btn.dataset.id);
+  });
 
   consensoPrivacyAccettaBtn.addEventListener("click", confermaConsensoPrivacy);
 
