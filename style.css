@@ -1279,14 +1279,24 @@ table tfoot .riga-totale td {
   font-size: 0.95rem;
 }
 
+/* Il QR va SEMPRE mostrato scuro su bianco, con un margine (quiet zone),
+   anche in tema notte: altrimenti i moduli neri su sfondo scuro non sono
+   inquadrabili dallo scanner. Il color: #000 forza a nero anche gli SVG
+   che disegnano i moduli con currentColor. */
 #sicurezza-qr-contenitore {
   margin: 12px 0;
-  max-width: 220px;
+  max-width: 240px;
+  background: #ffffff;
+  color: #000000;
+  padding: 12px;
+  border-radius: 8px;
+  box-sizing: border-box;
 }
 
 #sicurezza-qr-contenitore svg {
   width: 100%;
   height: auto;
+  display: block;
 }
 
 .prossimo-appuntamento-riga {
