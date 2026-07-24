@@ -510,9 +510,6 @@ const sicurezzaSetupCodiceInput = document.getElementById("sicurezza-setup-codic
 const sicurezzaSetupConfermaBtn = document.getElementById("sicurezza-setup-conferma-btn");
 const sicurezzaSetupAnnullaBtn = document.getElementById("sicurezza-setup-annulla-btn");
 const sicurezzaSetupErrore = document.getElementById("sicurezza-setup-errore");
-const sicurezzaBackupBlocco = document.getElementById("sicurezza-backup-blocco");
-const sicurezzaBackupLista = document.getElementById("sicurezza-backup-lista");
-const sicurezzaBackupChiudiBtn = document.getElementById("sicurezza-backup-chiudi-btn");
 let mfaFactorIdCorrente = null;
 
 // Verifica 2FA al login (admin)
@@ -520,10 +517,6 @@ const verifica2faOverlay = document.getElementById("verifica-2fa-overlay");
 const verifica2faCodiceInput = document.getElementById("verifica-2fa-codice-input");
 const verifica2faConfermaBtn = document.getElementById("verifica-2fa-conferma-btn");
 const verifica2faErrore = document.getElementById("verifica-2fa-errore");
-const verifica2faBackupLink = document.getElementById("verifica-2fa-backup-link");
-const verifica2faBackupBlocco = document.getElementById("verifica-2fa-backup-blocco");
-const verifica2faBackupInput = document.getElementById("verifica-2fa-backup-input");
-const verifica2faBackupBtn = document.getElementById("verifica-2fa-backup-btn");
 let mfaFactorIdLogin = null;
 
 // ---------- Modalità giorno/notte ----------
@@ -1018,8 +1011,6 @@ async function verificaSeServe2FA() {
 function mostraVerifica2FA() {
   verifica2faCodiceInput.value = "";
   verifica2faErrore.classList.add("hidden");
-  verifica2faBackupBlocco.classList.add("hidden");
-  verifica2faBackupInput.value = "";
   verifica2faOverlay.classList.remove("hidden");
   verifica2faCodiceInput.focus();
 }
@@ -1051,26 +1042,6 @@ async function confermaVerifica2FA() {
 
   if (error) {
     verifica2faErrore.textContent = "Codice non valido. Riprova.";
-    verifica2faErrore.classList.remove("hidden");
-    return;
-  }
-
-  chiudiVerifica2FA();
-  await avviaDopoLogin();
-}
-
-async function confermaBackupLogin() {
-  const codice = verifica2faBackupInput.value.trim();
-  verifica2faErrore.classList.add("hidden");
-  if (!codice) {
-    verifica2faErrore.textContent = "Inserisci un codice di backup.";
-    verifica2faErrore.classList.remove("hidden");
-    return;
-  }
-
-  const valido = await consumaCodiceBackup(codice);
-  if (!valido) {
-    verifica2faErrore.textContent = "Codice di backup non valido o già usato.";
     verifica2faErrore.classList.remove("hidden");
     return;
   }
@@ -2069,47 +2040,16 @@ async function inviaInvito() {
 // ---------- Sicurezza account: autenticazione a due fattori (admin) ----------
 // Usa l'MFA nativo di Supabase Auth (TOTP): QR code, verifica e assurance
 // level (aal1/aal2) sono gestiti interamente da Supabase, qui ci limitiamo a
-// chiamare mfa.enroll/challenge/verify/unenroll. I codici di backup non sono
-// previsti dall'MFA nativo: li generiamo noi (crypto.getRandomValues) e ne
-// salviamo solo l'hash SHA-256 in admin_backup_codes (RLS: solo il proprietario
-// può leggerli/cancellarli). Di default la 2FA è disattivata: se l'admin non
-// la attiva mai, verificaSeServe2FA() non troverà nessun fattore e il login
-// resta esattamente come oggi.
-
-async function sha256Hex(testo) {
-  const dati = new TextEncoder().encode(testo);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", dati);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-function generaCodiceBackup() {
-  const bytes = new Uint8Array(5);
-  crypto.getRandomValues(bytes);
-  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-  return `${hex.slice(0, 5)}-${hex.slice(5, 10)}`;
-}
-
-async function consumaCodiceBackup(codice) {
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) return false;
-
-  const hash = await sha256Hex(codice.trim().toUpperCase());
-  const { data, error } = await supabaseClient
-    .from("admin_backup_codes")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("code_hash", hash)
-    .limit(1);
-
-  if (error || !data || data.length === 0) return false;
-
-  await supabaseClient.from("admin_backup_codes").delete().eq("id", data[0].id);
-  return true;
-}
+// chiamare mfa.enroll/challenge/verify/unenroll. La 2FA e' imposta anche a
+// livello database: le policy RLS sulle tabelle dei dati richiedono aal2
+// (funzione mfa_soddisfatta lato Supabase), quindi non e' aggirabile dal solo
+// client. Non ci sono codici di backup: il recupero in caso di dispositivo
+// perso avviene rimuovendo il fattore dal pannello Supabase (Authentication).
+// Di default la 2FA e' disattivata: se l'admin non la attiva mai,
+// verificaSeServe2FA() non trovera' nessun fattore e il login resta invariato.
 
 async function apriSicurezza() {
   sicurezzaSetupBlocco.classList.add("hidden");
-  sicurezzaBackupBlocco.classList.add("hidden");
   sicurezzaDisattivaBlocco.classList.add("hidden");
   sicurezzaAttivaBtn.classList.add("hidden");
   sicurezzaStatoEl.textContent = "Verifica in corso...";
@@ -2188,34 +2128,8 @@ async function confermaAttivazione2FA() {
   }
 
   sicurezzaSetupBlocco.classList.add("hidden");
-  await generaEMostraBackupCodes();
-}
-
-async function generaEMostraBackupCodes() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (!user) return;
-
-  // Rimuove eventuali codici di un'attivazione precedente, ormai non più validi.
-  await supabaseClient.from("admin_backup_codes").delete().eq("user_id", user.id);
-
-  const codici = Array.from({ length: 8 }, generaCodiceBackup);
-  const righe = await Promise.all(codici.map(async (c) => ({
-    user_id: user.id,
-    code_hash: await sha256Hex(c)
-  })));
-
-  const { error } = await supabaseClient.from("admin_backup_codes").insert(righe);
-  if (error) {
-    alert("2FA attivata, ma non è stato possibile salvare i codici di backup: " + error.message);
-    return;
-  }
-
-  sicurezzaBackupLista.innerHTML = codici.map(c => `<p><code>${c}</code></p>`).join("");
-  sicurezzaBackupBlocco.classList.remove("hidden");
-}
-
-function chiudiBackupBlocco() {
-  sicurezzaBackupBlocco.classList.add("hidden");
+  sicurezzaStatoEl.textContent = "Autenticazione a due fattori: attiva.";
+  alert("Autenticazione a due fattori attivata correttamente. D'ora in poi ti verrà chiesto il codice a ogni accesso.");
   chiudiSicurezza();
 }
 
@@ -2234,9 +2148,6 @@ async function disattiva2FA() {
     const { error } = await supabaseClient.auth.mfa.verify({ factorId: mfaFactorIdCorrente, challengeId: challenge.id, code: codice });
     verificato = !error;
   }
-  if (!verificato) {
-    verificato = await consumaCodiceBackup(codice);
-  }
 
   if (!verificato) {
     sicurezzaDisattivaErrore.textContent = "Codice non valido.";
@@ -2250,9 +2161,6 @@ async function disattiva2FA() {
     sicurezzaDisattivaErrore.classList.remove("hidden");
     return;
   }
-
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (user) await supabaseClient.from("admin_backup_codes").delete().eq("user_id", user.id);
 
   chiudiSicurezza();
   alert("Autenticazione a due fattori disattivata.");
@@ -4679,18 +4587,12 @@ function inizializza() {
   sicurezzaAttivaBtn.addEventListener("click", avviaAttivazione2FA);
   sicurezzaSetupConfermaBtn.addEventListener("click", confermaAttivazione2FA);
   sicurezzaSetupAnnullaBtn.addEventListener("click", annullaAttivazione2FA);
-  sicurezzaBackupChiudiBtn.addEventListener("click", chiudiBackupBlocco);
   sicurezzaDisattivaConfermaBtn.addEventListener("click", disattiva2FA);
 
   verifica2faConfermaBtn.addEventListener("click", confermaVerifica2FA);
   verifica2faCodiceInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") confermaVerifica2FA();
   });
-  verifica2faBackupLink.addEventListener("click", (e) => {
-    e.preventDefault();
-    verifica2faBackupBlocco.classList.remove("hidden");
-  });
-  verifica2faBackupBtn.addEventListener("click", confermaBackupLogin);
 
   pazienteSearchInput.addEventListener("input", () => aggiornaSuggerimentiPazienti(false));
 

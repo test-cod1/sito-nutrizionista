@@ -783,16 +783,8 @@
         </div>
       </div>
 
-      <div id="sicurezza-backup-blocco" class="hidden">
-        <p class="duplica-sottotitolo"><strong>Salva questi codici di backup in un posto sicuro.</strong> Ti servono per accedere se perdi l'accesso all'app authenticator: ognuno è utilizzabile una sola volta e non verranno mostrati di nuovo.</p>
-        <div id="sicurezza-backup-lista"></div>
-        <div class="duplica-azioni">
-          <button id="sicurezza-backup-chiudi-btn">Li ho salvati, chiudi</button>
-        </div>
-      </div>
-
       <div id="sicurezza-disattiva-blocco" class="hidden">
-        <label for="sicurezza-disattiva-codice-input">Per disattivare, inserisci un codice attuale dall'app (o un codice di backup)</label>
+        <label for="sicurezza-disattiva-codice-input">Per disattivare, inserisci un codice attuale dall'app</label>
         <input type="text" id="sicurezza-disattiva-codice-input" autocomplete="one-time-code">
         <p id="sicurezza-disattiva-errore" class="error hidden"></p>
         <button id="sicurezza-disattiva-conferma-btn" class="danger">Disattiva 2FA</button>
@@ -814,12 +806,6 @@
       <p id="verifica-2fa-errore" class="error hidden"></p>
       <div class="duplica-azioni">
         <button id="verifica-2fa-conferma-btn">Verifica</button>
-      </div>
-      <p><a href="#" id="verifica-2fa-backup-link">Usa un codice di backup</a></p>
-      <div id="verifica-2fa-backup-blocco" class="hidden">
-        <label for="verifica-2fa-backup-input">Codice di backup</label>
-        <input type="text" id="verifica-2fa-backup-input" autocomplete="one-time-code">
-        <button id="verifica-2fa-backup-btn">Verifica codice di backup</button>
       </div>
     </div>
   </div>
