@@ -2555,17 +2555,19 @@ textarea:focus {
 
 .kcal-modo-toggle {
   display: inline-flex;
+  align-items: center;
   gap: 4px;
   background: var(--surface-alt);
   border: 1px solid var(--border-input);
   border-radius: 999px;
   padding: 3px;
-  margin-bottom: 10px;
+  margin: 6px 0 10px;
 }
 
 .kcal-modo-btn {
   background: none;
   border: none;
+  margin: 0;
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.85rem;
