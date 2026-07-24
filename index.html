@@ -324,20 +324,6 @@
   </div>
 
   <div id="app-shell" class="hidden">
-    <div id="task-scadenza-banner" class="task-scadenza-banner no-print hidden">
-      <div class="task-scadenza-banner-messaggio">
-        <svg class="task-scadenza-banner-icona" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3.5 1.7 21h20.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-          <line x1="12" y1="9.5" x2="12" y2="14.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <circle cx="12" cy="17.3" r="1" fill="currentColor"/>
-        </svg>
-        <span id="task-scadenza-banner-testo"></span>
-      </div>
-      <div class="task-scadenza-banner-azioni">
-        <button type="button" id="task-scadenza-banner-vai-btn">Vai alla bacheca</button>
-        <button type="button" id="task-scadenza-banner-chiudi-btn" aria-label="Chiudi">✕</button>
-      </div>
-    </div>
     <button type="button" id="sezioni-toggle-btn" class="sezioni-toggle-btn no-print" title="Sezioni" aria-label="Mostra le sezioni del sito">☰</button>
     <div id="sezioni-overlay" class="sezioni-overlay hidden no-print"></div>
     <nav id="sezioni-sidebar" class="sezioni-sidebar no-print">
@@ -368,6 +354,21 @@
       <h1>Calcolatore Piano Alimentare</h1>
       <p class="hero-sub">Crea, calcola e stampa il piano alimentare del paziente</p>
     </header>
+
+    <div id="task-scadenza-banner" class="task-scadenza-banner no-print hidden">
+      <div class="task-scadenza-banner-messaggio">
+        <svg class="task-scadenza-banner-icona" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.5 1.7 21h20.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <line x1="12" y1="9.5" x2="12" y2="14.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="12" cy="17.3" r="1" fill="currentColor"/>
+        </svg>
+        <span id="task-scadenza-banner-testo"></span>
+      </div>
+      <div class="task-scadenza-banner-azioni">
+        <button type="button" id="task-scadenza-banner-vai-btn">Vai alla bacheca</button>
+        <button type="button" id="task-scadenza-banner-chiudi-btn" aria-label="Chiudi">✕</button>
+      </div>
+    </div>
 
     <section id="paziente-bar" class="card no-print">
       <div class="paziente-bar-riga">
