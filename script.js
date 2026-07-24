@@ -2874,8 +2874,8 @@ function verificaTaskInScadenza() {
     return;
   }
   taskScadenzaBannerTesto.textContent = urgenti.length === 1
-    ? `⚠️ Task in scadenza entro 24 ore: "${urgenti[0].titolo}"`
-    : `⚠️ ${urgenti.length} task in scadenza entro 24 ore`;
+    ? `Task in scadenza entro 24 ore: "${urgenti[0].titolo}"`
+    : `${urgenti.length} task in scadenza entro 24 ore`;
   taskScadenzaBanner.classList.remove("hidden");
 }
 
