@@ -34,10 +34,20 @@ export default {
     ctx.waitUntil(inviaPromemoriaAppuntamenti(env));
   },
 
-  // GET su "/" esegue lo stesso controllo su richiesta manuale, utile per
-  // verificare che il worker sia configurato correttamente senza aspettare
-  // l'orario del cron.
+  // Trigger manuale (utile per testare senza aspettare il cron), protetto da un
+  // token segreto: senza il token corretto risponde 404, così un estraneo non
+  // può forzare l'invio di notifiche push ai pazienti né leggere i conteggi.
+  // Il token va impostato come secret MANUAL_TRIGGER_TOKEN nelle impostazioni
+  // del Worker; se non è impostato, l'endpoint è inerte (404) e resta attivo
+  // solo il cron schedulato. Si passa come ?token=... oppure header
+  // X-Trigger-Token. Confronto a tempo costante per non rivelare il token.
   async fetch(request, env) {
+    const url = new URL(request.url);
+    const fornito = url.searchParams.get("token") || request.headers.get("x-trigger-token") || "";
+    if (!env.MANUAL_TRIGGER_TOKEN || !confrontoCostante(fornito, env.MANUAL_TRIGGER_TOKEN)) {
+      return new Response("Not found", { status: 404 });
+    }
+
     try {
       const checkin = await inviaPromemoriaCheckin(env);
       const appuntamenti = await inviaPromemoriaAppuntamenti(env);
@@ -52,6 +62,17 @@ export default {
     }
   }
 };
+
+// Confronto di stringhe a tempo (quasi) costante, per non far dedurre il token
+// dai tempi di risposta. La lunghezza non è segreta in questo contesto.
+function confrontoCostante(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
 
 async function inviaPromemoriaCheckin(env) {
   const richieste = ["SUPABASE_SECRET_KEY", "VAPID_PRIVATE_KEY", "VAPID_CONTACT_EMAIL"];

@@ -2351,11 +2351,12 @@ function aggiornaDisponibilitaSezioniPaziente() {
   sezioniLinkPaziente.forEach(link => link.classList.toggle("non-disponibile", !disponibili));
 }
 
-// Registra, senza bloccare l'interfaccia, che l'amministratore ha aperto la
-// scheda di questo paziente: è la base tecnica del registro degli accessi
-// richiesto per la conformità privacy (chi ha visto i dati sanitari di chi,
-// e quando). Un eventuale errore non deve impedire all'amministratore di
-// lavorare: viene solo segnalato in console.
+// Registra che l'amministratore ha aperto la scheda di questo paziente: è la
+// base del registro degli accessi richiesto per la conformità privacy (chi ha
+// visto i dati sanitari di chi, e quando). Se la registrazione fallisce,
+// l'admin viene avvisato in modo VISIBILE (accountability: deve sapere che
+// quella consultazione non è tracciata), ma può comunque continuare a lavorare
+// per non bloccarsi su un errore transitorio di rete/DB.
 async function registraAccessoAdmin(pazienteId) {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
@@ -2363,7 +2364,10 @@ async function registraAccessoAdmin(pazienteId) {
     admin_user_id: user.id,
     paziente_id: pazienteId
   });
-  if (error) console.error("Errore nella registrazione del log di accesso:", error);
+  if (error) {
+    console.error("Errore nella registrazione del log di accesso:", error);
+    alert("Attenzione: l'apertura di questa scheda non è stata registrata nel log accessi (" + error.message + "). Puoi continuare, ma questa consultazione non risulta tracciata.");
+  }
 }
 
 async function selezionaPaziente(pazienteId) {
@@ -2383,7 +2387,7 @@ async function selezionaPaziente(pazienteId) {
   const p = listaPazienti.find(p => p.id === pazienteId);
   if (!p) return;
   pazienteCorrente = { id: p.id, nome: p.nome, email: p.email, frequenza_checkin: p.frequenza_checkin };
-  registraAccessoAdmin(pazienteId);
+  await registraAccessoAdmin(pazienteId);
 
   const { data: dieteAttive, error } = await supabaseClient
     .from("diete")
