@@ -689,13 +689,16 @@ async function inviaResetPasswordPazienteProprio() {
 }
 
 // ---------- Esportazione dati personali (paziente, diritto alla portabilità) ----------
-// Scarica in un unico file JSON tutti i dati collegati al paziente loggato:
-// profilo, tutti i piani alimentari (non solo quello attivo), check-in,
-// storico peso e appuntamenti. Le query filtrano per il proprio paziente_id,
-// coerentemente con le stesse policy RLS che già permettono al paziente di
-// leggere solo i propri dati nella vista normale.
+// Scarica in un unico file JSON i dati collegati al paziente loggato: profilo,
+// piano alimentare, check-in, storico peso e appuntamenti. Le query filtrano
+// per il proprio paziente_id e sono comunque soggette alle policy RLS (che, ad
+// esempio, per le diete mostrano al paziente solo quella attiva).
+// Tutte e cinque le letture sono controllate: se ANCHE UNA fallisce l'export
+// viene annullato con un avviso, per non consegnare un file che sembra completo
+// ma ha delle sezioni mancanti in silenzio (importante per la portabilità).
 
 async function esportaDatiPersonali() {
+  if (!pazienteCorrente) return;
   impostazioniEsportaBtn.disabled = true;
   try {
     const pazienteId = pazienteCorrente.id;
@@ -703,21 +706,22 @@ async function esportaDatiPersonali() {
     const [
       { data: profilo, error: erroreProfilo },
       { data: diete, error: erroreDiete },
-      { data: appuntamenti, error: erroreApp }
+      { data: appuntamenti, error: erroreApp },
+      { data: checkin, error: erroreCheckin },
+      { data: storicoPeso, error: erroreStorico }
     ] = await Promise.all([
       supabaseClient.from("pazienti").select("*").eq("id", pazienteId).single(),
       supabaseClient.from("diete").select("*").eq("paziente_id", pazienteId).order("created_at", { ascending: false }),
-      supabaseClient.from("appuntamenti").select("*").eq("paziente_id", pazienteId).order("data_ora", { ascending: false })
+      supabaseClient.from("appuntamenti").select("*").eq("paziente_id", pazienteId).order("data_ora", { ascending: false }),
+      supabaseClient.from("checkin").select("*").eq("paziente_id", pazienteId).order("data_rilevazione", { ascending: false }),
+      supabaseClient.from("storico_peso").select("*").eq("paziente_id", pazienteId).order("created_at", { ascending: true })
     ]);
 
-    const errore = erroreProfilo || erroreDiete || erroreApp;
+    const errore = erroreProfilo || erroreDiete || erroreApp || erroreCheckin || erroreStorico;
     if (errore) {
-      alert("Errore nell'esportazione dei dati: " + errore.message);
+      alert("Errore nell'esportazione dei dati: " + errore.message + "\n\nPer non consegnarti un file incompleto, l'esportazione è stata annullata. Riprova; se il problema persiste, contatta lo studio.");
       return;
     }
-
-    const checkin = await caricaCheckin(pazienteId);
-    const storicoPeso = await caricaStoricoPeso(pazienteId);
 
     const pacchetto = {
       generato_il: new Date().toISOString(),
