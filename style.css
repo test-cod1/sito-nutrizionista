@@ -1030,6 +1030,59 @@ table tfoot .riga-totale td {
   cursor: help;
 }
 
+/* Chip di feedback allergeni sotto il campo del profilo */
+.allergie-rilevati {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.allergie-rilevati:empty {
+  margin-top: 0;
+}
+
+.allergie-rilevati-titolo {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.allergie-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.allergie-chip-nota {
+  background: var(--danger-tint);
+  color: var(--danger-text);
+  border-color: var(--danger);
+}
+
+.allergie-chip-libero {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  border-color: var(--border-input);
+}
+
+/* Avviso allergene nella scheda prodotto Open Food Facts */
+.off-allergene-avviso {
+  background: var(--danger-tint);
+  border: 1px solid var(--danger);
+  color: var(--danger-text);
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 /* ---------- Check-in periodico ---------- */
 
 .tab-strip {

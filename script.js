@@ -377,6 +377,69 @@ function costruisciRiepilogoAllergeni() {
   return banner;
 }
 
+// Mappa allergene → token della tassonomia Open Food Facts (campo "allergens",
+// es. "en:gluten,en:milk"). Usata per la consultazione OFF, dove il dato
+// allergeni è strutturato e affidabile.
+const ALLERGENI_OFF = {
+  glutine: ["gluten"],
+  latte: ["milk", "lait", "latte", "leche", "milch"],
+  uova: ["egg", "oeuf", "uova", "uovo", "huevo"],
+  pesce: ["fish", "poisson", "pesce", "pescado"],
+  crostacei: ["crustacean", "crustace", "crostacei"],
+  molluschi: ["mollusc", "molusco", "mollusch"],
+  frutta_guscio: ["nuts", "tree-nut", "almond", "hazelnut", "walnut", "cashew", "pistachio", "macadamia", "pecan", "brazil"],
+  arachidi: ["peanut", "arachid", "cacahuete"],
+  soia: ["soy", "soja", "soia", "soybean"],
+  sedano: ["celery", "celeri", "sedano", "apio", "sellerie"],
+  senape: ["mustard", "moutarde", "senape", "mostaza", "senf"],
+  sesamo: ["sesam", "sesamo"],
+  solfiti: ["sulphite", "sulfite", "sulphur", "sulfit", "solfit", "solforosa"],
+  lupini: ["lupin"]
+};
+// Token da rimuovere dai tag OFF prima del confronto, per evitare collisioni
+// (es. "peanuts" contiene "nuts": non deve attivare la frutta a guscio).
+const ALLERGENI_OFF_ESCLUDI = { frutta_guscio: ["peanut", "arachid"] };
+
+// Allergeni del paziente presenti in un prodotto OFF: usa i tag OFF strutturati
+// e, come rinforzo, le parole chiave italiane su nome+ingredienti.
+function allergeniProdottoOFF(prodotto, analisi) {
+  if (!prodotto) return [];
+  const tag = normalizzaTesto(prodotto.allergeni || "");
+  const testo = normalizzaTesto((prodotto.nome || "") + " " + (prodotto.ingredienti || ""));
+  const trovati = [];
+  analisi.categorie.forEach(cat => {
+    const offEscl = ALLERGENI_OFF_ESCLUDI[cat.id] || [];
+    const tagPulito = offEscl.reduce((s, e) => s.split(normalizzaTesto(e)).join(" "), tag);
+    const matchTag = (ALLERGENI_OFF[cat.id] || []).some(o => tagPulito.includes(normalizzaTesto(o)));
+    const escludiTesto = (cat.escludi || []).some(e => testo.includes(normalizzaTesto(e)));
+    const matchTesto = !escludiTesto && cat.parole.some(w => testo.includes(normalizzaTesto(w)));
+    if (matchTag || matchTesto) trovati.push(cat.nome);
+  });
+  analisi.extra.forEach(tok => {
+    if ((tag.includes(tok) || testo.includes(tok)) && !trovati.includes(tok)) trovati.push(tok);
+  });
+  return trovati;
+}
+
+// Chip di feedback sotto il campo "allergie" del profilo: mostra cosa il
+// sistema ha riconosciuto (categorie note + termini liberi).
+function renderChipAllergie() {
+  if (!profiloAllergieRilevati) return;
+  const analisi = analizzaAllergiePaziente(profiloAllergieInput.value);
+  if (!analisi.categorie.length && !analisi.extra.length) {
+    profiloAllergieRilevati.innerHTML = "";
+    return;
+  }
+  const chipCategorie = analisi.categorie.map(c =>
+    `<span class="allergie-chip allergie-chip-nota">${escapeHtml(c.nome)}</span>`
+  ).join("");
+  const chipExtra = analisi.extra.map(t =>
+    `<span class="allergie-chip allergie-chip-libero">${escapeHtml(t)}</span>`
+  ).join("");
+  profiloAllergieRilevati.innerHTML =
+    `<span class="allergie-rilevati-titolo">Riconosciuti per l'alert nel piano:</span> ${chipCategorie}${chipExtra}`;
+}
+
 // Elementi DOM
 const foodInput = document.getElementById("food-input");
 const suggestions = document.getElementById("suggestions");
@@ -553,6 +616,7 @@ const profiloAttivitaInput = document.getElementById("profilo-attivita");
 const profiloTelefonoInput = document.getElementById("profilo-telefono");
 const profiloEmailInput = document.getElementById("profilo-email");
 const profiloAllergieInput = document.getElementById("profilo-allergie");
+const profiloAllergieRilevati = document.getElementById("profilo-allergie-rilevati");
 const profiloNoteInput = document.getElementById("profilo-note");
 const profiloNonSeguitoCheck = document.getElementById("profilo-non-seguito-check");
 const profiloSalvaBtn = document.getElementById("profilo-salva-btn");
@@ -1692,7 +1756,7 @@ async function avviaVistaPaziente(pazienteRecord) {
   pazienteLogoutBtn.classList.remove("hidden");
   vistaPazienteNomeEl.textContent = pazienteRecord.nome;
 
-  pazienteCorrente = { id: pazienteRecord.id, nome: pazienteRecord.nome, frequenza_checkin: pazienteRecord.frequenza_checkin };
+  pazienteCorrente = { id: pazienteRecord.id, nome: pazienteRecord.nome, frequenza_checkin: pazienteRecord.frequenza_checkin, allergie: pazienteRecord.allergie };
   renderProfiloPazienteVista(pazienteRecord);
   await caricaProssimoAppuntamento(pazienteRecord.id);
 
@@ -2039,8 +2103,17 @@ function renderSchedaProdottoOFF(p) {
     ? `<img src="${escapeHtml(p.immagine)}" data-full="${escapeHtml(p.immagineGrande || p.immagine)}" alt="Foto prodotto (clicca per ingrandire)" class="off-foto-prodotto" loading="lazy" onerror="this.remove()">`
     : "";
 
+  // Avviso se il prodotto contiene un allergene dichiarato dal paziente in uso
+  // (admin: paziente selezionato; vista paziente: paziente loggato).
+  const analisi = analizzaAllergiePaziente(pazienteCorrente && pazienteCorrente.allergie);
+  const allergeniPz = (analisi.categorie.length || analisi.extra.length) ? allergeniProdottoOFF(p, analisi) : [];
+  const avvisoAllergene = allergeniPz.length
+    ? `<div class="off-allergene-avviso">⚠ Attenzione: questo prodotto risulta contenere <strong>${escapeHtml(allergeniPz.join(", "))}</strong>, tra gli allergeni dichiarati. Verifica sempre l'etichetta.</div>`
+    : "";
+
   return `
     <article class="off-scheda-prodotto">
+      ${avvisoAllergene}
       <div class="off-scheda-intestazione">
         ${foto}
         <div>
@@ -3625,6 +3698,7 @@ async function apriProfiloPaziente() {
   profiloNoteInput.value = data.note || "";
   profiloPesoOriginale = data.peso_kg ?? null;
   profiloResetMsg.classList.add("hidden");
+  renderChipAllergie();
 
   profiloOverlay.classList.remove("hidden");
 }
@@ -5219,6 +5293,7 @@ function inizializza() {
 
   profiloBtn.addEventListener("click", apriProfiloPaziente);
   profiloSalvaBtn.addEventListener("click", salvaProfiloPaziente);
+  profiloAllergieInput.addEventListener("input", renderChipAllergie);
   profiloResetPasswordBtn.addEventListener("click", resettaPasswordPaziente);
   profiloAnnullaBtn.addEventListener("click", chiudiProfiloPaziente);
   profiloOverlay.addEventListener("click", (e) => {
