@@ -1030,44 +1030,40 @@ table tfoot .riga-totale td {
   cursor: help;
 }
 
-/* Chip di feedback allergeni sotto il campo del profilo */
-.allergie-rilevati {
+/* Selezione allergeni nel profilo: caselle a forma di chip */
+.allergeni-scelta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin: 4px 0 6px;
 }
 
-.allergie-rilevati:empty {
-  margin-top: 0;
-}
-
-.allergie-rilevati-titolo {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.allergie-chip {
+.allergene-opzione {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  gap: 7px;
+  margin: 0;
+  padding: 7px 13px;
   border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  border: 1px solid transparent;
-}
-
-.allergie-chip-nota {
-  background: var(--danger-tint);
-  color: var(--danger-text);
-  border-color: var(--danger);
-}
-
-.allergie-chip-libero {
+  border: 1px solid var(--border-input);
   background: var(--surface-alt);
   color: var(--text-muted);
-  border-color: var(--border-input);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.allergene-opzione input {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--danger);
+}
+
+.allergene-opzione:has(input:checked) {
+  background: var(--danger-tint);
+  border-color: var(--danger);
+  color: var(--danger-text);
 }
 
 /* Avviso allergene nella scheda prodotto Open Food Facts */

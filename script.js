@@ -421,23 +421,39 @@ function allergeniProdottoOFF(prodotto, analisi) {
   return trovati;
 }
 
-// Chip di feedback sotto il campo "allergie" del profilo: mostra cosa il
-// sistema ha riconosciuto (categorie note + termini liberi).
-function renderChipAllergie() {
-  if (!profiloAllergieRilevati) return;
-  const analisi = analizzaAllergiePaziente(profiloAllergieInput.value);
-  if (!analisi.categorie.length && !analisi.extra.length) {
-    profiloAllergieRilevati.innerHTML = "";
-    return;
-  }
-  const chipCategorie = analisi.categorie.map(c =>
-    `<span class="allergie-chip allergie-chip-nota">${escapeHtml(c.nome)}</span>`
+// Selezione allergeni nel profilo: 14 caselle (allergeni UE) + campo "Altro".
+// Sul database resta una singola stringa "allergie" (nomi selezionati + testo
+// libero), letta senza modifiche dall'alert del piano e dal matching OFF; i
+// dati preesistenti a testo libero vengono interpretati per pre-selezionare.
+
+// Popola una sola volta le caselle degli allergeni dal catalogo.
+function popolaSceltaAllergeni() {
+  if (!profiloAllergeniLista || profiloAllergeniLista.childElementCount) return;
+  profiloAllergeniLista.innerHTML = ALLERGENI_CATALOGO.map(cat =>
+    `<label class="allergene-opzione"><input type="checkbox" value="${cat.id}"> ${escapeHtml(cat.nome)}</label>`
   ).join("");
-  const chipExtra = analisi.extra.map(t =>
-    `<span class="allergie-chip allergie-chip-libero">${escapeHtml(t)}</span>`
-  ).join("");
-  profiloAllergieRilevati.innerHTML =
-    `<span class="allergie-rilevati-titolo">Riconosciuti per l'alert nel piano:</span> ${chipCategorie}${chipExtra}`;
+}
+
+// Pre-seleziona le caselle e compila "Altro" a partire dalla stringa salvata.
+function impostaAllergeniProfilo(allergieText) {
+  popolaSceltaAllergeni();
+  const analisi = analizzaAllergiePaziente(allergieText);
+  const idAttivi = new Set(analisi.categorie.map(c => c.id));
+  profiloAllergeniLista.querySelectorAll("input[type=checkbox]").forEach(cb => {
+    cb.checked = idAttivi.has(cb.value);
+  });
+  profiloAllergieAltroInput.value = analisi.extra.join(", ");
+}
+
+// Ricostruisce la stringa "allergie" da salvare: nomi canonici delle categorie
+// selezionate + eventuale testo libero.
+function leggiAllergeniProfilo() {
+  const nomi = [...profiloAllergeniLista.querySelectorAll("input[type=checkbox]:checked")]
+    .map(cb => { const cat = ALLERGENI_CATALOGO.find(c => c.id === cb.value); return cat ? cat.nome : null; })
+    .filter(Boolean);
+  const altro = profiloAllergieAltroInput.value.trim();
+  if (altro) nomi.push(altro);
+  return nomi.length ? nomi.join(", ") : null;
 }
 
 // Elementi DOM
@@ -615,8 +631,8 @@ const profiloPesoInput = document.getElementById("profilo-peso");
 const profiloAttivitaInput = document.getElementById("profilo-attivita");
 const profiloTelefonoInput = document.getElementById("profilo-telefono");
 const profiloEmailInput = document.getElementById("profilo-email");
-const profiloAllergieInput = document.getElementById("profilo-allergie");
-const profiloAllergieRilevati = document.getElementById("profilo-allergie-rilevati");
+const profiloAllergeniLista = document.getElementById("profilo-allergeni-lista");
+const profiloAllergieAltroInput = document.getElementById("profilo-allergie-altro");
 const profiloNoteInput = document.getElementById("profilo-note");
 const profiloNonSeguitoCheck = document.getElementById("profilo-non-seguito-check");
 const profiloSalvaBtn = document.getElementById("profilo-salva-btn");
@@ -3694,11 +3710,10 @@ async function apriProfiloPaziente() {
   profiloAttivitaInput.value = data.attivita || "";
   profiloTelefonoInput.value = data.telefono || "";
   profiloEmailInput.value = data.email || "";
-  profiloAllergieInput.value = data.allergie || "";
+  impostaAllergeniProfilo(data.allergie);
   profiloNoteInput.value = data.note || "";
   profiloPesoOriginale = data.peso_kg ?? null;
   profiloResetMsg.classList.add("hidden");
-  renderChipAllergie();
 
   profiloOverlay.classList.remove("hidden");
 }
@@ -3721,7 +3736,7 @@ async function salvaProfiloPaziente() {
     attivita: profiloAttivitaInput.value || null,
     telefono: profiloTelefonoInput.value.trim() || null,
     email: profiloEmailInput.value.trim() || null,
-    allergie: profiloAllergieInput.value.trim() || null,
+    allergie: leggiAllergeniProfilo(),
     note: profiloNoteInput.value.trim() || null,
     attivo: !profiloNonSeguitoCheck.checked
   };
@@ -5293,7 +5308,6 @@ function inizializza() {
 
   profiloBtn.addEventListener("click", apriProfiloPaziente);
   profiloSalvaBtn.addEventListener("click", salvaProfiloPaziente);
-  profiloAllergieInput.addEventListener("input", renderChipAllergie);
   profiloResetPasswordBtn.addEventListener("click", resettaPasswordPaziente);
   profiloAnnullaBtn.addEventListener("click", chiudiProfiloPaziente);
   profiloOverlay.addEventListener("click", (e) => {
