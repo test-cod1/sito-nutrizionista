@@ -1001,6 +1001,35 @@ table tfoot .riga-totale td {
   font-weight: 600;
 }
 
+/* Alert allergeni: banner riepilogo + badge accanto al nome dell'alimento */
+.allergeni-riepilogo {
+  background: var(--danger-tint);
+  border: 1px solid var(--danger);
+  color: var(--danger-text);
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.allergene-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: help;
+}
+
 /* ---------- Check-in periodico ---------- */
 
 .tab-strip {

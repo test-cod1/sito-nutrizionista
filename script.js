@@ -238,6 +238,145 @@ function chiudiSpiegazioneFabbisogno() {
   fabbisognoSpiegaOverlay.classList.add("hidden");
 }
 
+// ---------- Alert allergeni ----------
+// Aiuto euristico per il nutrizionista: confronta il NOME degli alimenti del
+// piano con gli allergeni dichiarati dal paziente (campo testo libero
+// "allergie"). Gli alimenti del piano vengono da foods.json e non hanno un
+// dato allergeni, quindi il confronto avviene per parole chiave sul nome. NON
+// sostituisce la lettura delle etichette: è un promemoria per evitare sviste.
+//
+// Ogni voce ha: sinonimi (per riconoscere l'allergene nel testo del paziente),
+// parole (per riconoscerlo nel nome di un alimento) ed escludi (per evitare i
+// falsi positivi più comuni, es. "latte di mandorla" non è latte vaccino).
+const ALLERGENI_CATALOGO = [
+  { id: "glutine", nome: "Glutine",
+    sinonimi: ["glutine", "glutin", "celiach", "frumento", "segale", "orzo", "farro", "kamut", "spelta"],
+    parole: ["pane", "pasta", "frumento", "grano", "segale", "orzo", "farro", "kamut", "spelta", "biscott", "cracker", "cracotte", "fette biscottate", "brioche", "croissant", "bigne", "cannoli", "crostata", "wafer", "savoiard", "grissini", "pangrattato", "pan grattato", "semolino", "crusca di grano", "cornflakes", "corn flakes", "birra", "malto", "seitan", "cuscus", "couscous", "bulgur", "pizza", "gnocchi", "piadina", "focaccia"],
+    escludi: ["grano saraceno", "farina di riso", "farina di mais", "farina di ceci", "farina di cocco", "farina di castagne", "senza glutine", "gluten free"] },
+  { id: "latte", nome: "Latte",
+    sinonimi: ["latte", "lattosio", "latticin", "caseina", "siero di latte"],
+    parole: ["latte", "formagg", "mozzarella", "yogurt", "burro", "panna", "ricotta", "parmigian", "grana", "mascarpone", "stracchino", "gorgonzola", "pecorino", "cacio", "asiago", "brie", "camembert", "emmenthal", "emmental", "edam", "cheddar", "feta", "crescenza", "burrata", "burrini", "butirro", "fiocchi di latte", "budino", "creme caramel", "crema per pasticceria", "crema pasticcera", "provola", "provolone", "scamorza", "taleggio", "fontina", "robiola", "stracciatella", "kefir", "mou"],
+    escludi: ["latte di mandorl", "latte di soia", "latte di soja", "latte di riso", "latte di cocco", "latte di avena", "burro di arachidi", "burro di cacao", "senza lattosio", "delattosat"] },
+  { id: "uova", nome: "Uova",
+    sinonimi: ["uovo", "uova", "albume", "tuorlo"],
+    parole: ["uovo", "frittata", "maionese", "zabaione", "meringa", "pasta all'uovo", "pasta alluovo", "omelette"],
+    escludi: ["uova di storione", "uova di cefalo", "uova di salmone", "uova di lompo", "uova di pesce", "bottarga"] },
+  { id: "pesce", nome: "Pesce",
+    sinonimi: ["pesce", "pesci"],
+    parole: ["pesce", "acciughe", "alici", "aringa", "anguilla", "baccala", "stoccafisso", "tonno", "salmone", "merluzzo", "sgombro", "orata", "branzino", "spigola", "sogliola", "nasello", "platessa", "trota", "dentice", "cernia", "cefalo", "carpa", "boga", "coregone", "corvina", "capitone", "sardin", "pesce spada", "palombo", "persico", "luccio", "surimi", "bottarga", "caviale"],
+    escludi: [] },
+  { id: "crostacei", nome: "Crostacei",
+    sinonimi: ["crostace", "gamber", "scampi", "frutti di mare"],
+    parole: ["crostace", "gamber", "scampi", "aragosta", "astice", "granchio", "granceola", "mazzancolle", "canocchi", "paguro"],
+    escludi: [] },
+  { id: "molluschi", nome: "Molluschi",
+    sinonimi: ["mollusch", "cozze", "vongole", "frutti di mare"],
+    parole: ["mollusch", "cozza", "cozze", "mitilo", "vongol", "calamaro", "calamari", "seppia", "polpo", "moscardini", "ostrich", "capesante", "cannolicchi", "telline", "totano", "lumache", "lumaca"],
+    escludi: [] },
+  { id: "frutta_guscio", nome: "Frutta a guscio",
+    sinonimi: ["frutta a guscio", "frutta secca", "noci", "nocciol", "mandorl", "pistacchi", "anacardi", "pinoli"],
+    parole: ["noci", "noce", "nocciol", "mandorl", "pistacchi", "anacardi", "pinoli", "gianduia", "gianduja", "macadamia", "pecan"],
+    escludi: ["noce di cocco", "noce moscata", "cocco", "arachid"] },
+  { id: "arachidi", nome: "Arachidi",
+    sinonimi: ["arachid", "nocciolin"],
+    parole: ["arachid", "noccioline"],
+    escludi: [] },
+  { id: "soia", nome: "Soia",
+    sinonimi: ["soia", "soja"],
+    parole: ["soia", "soja", "tofu", "edamame", "tempeh"],
+    escludi: [] },
+  { id: "sedano", nome: "Sedano",
+    sinonimi: ["sedano"], parole: ["sedano"], escludi: [] },
+  { id: "senape", nome: "Senape",
+    sinonimi: ["senape"], parole: ["senape"], escludi: [] },
+  { id: "sesamo", nome: "Sesamo",
+    sinonimi: ["sesamo", "tahin"], parole: ["sesamo", "tahin"], escludi: [] },
+  { id: "solfiti", nome: "Solfiti",
+    sinonimi: ["solfit", "solforosa"], parole: ["vino", "aceto balsamico"], escludi: [] },
+  { id: "lupini", nome: "Lupini",
+    sinonimi: ["lupin"], parole: ["lupini", "lupino"], escludi: [] }
+];
+
+// Analisi allergeni del paziente attualmente selezionato (ricalcolata a ogni
+// render del piano). { categorie: [voce catalogo...], extra: [parola libera...] }
+let analisiAllergeniCorrente = { categorie: [], extra: [] };
+
+function normalizzaTesto(s) {
+  // NFD + rimozione dei segni diacritici combinanti (U+0300–U+036F): così
+  // "à", "è" ecc. nei nomi/allergeni non impediscono il confronto.
+  return (s == null ? "" : String(s)).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+// Interpreta la stringa "allergie" del paziente: individua le categorie note e
+// raccoglie eventuali termini liberi non riconosciuti (es. "fragole"), da usare
+// comunque come parola chiave da cercare nei nomi degli alimenti.
+function analizzaAllergiePaziente(testoAllergie) {
+  const testo = normalizzaTesto(testoAllergie);
+  if (!testo.trim()) return { categorie: [], extra: [] };
+  const categorie = ALLERGENI_CATALOGO.filter(cat =>
+    cat.sinonimi.some(s => testo.includes(normalizzaTesto(s)))
+  );
+  const extra = [];
+  testo.split(/[,;/\n]+/).map(t => t.trim()).filter(t => t.length >= 3).forEach(tok => {
+    const riconosciuto = ALLERGENI_CATALOGO.some(cat =>
+      cat.sinonimi.some(s => { const ns = normalizzaTesto(s); return tok.includes(ns) || ns.includes(tok); })
+    );
+    if (!riconosciuto && !extra.includes(tok)) extra.push(tok);
+  });
+  return { categorie, extra };
+}
+
+// Restituisce le etichette degli allergeni che scattano per il nome di un
+// alimento, in base all'analisi passata.
+function allergeniDiAlimento(nomeAlimento, analisi) {
+  const nome = normalizzaTesto(nomeAlimento);
+  if (!nome) return [];
+  const trovati = [];
+  analisi.categorie.forEach(cat => {
+    if ((cat.escludi || []).some(e => nome.includes(normalizzaTesto(e)))) return;
+    if (cat.parole.some(p => nome.includes(normalizzaTesto(p)))) trovati.push(cat.nome);
+  });
+  analisi.extra.forEach(tok => {
+    if (nome.includes(tok) && !trovati.includes(tok)) trovati.push(tok);
+  });
+  return trovati;
+}
+
+function analisiAllergeniAttiva() {
+  return analisiAllergeniCorrente.categorie.length > 0 || analisiAllergeniCorrente.extra.length > 0;
+}
+
+// Badge ⚠ da accodare al nome di un alimento nel piano (vista admin).
+function badgeAllergeneAlimento(item) {
+  if (!item || item.libero || !analisiAllergeniAttiva()) return "";
+  const trovati = allergeniDiAlimento(item.alimento, analisiAllergeniCorrente);
+  if (!trovati.length) return "";
+  const titolo = escapeHtml("Possibile allergene per il paziente: " + trovati.join(", "));
+  return ` <span class="allergene-badge" title="${titolo}" aria-label="${titolo}">⚠</span>`;
+}
+
+// Scansiona l'intero piano e, se ci sono corrispondenze con gli allergeni del
+// paziente, restituisce un banner riepilogativo (o null). Solo vista admin.
+function costruisciRiepilogoAllergeni() {
+  if (!analisiAllergeniAttiva()) return null;
+  let conteggio = 0;
+  const etichette = new Set();
+  GIORNI.forEach(giorno => PASTI.forEach(pasto => {
+    (state.dieta[giorno][pasto] || []).forEach(item => {
+      if (item.libero) return;
+      const trovati = allergeniDiAlimento(item.alimento, analisiAllergeniCorrente);
+      if (trovati.length) { conteggio++; trovati.forEach(t => etichette.add(t)); }
+    });
+  }));
+  if (conteggio === 0) return null;
+
+  const banner = document.createElement("div");
+  banner.className = "allergeni-riepilogo no-print";
+  const plur = conteggio === 1 ? "alimento corrisponde" : "alimenti corrispondono";
+  banner.innerHTML = `<strong>⚠ Attenzione allergeni.</strong> ${conteggio} ${plur} ad allergeni dichiarati dal paziente (${escapeHtml([...etichette].join(", "))}). Le voci interessate sono contrassegnate con ⚠ nel piano. Controllo automatico sui nomi: verifica sempre gli ingredienti.`;
+  return banner;
+}
+
 // Elementi DOM
 const foodInput = document.getElementById("food-input");
 const suggestions = document.getElementById("suggestions");
@@ -2660,7 +2799,9 @@ async function selezionaPaziente(pazienteId) {
     id: p.id, nome: p.nome, email: p.email, frequenza_checkin: p.frequenza_checkin,
     // Dati fisici usati per il calcolo automatico del fabbisogno calorico.
     data_nascita: p.data_nascita, sesso: p.sesso, altezza_cm: p.altezza_cm,
-    peso_kg: p.peso_kg, attivita: p.attivita
+    peso_kg: p.peso_kg, attivita: p.attivita,
+    // Allergie dichiarate, usate per l'alert allergeni sugli alimenti del piano.
+    allergie: p.allergie
   };
   await registraAccessoAdmin(pazienteId);
 
@@ -3526,24 +3667,27 @@ async function salvaProfiloPaziente() {
     }
   }
 
-  // Tiene allineati i dati fisici in memoria (paziente corrente + lista), così
-  // il calcolo automatico del fabbisogno riflette subito le modifiche.
-  const campiFisici = {
+  // Tiene allineati in memoria (paziente corrente + lista) i dati che
+  // alimentano il calcolo del fabbisogno e l'alert allergeni, così le modifiche
+  // si riflettono subito senza dover riselezionare il paziente.
+  const campiSincronizzati = {
     data_nascita: aggiornamento.data_nascita,
     sesso: aggiornamento.sesso,
     altezza_cm: aggiornamento.altezza_cm,
     peso_kg: aggiornamento.peso_kg,
-    attivita: aggiornamento.attivita
+    attivita: aggiornamento.attivita,
+    allergie: aggiornamento.allergie
   };
-  Object.assign(pazienteCorrente, campiFisici);
+  Object.assign(pazienteCorrente, campiSincronizzati);
   const rigaLista = listaPazienti.find(x => x.id === pazienteCorrente.id);
-  if (rigaLista) Object.assign(rigaLista, campiFisici);
+  if (rigaLista) Object.assign(rigaLista, campiSincronizzati);
   if (state.kcalModo === "auto") {
     renderFabbisognoAuto();
     applicaFabbisognoAlloStato();
     salvaStateRemoto();
-    renderDieta();
   }
+  // Ridisegna sempre il piano: l'alert allergeni dipende dal campo "allergie".
+  renderDieta();
 
   chiudiProfiloPaziente();
 }
@@ -4134,6 +4278,12 @@ function confermaDuplica() {
 function renderDieta() {
   dietaContainer.innerHTML = "";
 
+  // Aggiorna l'analisi allergeni del paziente e mostra un riepilogo se qualche
+  // alimento del piano corrisponde a un allergene dichiarato.
+  analisiAllergeniCorrente = analizzaAllergiePaziente(pazienteCorrente && pazienteCorrente.allergie);
+  const bannerAllergeni = costruisciRiepilogoAllergeni();
+  if (bannerAllergeni) dietaContainer.appendChild(bannerAllergeni);
+
   GIORNI.forEach(giorno => {
     const totaleGiorno = totaliGiorno(giorno);
     const superato = controllaLimite(giorno);
@@ -4197,7 +4347,7 @@ function renderDieta() {
             : `${item.kcal} kcal`;
           return `
           <tr${item.libero ? ' class="riga-libero"' : ''}>
-            <td>${item.alimento}</td>
+            <td>${item.alimento}${badgeAllergeneAlimento(item)}</td>
             ${cellaQta}
             <td>${item.nota || "-"}</td>
             <td class="solo-nutrizionista">${cellaKcal}</td>
@@ -4252,7 +4402,7 @@ function renderPanoramica() {
         html += `<div class="pan-cella pan-vuota">—</div>`;
       } else {
         const t = totaliPasto(items);
-        const testo = items.map(i => i.libero ? "Pasto libero" : escapeHtml(i.alimento)).join(", ");
+        const testo = items.map(i => i.libero ? "Pasto libero" : escapeHtml(i.alimento) + badgeAllergeneAlimento(i)).join(", ");
         html += `<div class="pan-cella" data-giorno="${giorno}" data-pasto="${escapeHtml(pasto)}" title="Vedi dettagli"><div class="pan-testo">${testo}</div><div class="pan-kcal">${round1(t.kcal)} kcal</div></div>`;
       }
     });
@@ -4272,6 +4422,7 @@ function apriDettaglioPasto(giorno, pasto) {
   const items = state.dieta[giorno][pasto];
   if (!items || items.length === 0) return;
 
+  analisiAllergeniCorrente = analizzaAllergiePaziente(pazienteCorrente && pazienteCorrente.allergie);
   panoramicaDettaglioTitolo.textContent = `${pasto} — ${giorno}`;
 
   const righe = items.map(item => {
@@ -4288,7 +4439,7 @@ function apriDettaglioPasto(giorno, pasto) {
       : `${item.kcal} kcal`;
     return `
       <tr${item.libero ? ' class="riga-libero"' : ''}>
-        <td>${escapeHtml(item.alimento)}</td>
+        <td>${escapeHtml(item.alimento)}${badgeAllergeneAlimento(item)}</td>
         <td>${cellaQta}</td>
         <td>${item.nota ? escapeHtml(item.nota) : "-"}</td>
         <td>${cellaKcal}</td>
