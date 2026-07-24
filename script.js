@@ -995,6 +995,21 @@ async function effettuaLogin() {
 
 async function effettuaLogout() {
   await supabaseClient.auth.signOut();
+  // Svuota la copia offline dei dati (piano, profilo, check-in) salvata dal
+  // service worker, così su un dispositivo condiviso non resta consultabile
+  // dopo l'uscita. Best-effort: non deve mai impedire il logout.
+  try {
+    if ("caches" in window) {
+      const nomi = await caches.keys();
+      await Promise.all(
+        nomi
+          .filter((n) => n.startsWith("nutriplan-data-"))
+          .map((n) => caches.delete(n))
+      );
+    }
+  } catch (e) {
+    // ignora: la sessione è comunque già chiusa
+  }
   location.reload();
 }
 
