@@ -554,8 +554,17 @@ function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
+// Fa escape anche delle virgolette (" e '), non solo di &<>: così è sicura
+// anche quando il valore finisce dentro un attributo HTML (es. src="...").
+// Senza questo, un URL immagine malevolo da Open Food Facts (DB modificabile
+// da terzi) potrebbe uscire dall'attributo e iniettare un onerror.
 function escapeHtml(testo) {
-  return String(testo).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(testo)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // ---------- Login / sessione ----------
