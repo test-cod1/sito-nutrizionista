@@ -331,6 +331,10 @@ const offAdminBarcodeInput = document.getElementById("off-admin-barcode-input");
 const offAdminCercaBtn = document.getElementById("off-admin-cerca-btn");
 const offAdminErrore = document.getElementById("off-admin-error");
 const offAdminRisultati = document.getElementById("off-admin-risultati");
+const offAdminScannerAvviaBtn = document.getElementById("off-admin-scanner-avvia-btn");
+const offAdminScannerPermessoNota = document.getElementById("off-admin-scanner-permesso-nota");
+const offAdminScannerViewport = document.getElementById("off-admin-scanner-viewport");
+const offAdminScannerStopBtn = document.getElementById("off-admin-scanner-stop-btn");
 
 // Open Food Facts (paziente, scanner barcode)
 const offScannerAvviaBtn = document.getElementById("off-scanner-avvia-btn");
@@ -1743,44 +1747,71 @@ async function cercaOFFAdmin() {
   renderRisultatiOFF(offAdminRisultati, offAdminErrore, risultato);
 }
 
-// ---------- Open Food Facts: scanner barcode (paziente) ----------
+// ---------- Open Food Facts: scanner barcode (paziente e admin) ----------
 // html5-qrcode gestisce sia il permesso fotocamera che la decodifica del
 // codice a barre; se la fotocamera non è disponibile o il permesso viene
 // negato, resta comunque possibile inserire il codice a barre a mano.
+// La stessa logica viene riusata per entrambe le sezioni tramite un
+// "contesto" che indica quali elementi DOM e quale ricerca usare.
 
 let html5QrCodeScanner = null;
+let scannerBarcodeContestoAttivo = null;
 
-async function avviaScannerBarcode() {
-  offPazienteErrore.classList.add("hidden");
-  offScannerPermessoNota.classList.remove("hidden");
-  offScannerViewport.classList.remove("hidden");
-  offScannerAvviaBtn.classList.add("hidden");
-  offScannerStopBtn.classList.remove("hidden");
+const scannerBarcodeContestoPaziente = {
+  avviaBtn: offScannerAvviaBtn,
+  permessoNota: offScannerPermessoNota,
+  viewport: offScannerViewport,
+  stopBtn: offScannerStopBtn,
+  inputManuale: offBarcodeManualeInput,
+  erroreEl: offPazienteErrore,
+  onCodiceLetto: (barcode) => cercaOFFBarcode(barcode),
+};
 
-  html5QrCodeScanner = new Html5Qrcode("off-scanner-viewport");
+const scannerBarcodeContestoAdmin = {
+  avviaBtn: offAdminScannerAvviaBtn,
+  permessoNota: offAdminScannerPermessoNota,
+  viewport: offAdminScannerViewport,
+  stopBtn: offAdminScannerStopBtn,
+  inputManuale: offAdminBarcodeInput,
+  erroreEl: offAdminErrore,
+  onCodiceLetto: (barcode) => cercaOFFAdminBarcode(barcode),
+};
+
+async function avviaScannerBarcode(contesto) {
+  scannerBarcodeContestoAttivo = contesto;
+  contesto.erroreEl.classList.add("hidden");
+  contesto.permessoNota.classList.remove("hidden");
+  contesto.viewport.classList.remove("hidden");
+  contesto.avviaBtn.classList.add("hidden");
+  contesto.stopBtn.classList.remove("hidden");
+
+  html5QrCodeScanner = new Html5Qrcode(contesto.viewport.id);
   try {
     await html5QrCodeScanner.start(
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 250, height: 150 } },
       async (codiceLetto) => {
         await fermaScannerBarcode();
-        offBarcodeManualeInput.value = codiceLetto;
-        await cercaOFFBarcode(codiceLetto);
+        contesto.inputManuale.value = codiceLetto;
+        await contesto.onCodiceLetto(codiceLetto);
       },
       () => {} // errori di lettura frame-by-frame: normali durante la scansione, si ignorano
     );
   } catch (e) {
-    offPazienteErrore.textContent = "Impossibile accedere alla fotocamera. Puoi comunque inserire il codice a barre manualmente qui sotto.";
-    offPazienteErrore.classList.remove("hidden");
+    contesto.erroreEl.textContent = "Impossibile accedere alla fotocamera. Puoi comunque inserire il codice a barre manualmente qui sotto.";
+    contesto.erroreEl.classList.remove("hidden");
     await fermaScannerBarcode();
   }
 }
 
 async function fermaScannerBarcode() {
-  offScannerViewport.classList.add("hidden");
-  offScannerPermessoNota.classList.add("hidden");
-  offScannerAvviaBtn.classList.remove("hidden");
-  offScannerStopBtn.classList.add("hidden");
+  const contesto = scannerBarcodeContestoAttivo;
+  if (contesto) {
+    contesto.viewport.classList.add("hidden");
+    contesto.permessoNota.classList.add("hidden");
+    contesto.avviaBtn.classList.remove("hidden");
+    contesto.stopBtn.classList.add("hidden");
+  }
   if (html5QrCodeScanner) {
     try {
       await html5QrCodeScanner.stop();
@@ -1788,6 +1819,7 @@ async function fermaScannerBarcode() {
     } catch (e) {}
     html5QrCodeScanner = null;
   }
+  scannerBarcodeContestoAttivo = null;
 }
 
 async function cercaOFFBarcode(barcode) {
@@ -1804,6 +1836,12 @@ async function cercaOFFBarcodeManuale() {
     return;
   }
   await cercaOFFBarcode(barcode);
+}
+
+async function cercaOFFAdminBarcode(barcode) {
+  offAdminRisultati.innerHTML = '<p class="hint">Ricerca in corso...</p>';
+  const risultato = await cercaOpenFoodFacts({ barcode });
+  renderRisultatiOFF(offAdminRisultati, offAdminErrore, risultato);
 }
 
 // ---------- Notifiche push: consenso e subscription ----------
@@ -4077,7 +4115,11 @@ function chiudiDettaglioPasto() {
 function toggleOffRicerca() {
   const aperto = offRicercaAdminContenuto.classList.toggle("hidden") === false;
   offRicercaToggleBtn.classList.toggle("attivo", aperto);
-  if (aperto) offAdminQueryInput.focus();
+  if (aperto) {
+    offAdminQueryInput.focus();
+  } else if (scannerBarcodeContestoAttivo === scannerBarcodeContestoAdmin) {
+    fermaScannerBarcode();
+  }
 }
 
 function togglePanoramica() {
@@ -4583,9 +4625,11 @@ function inizializza() {
 
   offRicercaToggleBtn.addEventListener("click", toggleOffRicerca);
   offAdminCercaBtn.addEventListener("click", cercaOFFAdmin);
-  offScannerAvviaBtn.addEventListener("click", avviaScannerBarcode);
+  offScannerAvviaBtn.addEventListener("click", () => avviaScannerBarcode(scannerBarcodeContestoPaziente));
   offScannerStopBtn.addEventListener("click", fermaScannerBarcode);
   offBarcodeManualeBtn.addEventListener("click", cercaOFFBarcodeManuale);
+  offAdminScannerAvviaBtn.addEventListener("click", () => avviaScannerBarcode(scannerBarcodeContestoAdmin));
+  offAdminScannerStopBtn.addEventListener("click", fermaScannerBarcode);
 
   const gestisciClickRisultatiOFF = (e) => {
     const foto = e.target.closest(".off-foto-prodotto");

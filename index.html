@@ -289,7 +289,7 @@
       <p class="hint">Inquadra il codice a barre di un prodotto per vedere i valori nutrizionali. Il prodotto non viene salvato nel tuo profilo: è solo una consultazione al momento.</p>
       <button id="off-scanner-avvia-btn" class="secondary">📷 Scansiona codice a barre</button>
       <p id="off-scanner-permesso-nota" class="hint hidden">Per scansionare serve il permesso della fotocamera: verrà richiesto solo per leggere il codice a barre del prodotto.</p>
-      <div id="off-scanner-viewport" class="hidden"></div>
+      <div id="off-scanner-viewport" class="off-scanner-viewport hidden"></div>
       <button id="off-scanner-stop-btn" class="secondary hidden">Chiudi fotocamera</button>
 
       <div class="griglia-2">
@@ -453,6 +453,10 @@
 
         <div id="off-ricerca-admin-contenuto" class="hidden">
           <p class="hint">Consulta i valori nutrizionali di un prodotto confezionato, senza uscire dal sito. Solo consultazione: non viene importato nulla nel calcolatore.</p>
+          <button type="button" id="off-admin-scanner-avvia-btn" class="secondary">📷 Scansiona codice a barre</button>
+          <p id="off-admin-scanner-permesso-nota" class="hint hidden">Per scansionare serve il permesso della fotocamera: verrà richiesto solo per leggere il codice a barre del prodotto.</p>
+          <div id="off-admin-scanner-viewport" class="off-scanner-viewport hidden"></div>
+          <button type="button" id="off-admin-scanner-stop-btn" class="secondary hidden">Chiudi fotocamera</button>
           <div class="griglia-2">
             <div>
               <label for="off-admin-query-input">Nome prodotto o marca</label>

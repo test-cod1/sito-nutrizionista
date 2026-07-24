@@ -1208,7 +1208,7 @@ table tfoot .riga-totale td {
   margin-top: 16px;
 }
 
-#off-scanner-viewport {
+.off-scanner-viewport {
   max-width: 400px;
   margin: 12px 0;
   border-radius: 12px;
@@ -1216,7 +1216,7 @@ table tfoot .riga-totale td {
   border: 1px solid var(--border);
 }
 
-#off-scanner-viewport video {
+.off-scanner-viewport video {
   border-radius: 12px;
 }
 
