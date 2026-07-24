@@ -421,8 +421,23 @@
         <div class="griglia-2 piano-info-griglia">
           <div>
             <h2>Dati piano alimentare</h2>
-            <label for="max-kcal-input">Calorie massime giornaliere</label>
-            <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
+            <label>Calorie massime giornaliere</label>
+            <div class="kcal-modo-toggle" role="group" aria-label="Modalità calcolo calorie">
+              <button type="button" class="kcal-modo-btn attivo" data-modo="manuale">Manuale</button>
+              <button type="button" class="kcal-modo-btn" data-modo="auto">Automatico</button>
+            </div>
+
+            <div id="kcal-manuale-blocco">
+              <input type="number" id="max-kcal-input" min="0" placeholder="es. 2000">
+            </div>
+
+            <div id="kcal-auto-blocco" class="hidden">
+              <div class="kcal-auto-riga">
+                <span id="kcal-auto-valore" class="kcal-auto-valore">—</span>
+                <button type="button" id="kcal-auto-spiega-btn" class="kcal-auto-spiega-btn hidden" title="Come viene calcolato il fabbisogno" aria-label="Come viene calcolato il fabbisogno">?</button>
+              </div>
+              <p id="kcal-auto-nota" class="hint"></p>
+            </div>
 
             <button id="impostazioni-stampa-toggle" class="impostazioni-stampa-toggle" type="button">⚙ Impostazioni di stampa ▸</button>
             <div id="impostazioni-stampa-contenuto" class="hidden">
@@ -933,6 +948,17 @@
   </div>
 
   <!-- Profilo paziente -->
+  <!-- Spiegazione del calcolo automatico del fabbisogno calorico -->
+  <div id="fabbisogno-spiega-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal duplica-modal-larga">
+      <h3>Come viene calcolato il fabbisogno</h3>
+      <div id="fabbisogno-spiega-corpo"></div>
+      <div class="duplica-azioni">
+        <button id="fabbisogno-spiega-chiudi-btn" class="danger">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
   <div id="profilo-overlay" class="duplica-overlay hidden no-print">
     <div class="duplica-modal duplica-modal-larga">
       <h3>Profilo — <span id="profilo-paziente-nome"></span></h3>

@@ -2551,6 +2551,114 @@ textarea:focus {
   color: white;
 }
 
+/* ---------- Calcolo automatico del fabbisogno calorico ---------- */
+
+.kcal-modo-toggle {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-input);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+
+.kcal-modo-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 6px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 34px;
+}
+
+.kcal-modo-btn:hover {
+  color: var(--text);
+  background: var(--accent-tint);
+  transform: none;
+}
+
+.kcal-modo-btn.attivo {
+  background: var(--accent);
+  color: white;
+}
+
+.kcal-modo-btn.attivo:hover {
+  background: var(--accent-hover);
+  color: white;
+}
+
+.kcal-auto-riga {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kcal-auto-valore {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.kcal-auto-spiega-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.kcal-auto-spiega-btn:hover {
+  background: var(--accent);
+  color: white;
+  transform: none;
+}
+
+#fabbisogno-spiega-corpo h4 {
+  margin: 18px 0 6px;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.fabbisogno-formula {
+  background: var(--surface-alt);
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 6px 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  overflow-x: auto;
+}
+
+.fabbisogno-tabella {
+  border-collapse: collapse;
+  margin: 10px 0 4px;
+  font-size: 0.85rem;
+}
+
+.fabbisogno-tabella td {
+  border: 1px solid var(--border-2);
+  padding: 4px 12px;
+  color: var(--text-muted);
+}
+
+.fabbisogno-tabella .fabbisogno-riga-attiva td {
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .peso-grafico-svg {
   width: 100%;
   height: auto;

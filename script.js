@@ -40,6 +40,7 @@ function creaDietaVuota() {
 function creaStatoVuoto() {
   return {
     maxKcal: null,
+    kcalModo: "manuale",
     dieta: creaDietaVuota(),
     sostituzioni: "",
     infoStudio: "",
@@ -53,6 +54,7 @@ let state = creaStatoVuoto();
 function applicaDatiDieta(dati) {
   dati = dati || {};
   state.maxKcal = dati.maxKcal ?? null;
+  state.kcalModo = dati.kcalModo === "auto" ? "auto" : "manuale";
   state.dieta = dati.dieta ?? creaDietaVuota();
   state.sostituzioni = dati.sostituzioni ?? "";
   state.infoStudio = dati.infoStudio ?? "";
@@ -64,6 +66,7 @@ async function salvaStateRemoto() {
   if (!dietaCorrenteId) return;
   const dati = {
     maxKcal: state.maxKcal,
+    kcalModo: state.kcalModo,
     dieta: state.dieta,
     sostituzioni: state.sostituzioni,
     infoStudio: state.infoStudio,
@@ -77,6 +80,162 @@ async function salvaStateRemoto() {
   if (error) {
     console.error("Errore nel salvataggio della dieta:", error);
   }
+}
+
+// ---------- Calcolo automatico del fabbisogno calorico ----------
+// Stima del fabbisogno energetico giornaliero (TDEE) a partire dai dati del
+// profilo del paziente, come alternativa all'inserimento manuale delle kcal.
+// Si usa la formula di Mifflin-St Jeor per il metabolismo basale (BMR),
+// moltiplicato per un fattore legato al livello di attività fisica.
+
+// Fattori di attività (PAL): moltiplicatori standard per passare dal BMR al TDEE.
+const FATTORI_ATTIVITA = {
+  "Sedentario": 1.2,
+  "Leggero": 1.375,
+  "Moderato": 1.55,
+  "Intenso": 1.725,
+  "Molto intenso": 1.9
+};
+
+// Ultimo calcolo effettuato, con tutti i passaggi, per la spiegazione col "?".
+let ultimoFabbisogno = null;
+
+function calcolaEtaDaData(dataNascita) {
+  if (!dataNascita) return null;
+  const nascita = new Date(dataNascita);
+  if (isNaN(nascita.getTime())) return null;
+  const oggi = new Date();
+  let eta = oggi.getFullYear() - nascita.getFullYear();
+  const scartoMese = oggi.getMonth() - nascita.getMonth();
+  if (scartoMese < 0 || (scartoMese === 0 && oggi.getDate() < nascita.getDate())) eta--;
+  return eta >= 0 && eta < 130 ? eta : null;
+}
+
+// Restituisce l'oggetto con tutti i passaggi del calcolo, oppure {mancanti:[...]}
+// se nel profilo manca qualche dato indispensabile.
+function calcolaFabbisogno(profilo) {
+  profilo = profilo || {};
+  const eta = calcolaEtaDaData(profilo.data_nascita);
+  const peso = Number(profilo.peso_kg);
+  const altezza = Number(profilo.altezza_cm);
+  const sesso = profilo.sesso || "";
+  const attivita = profilo.attivita || "";
+
+  const mancanti = [];
+  if (eta === null) mancanti.push("data di nascita");
+  if (!peso || isNaN(peso)) mancanti.push("peso");
+  if (!altezza || isNaN(altezza)) mancanti.push("altezza");
+  if (!sesso) mancanti.push("sesso");
+  if (!(attivita in FATTORI_ATTIVITA)) mancanti.push("livello di attività");
+  if (mancanti.length) return { mancanti };
+
+  // Mifflin-St Jeor: BMR = 10·peso + 6,25·altezza − 5·età + c
+  // c = +5 (maschile), −161 (femminile); per «Altro» si usa la media (−78).
+  let costante, costanteEtichetta;
+  if (sesso === "M") { costante = 5; costanteEtichetta = "+5 (maschile)"; }
+  else if (sesso === "F") { costante = -161; costanteEtichetta = "−161 (femminile)"; }
+  else { costante = -78; costanteEtichetta = "−78 (media tra +5 e −161, sesso «Altro»)"; }
+
+  const bmr = Math.round(10 * peso + 6.25 * altezza - 5 * eta + costante);
+  const fattore = FATTORI_ATTIVITA[attivita];
+  const tdee = Math.round(bmr * fattore);
+
+  return { eta, peso, altezza, sesso, attivita, costante, costanteEtichetta, bmr, fattore, tdee };
+}
+
+// Numeri con separatori all'italiana (virgola decimale), per la spiegazione.
+function fmtNumero(n) {
+  return (Math.round(n * 100) / 100).toLocaleString("it-IT");
+}
+
+// Aggiorna il pannello "Automatico" in base al profilo del paziente corrente.
+function renderFabbisognoAuto() {
+  if (!kcalAutoValore) return;
+  const risultato = calcolaFabbisogno(pazienteCorrente);
+  if (risultato.mancanti) {
+    ultimoFabbisogno = null;
+    kcalAutoValore.textContent = "—";
+    kcalAutoNota.innerHTML =
+      "Per il calcolo automatico completa il <strong>profilo del paziente</strong>: " +
+      "mancano " + risultato.mancanti.join(", ") + ".";
+    kcalAutoSpiegaBtn.classList.add("hidden");
+    return;
+  }
+  ultimoFabbisogno = risultato;
+  kcalAutoValore.textContent = risultato.tdee.toLocaleString("it-IT") + " kcal/giorno";
+  kcalAutoNota.innerHTML =
+    "Stima con la formula di <strong>Mifflin-St Jeor</strong> sui dati del profilo. " +
+    "Passa a «Manuale» per impostare un valore personalizzato.";
+  kcalAutoSpiegaBtn.classList.remove("hidden");
+}
+
+// In modalità automatica, allinea state.maxKcal al fabbisogno calcolato.
+function applicaFabbisognoAlloStato() {
+  const risultato = calcolaFabbisogno(pazienteCorrente);
+  state.maxKcal = risultato.mancanti ? null : risultato.tdee;
+  maxKcalInput.value = state.maxKcal || "";
+}
+
+// Imposta la modalità (manuale/auto) aggiornando UI e stato. Con
+// opzioni.silenzioso non salva né ridisegna (usato al caricamento del piano).
+function impostaModoKcal(modo, opzioni) {
+  opzioni = opzioni || {};
+  state.kcalModo = modo === "auto" ? "auto" : "manuale";
+  kcalModoBtns.forEach(b => b.classList.toggle("attivo", b.dataset.modo === state.kcalModo));
+
+  const auto = state.kcalModo === "auto";
+  kcalManualeBlocco.classList.toggle("hidden", auto);
+  kcalAutoBlocco.classList.toggle("hidden", !auto);
+
+  if (auto) {
+    renderFabbisognoAuto();
+    applicaFabbisognoAlloStato();
+  } else {
+    maxKcalInput.value = state.maxKcal || "";
+  }
+
+  if (!opzioni.silenzioso) {
+    salvaStateRemoto();
+    renderDieta();
+  }
+}
+
+function apriSpiegazioneFabbisogno() {
+  const r = ultimoFabbisogno;
+  if (!r) return;
+  const segno = r.costante >= 0 ? "+" : "−";
+  const costanteAbs = Math.abs(r.costante);
+  const fattoreTxt = String(r.fattore).replace(".", ",");
+
+  const righeTabella = Object.entries(FATTORI_ATTIVITA).map(([nome, fatt]) => {
+    const attiva = nome === r.attivita ? ' class="fabbisogno-riga-attiva"' : "";
+    return `<tr${attiva}><td>${nome}</td><td>× ${String(fatt).replace(".", ",")}</td></tr>`;
+  }).join("");
+
+  fabbisognoSpiegaCorpo.innerHTML = `
+    <p class="duplica-sottotitolo">Il fabbisogno è stimato in due passaggi, a partire dai dati inseriti nel profilo del paziente.</p>
+
+    <h4>1 · Metabolismo basale (BMR)</h4>
+    <p>È l'energia che il corpo consuma a completo riposo. Si usa la formula di <strong>Mifflin-St Jeor</strong>, oggi la più accreditata in ambito clinico:</p>
+    <p class="fabbisogno-formula">BMR = 10 × peso(kg) + 6,25 × altezza(cm) − 5 × età + c</p>
+    <p class="hint">dove <em>c</em> = +5 per gli uomini, −161 per le donne.</p>
+    <p>Con i dati di questo paziente (peso ${fmtNumero(r.peso)} kg, altezza ${fmtNumero(r.altezza)} cm, età ${r.eta} anni):</p>
+    <p class="fabbisogno-formula">BMR = 10 × ${fmtNumero(r.peso)} + 6,25 × ${fmtNumero(r.altezza)} − 5 × ${r.eta} ${segno} ${costanteAbs}</p>
+    <p class="fabbisogno-formula">BMR = ${fmtNumero(10 * r.peso)} + ${fmtNumero(6.25 * r.altezza)} − ${fmtNumero(5 * r.eta)} ${segno} ${costanteAbs} = <strong>${r.bmr.toLocaleString("it-IT")} kcal</strong></p>
+    <p class="hint">Costante <em>c</em> usata: ${r.costanteEtichetta}.</p>
+
+    <h4>2 · Fabbisogno totale (TDEE)</h4>
+    <p>Il BMR viene moltiplicato per un fattore che tiene conto del movimento quotidiano. Per il livello «${r.attivita}» il fattore è <strong>${fattoreTxt}</strong>:</p>
+    <p class="fabbisogno-formula">TDEE = BMR × ${fattoreTxt} = ${r.bmr.toLocaleString("it-IT")} × ${fattoreTxt} = <strong>${r.tdee.toLocaleString("it-IT")} kcal/giorno</strong></p>
+    <table class="fabbisogno-tabella"><tbody>${righeTabella}</tbody></table>
+
+    <p class="hint">Questo valore è una stima statistica di partenza: è un riferimento, non sostituisce la valutazione clinica del nutrizionista.</p>
+  `;
+  fabbisognoSpiegaOverlay.classList.remove("hidden");
+}
+
+function chiudiSpiegazioneFabbisogno() {
+  fabbisognoSpiegaOverlay.classList.add("hidden");
 }
 
 // Elementi DOM
@@ -120,6 +279,15 @@ const temaChiaroBtn = document.getElementById("tema-chiaro-btn");
 const temaNotteBtn = document.getElementById("tema-notte-btn");
 
 const maxKcalInput = document.getElementById("max-kcal-input");
+const kcalModoBtns = document.querySelectorAll(".kcal-modo-btn");
+const kcalManualeBlocco = document.getElementById("kcal-manuale-blocco");
+const kcalAutoBlocco = document.getElementById("kcal-auto-blocco");
+const kcalAutoValore = document.getElementById("kcal-auto-valore");
+const kcalAutoNota = document.getElementById("kcal-auto-nota");
+const kcalAutoSpiegaBtn = document.getElementById("kcal-auto-spiega-btn");
+const fabbisognoSpiegaOverlay = document.getElementById("fabbisogno-spiega-overlay");
+const fabbisognoSpiegaCorpo = document.getElementById("fabbisogno-spiega-corpo");
+const fabbisognoSpiegaChiudiBtn = document.getElementById("fabbisogno-spiega-chiudi-btn");
 const impostazioniStampaToggle = document.getElementById("impostazioni-stampa-toggle");
 const impostazioniStampaContenuto = document.getElementById("impostazioni-stampa-contenuto");
 const sostituzioniInput = document.getElementById("sostituzioni-input");
@@ -2488,7 +2656,12 @@ async function selezionaPaziente(pazienteId) {
 
   const p = listaPazienti.find(p => p.id === pazienteId);
   if (!p) return;
-  pazienteCorrente = { id: p.id, nome: p.nome, email: p.email, frequenza_checkin: p.frequenza_checkin };
+  pazienteCorrente = {
+    id: p.id, nome: p.nome, email: p.email, frequenza_checkin: p.frequenza_checkin,
+    // Dati fisici usati per il calcolo automatico del fabbisogno calorico.
+    data_nascita: p.data_nascita, sesso: p.sesso, altezza_cm: p.altezza_cm,
+    peso_kg: p.peso_kg, attivita: p.attivita
+  };
   await registraAccessoAdmin(pazienteId);
 
   const { data: dieteAttive, error } = await supabaseClient
@@ -2528,6 +2701,9 @@ async function selezionaPaziente(pazienteId) {
   infoStudioInput.value = state.infoStudio || "";
   validoDalInput.value = state.validoDal || "";
   validoAlInput.value = state.validoAl || "";
+  // Ripristina la modalità (manuale/auto) salvata; in auto ricalcola il
+  // fabbisogno sui dati attuali del profilo senza salvare/ridisegnare qui.
+  impostaModoKcal(state.kcalModo, { silenzioso: true });
 
   collapsedGiorni = new Set(GIORNI);
   draftPasto = [];
@@ -3348,6 +3524,25 @@ async function salvaProfiloPaziente() {
     if (erroreStorico) {
       console.error("Errore nel salvataggio dello storico peso:", erroreStorico);
     }
+  }
+
+  // Tiene allineati i dati fisici in memoria (paziente corrente + lista), così
+  // il calcolo automatico del fabbisogno riflette subito le modifiche.
+  const campiFisici = {
+    data_nascita: aggiornamento.data_nascita,
+    sesso: aggiornamento.sesso,
+    altezza_cm: aggiornamento.altezza_cm,
+    peso_kg: aggiornamento.peso_kg,
+    attivita: aggiornamento.attivita
+  };
+  Object.assign(pazienteCorrente, campiFisici);
+  const rigaLista = listaPazienti.find(x => x.id === pazienteCorrente.id);
+  if (rigaLista) Object.assign(rigaLista, campiFisici);
+  if (state.kcalModo === "auto") {
+    renderFabbisognoAuto();
+    applicaFabbisognoAlloStato();
+    salvaStateRemoto();
+    renderDieta();
   }
 
   chiudiProfiloPaziente();
@@ -5015,6 +5210,15 @@ function inizializza() {
     state.maxKcal = maxKcalInput.value;
     salvaStateRemoto();
     renderDieta();
+  });
+
+  kcalModoBtns.forEach(btn => {
+    btn.addEventListener("click", () => impostaModoKcal(btn.dataset.modo));
+  });
+  kcalAutoSpiegaBtn.addEventListener("click", apriSpiegazioneFabbisogno);
+  fabbisognoSpiegaChiudiBtn.addEventListener("click", chiudiSpiegazioneFabbisogno);
+  fabbisognoSpiegaOverlay.addEventListener("click", (e) => {
+    if (e.target === fabbisognoSpiegaOverlay) chiudiSpiegazioneFabbisogno();
   });
 
   dietaContainer.addEventListener("click", (e) => {
