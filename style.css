@@ -1079,6 +1079,105 @@ table tfoot .riga-totale td {
   line-height: 1.4;
 }
 
+/* ==================== Modelli di dieta ==================== */
+
+.modelli-barra { align-items: center; }
+.modelli-filtro { flex: 1; min-width: 180px; }
+
+.modelli-lista { display: flex; flex-direction: column; gap: 22px; }
+
+.modelli-gruppo-titolo {
+  font-size: 1rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
+
+.modelli-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.modello-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 1px 3px var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modello-card-testa { display: flex; align-items: center; gap: 8px; }
+.modello-card-nome { font-weight: 700; }
+.modello-card-azioni { display: flex; gap: 8px; margin-top: 4px; }
+.modello-card-azioni button { margin: 0; font-size: 0.82rem; padding: 6px 12px; }
+
+.modello-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+}
+.modello-badge-dieta { background: var(--accent); }
+.modello-badge-giornata { background: var(--secondary); }
+.modello-badge-pasto { background: var(--priorita-media); }
+
+/* Scelta tipo nel modale "nuovo modello" */
+.modello-tipo-scelta { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
+.modello-tipo-btn {
+  margin: 0;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-input);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+}
+.modello-tipo-btn:hover { background: var(--accent-tint); color: var(--text); transform: none; }
+.modello-tipo-btn.attivo { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Barra "stai modificando un modello" */
+#modello-bar .paziente-bar-riga { align-items: center; }
+.modello-bar-etichetta { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.modello-bar-titolo { font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+
+/* Lista di applicazione */
+.modello-applica-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  margin: 0 0 8px;
+  background: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+.modello-applica-item:hover { background: var(--accent-tint); transform: none; }
+
+/* In modalità modello, nascondi le parti specifiche del paziente */
+body.modello-attivo #paziente-bar,
+body.modello-attivo #checkin-admin,
+body.modello-attivo #piano-info-riga .griglia-2 > div:last-child,
+body.modello-attivo #dieta .pdf-buttons { display: none; }
+/* Giornata e pasto: niente calorie/impostazioni piano né panoramica */
+body.modello-tipo-giornata #piano-info-riga,
+body.modello-tipo-pasto #piano-info-riga,
+body.modello-tipo-giornata #panoramica,
+body.modello-tipo-pasto #panoramica { display: none; }
+
 /* ---------- Check-in periodico ---------- */
 
 .tab-strip {

@@ -26,6 +26,27 @@ let listaPazienti = [];
 let pazienteCorrente = null; // { id, nome }
 let dietaCorrenteId = null;
 
+// Modelli di dieta: quando si sta modificando un modello, modelloContesto è
+// { id, tipo, nome, categoria, pasto_suggerito }. In quel caso l'editor riusa lo
+// stesso motore del piano paziente, ma con salvataggio deviato e giorni/pasti
+// "in scope" ridotti (una giornata o un solo pasto).
+let modelloContesto = null;
+let pazientePrimaDeiModelli = null; // id paziente da ripristinare all'uscita
+const GIORNO_MODELLO = "Lunedì";    // slot-giorno interno per giornate/pasti
+
+// Giorni/pasti visibili nell'editor: tutti per piano paziente e modello "dieta";
+// ridotti per i modelli "giornata" (un giorno) e "pasto" (un giorno, un pasto).
+function giorniAttivi() {
+  if (modelloContesto && modelloContesto.tipo !== "dieta") return [GIORNO_MODELLO];
+  return GIORNI;
+}
+function pastiAttivi() {
+  if (modelloContesto && modelloContesto.tipo === "pasto") {
+    return [modelloContesto.pasto_suggerito || PASTI[0]];
+  }
+  return PASTI;
+}
+
 function creaDietaVuota() {
   const dieta = {};
   GIORNI.forEach(giorno => {
@@ -63,6 +84,8 @@ function applicaDatiDieta(dati) {
 }
 
 async function salvaStateRemoto() {
+  // In modalità modello il salvataggio va sulla tabella dei modelli, non su diete.
+  if (modelloContesto) { salvaModelloRemoto(); return; }
   if (!dietaCorrenteId) return;
   const dati = {
     maxKcal: state.maxKcal,
@@ -2876,6 +2899,7 @@ async function selezionaPaziente(pazienteId) {
     profiloBtn.disabled = true;
     anteprimaPazienteBtn.disabled = true;
     agendaNuovoBtn.disabled = true;
+    daModelloBtn.disabled = true;
     areaLavoro.classList.add("hidden");
     aggiornaDisponibilitaSezioniPaziente();
     renderProssimoAppuntamentoAdmin();
@@ -2942,6 +2966,7 @@ async function selezionaPaziente(pazienteId) {
   profiloBtn.disabled = false;
   anteprimaPazienteBtn.disabled = false;
   agendaNuovoBtn.disabled = false;
+  daModelloBtn.disabled = false;
   areaLavoro.classList.remove("hidden");
   aggiornaDisponibilitaSezioniPaziente();
   renderProssimoAppuntamentoAdmin();
@@ -3534,6 +3559,429 @@ async function apriTaskBoard() {
 function chiudiTaskBoard() {
   taskBoard.classList.add("hidden");
   appShell.classList.remove("hidden");
+}
+
+// ==================== Modelli di dieta (diete/giornate/pasti standard) ====================
+// Riusano lo stesso editor del piano paziente in "modalità modello"
+// (modelloContesto). Persistiti sulla tabella Supabase modelli_dieta.
+
+const modelliBtn = document.getElementById("modelli-btn");
+const modelliBoard = document.getElementById("modelli-board");
+const modelliChiudiBtn = document.getElementById("modelli-chiudi-btn");
+const modelliLista = document.getElementById("modelli-lista");
+const modelliFiltroInput = document.getElementById("modelli-filtro-input");
+const modelloNuovoBtn = document.getElementById("modello-nuovo-btn");
+const modelloNuovoOverlay = document.getElementById("modello-nuovo-overlay");
+const modelloTipoBtns = document.querySelectorAll(".modello-tipo-btn");
+const modelloNomeInput = document.getElementById("modello-nome-input");
+const modelloCategoriaInput = document.getElementById("modello-categoria-input");
+const modelliCategorieDatalist = document.getElementById("modelli-categorie-datalist");
+const modelloPastoSuggeritoRiga = document.getElementById("modello-pasto-suggerito-riga");
+const modelloPastoSuggeritoSelect = document.getElementById("modello-pasto-suggerito-select");
+const modelloNuovoError = document.getElementById("modello-nuovo-error");
+const modelloNuovoCreaBtn = document.getElementById("modello-nuovo-crea-btn");
+const modelloNuovoAnnullaBtn = document.getElementById("modello-nuovo-annulla-btn");
+const modelloBar = document.getElementById("modello-bar");
+const modelloBarNome = document.getElementById("modello-bar-nome");
+const modelloBarTipo = document.getElementById("modello-bar-tipo");
+const modelloBarCategoria = document.getElementById("modello-bar-categoria");
+const modelloTornaBtn = document.getElementById("modello-torna-btn");
+const daModelloBtn = document.getElementById("da-modello-btn");
+const modelloApplicaOverlay = document.getElementById("modello-applica-overlay");
+const modelloApplicaFiltro = document.getElementById("modello-applica-filtro");
+const modelloApplicaLista = document.getElementById("modello-applica-lista");
+const modelloApplicaAnnullaBtn = document.getElementById("modello-applica-annulla-btn");
+
+let listaModelli = [];
+let modelloNuovoTipo = "dieta";
+
+const MODELLO_TIPO_LABEL = { dieta: "Dieta", giornata: "Giornata", pasto: "Pasto" };
+
+function clona(x) { return JSON.parse(JSON.stringify(x || null)); }
+
+// ---- Persistenza ----
+async function caricaModelli() {
+  const { data, error } = await supabaseClient
+    .from("modelli_dieta")
+    .select("*")
+    .order("categoria", { ascending: true })
+    .order("nome", { ascending: true });
+  if (error) {
+    console.error("Errore nel caricamento dei modelli:", error);
+    alert("Errore nel caricamento dei modelli: " + error.message);
+    listaModelli = [];
+    return;
+  }
+  listaModelli = data || [];
+}
+
+// Costruisce l'oggetto "dati" del modello dallo stato corrente dell'editor.
+function datiDaStatoModello() {
+  if (!modelloContesto) return {};
+  if (modelloContesto.tipo === "giornata") {
+    return { giornata: clona(state.dieta[GIORNO_MODELLO]) };
+  }
+  if (modelloContesto.tipo === "pasto") {
+    const pasto = modelloContesto.pasto_suggerito || PASTI[0];
+    return { items: clona(state.dieta[GIORNO_MODELLO][pasto] || []) };
+  }
+  return {
+    maxKcal: state.maxKcal,
+    kcalModo: state.kcalModo,
+    dieta: clona(state.dieta),
+    sostituzioni: state.sostituzioni,
+    infoStudio: state.infoStudio,
+    validoDal: state.validoDal,
+    validoAl: state.validoAl
+  };
+}
+
+async function salvaModelloRemoto() {
+  if (!modelloContesto) return;
+  const aggiornamento = { dati: datiDaStatoModello(), updated_at: new Date().toISOString() };
+  const { error } = await supabaseClient
+    .from("modelli_dieta")
+    .update(aggiornamento)
+    .eq("id", modelloContesto.id);
+  if (error) console.error("Errore nel salvataggio del modello:", error);
+}
+
+async function eliminaModello(id, nome) {
+  if (!confirm(`Eliminare definitivamente il modello «${nome}»?`)) return;
+  const { error } = await supabaseClient.from("modelli_dieta").delete().eq("id", id);
+  if (error) { alert("Errore nell'eliminazione: " + error.message); return; }
+  await caricaModelli();
+  renderModelliBoard();
+}
+
+// ---- Board ----
+async function apriModelli() {
+  pazientePrimaDeiModelli = pazienteCorrente ? pazienteCorrente.id : null;
+  appShell.classList.add("hidden");
+  modelliBoard.classList.remove("hidden");
+  await caricaModelli();
+  renderModelliBoard();
+}
+
+function chiudiModelli() {
+  modelliBoard.classList.add("hidden");
+  appShell.classList.remove("hidden");
+  // Ripristina il paziente su cui si stava lavorando (il suo piano era in memoria
+  // ma è stato eventualmente sovrascritto entrando in un editor di modello).
+  if (pazientePrimaDeiModelli) {
+    selezionaPaziente(pazientePrimaDeiModelli);
+  }
+}
+
+function categorieEsistenti() {
+  return [...new Set(listaModelli.map(m => (m.categoria || "").trim()).filter(Boolean))].sort();
+}
+
+function aggiornaDatalistCategorie() {
+  if (!modelliCategorieDatalist) return;
+  modelliCategorieDatalist.innerHTML = categorieEsistenti()
+    .map(c => `<option value="${escapeHtml(c)}"></option>`).join("");
+}
+
+function renderModelliBoard() {
+  aggiornaDatalistCategorie();
+  const filtro = normalizzaTesto(modelliFiltroInput ? modelliFiltroInput.value : "");
+  const modelli = listaModelli.filter(m =>
+    !filtro || normalizzaTesto(m.nome).includes(filtro) || normalizzaTesto(m.categoria || "").includes(filtro)
+  );
+
+  if (modelli.length === 0) {
+    modelliLista.innerHTML = `<p class="vuoto">${listaModelli.length === 0 ? "Nessun modello ancora. Creane uno con «+ Nuovo modello»." : "Nessun modello corrisponde al filtro."}</p>`;
+    return;
+  }
+
+  // Raggruppa per categoria.
+  const gruppi = {};
+  modelli.forEach(m => {
+    const cat = (m.categoria || "").trim() || "Senza categoria";
+    (gruppi[cat] = gruppi[cat] || []).push(m);
+  });
+
+  modelliLista.innerHTML = Object.keys(gruppi).sort().map(cat => `
+    <div class="modelli-gruppo">
+      <h2 class="modelli-gruppo-titolo">${escapeHtml(cat)}</h2>
+      <div class="modelli-cards">
+        ${gruppi[cat].map(m => `
+          <div class="modello-card" data-id="${m.id}">
+            <div class="modello-card-testa">
+              <span class="modello-badge modello-badge-${m.tipo}">${MODELLO_TIPO_LABEL[m.tipo] || m.tipo}</span>
+              ${m.tipo === "pasto" && m.pasto_suggerito ? `<span class="hint">${escapeHtml(m.pasto_suggerito)}</span>` : ""}
+            </div>
+            <div class="modello-card-nome">${escapeHtml(m.nome)}</div>
+            <div class="modello-card-azioni">
+              <button type="button" class="secondary modello-modifica-btn" data-id="${m.id}">Modifica</button>
+              <button type="button" class="danger modello-elimina-btn" data-id="${m.id}" data-nome="${escapeHtml(m.nome)}">Elimina</button>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `).join("");
+}
+
+// ---- Nuovo modello ----
+function apriNuovoModello() {
+  modelloNuovoTipo = "dieta";
+  modelloTipoBtns.forEach(b => b.classList.toggle("attivo", b.dataset.tipo === "dieta"));
+  modelloNomeInput.value = "";
+  modelloCategoriaInput.value = "";
+  modelloPastoSuggeritoRiga.classList.add("hidden");
+  modelloNuovoError.classList.add("hidden");
+  aggiornaDatalistCategorie();
+  modelloNuovoOverlay.classList.remove("hidden");
+}
+
+function chiudiNuovoModello() { modelloNuovoOverlay.classList.add("hidden"); }
+
+async function creaNuovoModello() {
+  const nome = modelloNomeInput.value.trim();
+  if (!nome) {
+    modelloNuovoError.textContent = "Dai un nome al modello.";
+    modelloNuovoError.classList.remove("hidden");
+    return;
+  }
+  const riga = {
+    nome,
+    categoria: modelloCategoriaInput.value.trim() || null,
+    tipo: modelloNuovoTipo,
+    pasto_suggerito: modelloNuovoTipo === "pasto" ? modelloPastoSuggeritoSelect.value : null,
+    dati: {}
+  };
+  const { data, error } = await supabaseClient.from("modelli_dieta").insert(riga).select().single();
+  if (error) {
+    modelloNuovoError.textContent = "Errore nella creazione: " + error.message;
+    modelloNuovoError.classList.remove("hidden");
+    return;
+  }
+  chiudiNuovoModello();
+  await caricaModelli();
+  apriEditorModello(data);
+}
+
+// ---- Editor (riusa l'area di lavoro in modalità modello) ----
+function applicaModelloAState(modello) {
+  state = creaStatoVuoto();
+  const dati = clona(modello.dati) || {};
+  if (modello.tipo === "dieta") {
+    applicaDatiDieta(dati);
+  } else if (modello.tipo === "giornata") {
+    PASTI.forEach(p => {
+      state.dieta[GIORNO_MODELLO][p] = (dati.giornata && dati.giornata[p]) || [];
+    });
+  } else if (modello.tipo === "pasto") {
+    const pasto = modello.pasto_suggerito || PASTI[0];
+    state.dieta[GIORNO_MODELLO][pasto] = dati.items || [];
+  }
+}
+
+function apriEditorModello(modello) {
+  modelloContesto = {
+    id: modello.id, tipo: modello.tipo, nome: modello.nome,
+    categoria: modello.categoria, pasto_suggerito: modello.pasto_suggerito
+  };
+  applicaModelloAState(modello);
+  dietaCorrenteId = null;
+
+  modelliBoard.classList.add("hidden");
+  appShell.classList.remove("hidden");
+  document.body.classList.add("modello-attivo", "modello-tipo-" + modello.tipo);
+  modelloBar.classList.remove("hidden");
+  modelloBarNome.textContent = modello.nome;
+  modelloBarTipo.textContent = MODELLO_TIPO_LABEL[modello.tipo] || modello.tipo;
+  modelloBarTipo.className = "modello-badge modello-badge-" + modello.tipo;
+  modelloBarCategoria.textContent = modello.categoria ? "Categoria: " + modello.categoria : "";
+
+  // Scope del selettore giorni; per il pasto blocca anche il pasto di destinazione.
+  renderGiorniCheckbox(confermaGiorniCheckbox, giorniAttivi());
+  if (modello.tipo === "pasto") {
+    pastoSelect.value = modello.pasto_suggerito || PASTI[0];
+    pastoSelect.disabled = true;
+  } else {
+    pastoSelect.disabled = false;
+  }
+
+  collapsedGiorni = new Set();
+  draftPasto = [];
+  areaLavoro.classList.remove("hidden");
+  renderDraft();
+  renderDieta();
+}
+
+function chiudiEditorModello() {
+  modelloContesto = null;
+  pastoSelect.disabled = false;
+  modelloBar.classList.add("hidden");
+  document.body.classList.remove("modello-attivo", "modello-tipo-dieta", "modello-tipo-giornata", "modello-tipo-pasto");
+  // Ripristina il selettore giorni completo per il flusso paziente.
+  renderGiorniCheckbox(confermaGiorniCheckbox, GIORNI);
+  apriModelli();
+}
+
+// ---- Applicazione di un modello al piano del paziente ----
+function apriApplicaModello() {
+  if (!pazienteCorrente || modelloContesto) return;
+  modelloApplicaFiltro.value = "";
+  modelloApplicaOverlay.classList.remove("hidden");
+  caricaModelli().then(renderApplicaLista);
+}
+
+function chiudiApplicaModello() { modelloApplicaOverlay.classList.add("hidden"); }
+
+function renderApplicaLista() {
+  const filtro = normalizzaTesto(modelloApplicaFiltro.value);
+  const modelli = listaModelli.filter(m =>
+    !filtro || normalizzaTesto(m.nome).includes(filtro) || normalizzaTesto(m.categoria || "").includes(filtro)
+  );
+  if (modelli.length === 0) {
+    modelloApplicaLista.innerHTML = `<p class="vuoto">Nessun modello disponibile.</p>`;
+    return;
+  }
+  modelloApplicaLista.innerHTML = modelli.map(m => `
+    <button type="button" class="modello-applica-item" data-id="${m.id}">
+      <span class="modello-badge modello-badge-${m.tipo}">${MODELLO_TIPO_LABEL[m.tipo] || m.tipo}</span>
+      <strong>${escapeHtml(m.nome)}</strong>
+      ${m.categoria ? `<span class="hint">${escapeHtml(m.categoria)}</span>` : ""}
+    </button>
+  `).join("");
+}
+
+// Copia gli item in un pasto: modo "sostituisci" o "aggiungi".
+function inserisciItems(giorno, pasto, items, modo) {
+  const copie = clona(items || []);
+  if (modo === "aggiungi") {
+    state.dieta[giorno][pasto] = state.dieta[giorno][pasto].concat(copie);
+  } else {
+    state.dieta[giorno][pasto] = copie;
+  }
+}
+
+function avviaApplicazioneModello(modello) {
+  if (modello.tipo === "dieta") {
+    applicaModelloDieta(modello);
+  } else {
+    renderApplicaStep2(modello);
+  }
+}
+
+function applicaModelloDieta(modello) {
+  const dati = clona(modello.dati) || {};
+  const dietaModello = dati.dieta || creaDietaVuota();
+  const pianoVuoto = dietaVuota();
+  let modo = "sostituisci";
+  if (!pianoVuoto) {
+    // OK = Sostituisci, Annulla = Aggiungi.
+    modo = confirm("Il piano del paziente contiene già alimenti.\n\nOK = SOSTITUISCI tutto con il modello\nAnnulla = AGGIUNGI il modello a ciò che c'è") ? "sostituisci" : "aggiungi";
+  }
+  if (modo === "sostituisci" && pianoVuoto) {
+    // Piano vuoto: adotta integralmente il modello (alimenti + impostazioni).
+    applicaDatiDieta(dati);
+  } else {
+    GIORNI.forEach(g => PASTI.forEach(p => {
+      inserisciItems(g, p, (dietaModello[g] && dietaModello[g][p]) || [], modo);
+    }));
+  }
+  finalizzaApplicazione(modello.nome);
+}
+
+// Step 2 per giornata/pasto: scelta giorni (e pasto per i pasti).
+function renderApplicaStep2(modello) {
+  const selPasto = modello.tipo === "pasto"
+    ? `<label for="modello-applica-pasto">Pasto di destinazione</label>
+       <select id="modello-applica-pasto">${PASTI.map(p => `<option${p === modello.pasto_suggerito ? " selected" : ""}>${p}</option>`).join("")}</select>`
+    : "";
+  modelloApplicaLista.innerHTML = `
+    <p class="duplica-sottotitolo">«${escapeHtml(modello.nome)}» — scegli dove inserirlo.</p>
+    ${selPasto}
+    <label>In quali giorni?</label>
+    <div class="giorni-preset">
+      <button type="button" class="preset-btn" data-target="modello-applica-giorni" data-preset="tutti">Tutti</button>
+      <button type="button" class="preset-btn" data-target="modello-applica-giorni" data-preset="feriali">Lun–Ven</button>
+      <button type="button" class="preset-btn" data-target="modello-applica-giorni" data-preset="weekend">Weekend</button>
+    </div>
+    <div id="modello-applica-giorni" class="giorni-checkbox-griglia"></div>
+    <div class="duplica-azioni">
+      <button type="button" id="modello-applica-conferma-btn">Applica</button>
+      <button type="button" id="modello-applica-indietro-btn" class="secondary">← Indietro</button>
+    </div>
+  `;
+  renderGiorniCheckbox(document.getElementById("modello-applica-giorni"), GIORNI);
+  document.getElementById("modello-applica-indietro-btn").addEventListener("click", renderApplicaLista);
+  document.getElementById("modello-applica-conferma-btn").addEventListener("click", () => confermaApplicaStep2(modello));
+}
+
+function confermaApplicaStep2(modello) {
+  const giorni = [...document.querySelectorAll("#modello-applica-giorni input:checked")].map(cb => cb.value);
+  if (giorni.length === 0) { alert("Seleziona almeno un giorno."); return; }
+
+  const dati = clona(modello.dati) || {};
+  // Determina se qualche destinazione è già popolata → in tal caso chiedi.
+  let popolato = false;
+  if (modello.tipo === "giornata") {
+    popolato = giorni.some(g => PASTI.some(p => (state.dieta[g][p] || []).length));
+  } else {
+    const pasto = document.getElementById("modello-applica-pasto").value;
+    popolato = giorni.some(g => (state.dieta[g][pasto] || []).length);
+  }
+  let modo = "sostituisci";
+  if (popolato) {
+    modo = confirm("Alcune destinazioni contengono già alimenti.\n\nOK = SOSTITUISCI\nAnnulla = AGGIUNGI") ? "sostituisci" : "aggiungi";
+  }
+
+  if (modello.tipo === "giornata") {
+    giorni.forEach(g => PASTI.forEach(p => inserisciItems(g, p, (dati.giornata && dati.giornata[p]) || [], modo)));
+  } else {
+    const pasto = document.getElementById("modello-applica-pasto").value;
+    giorni.forEach(g => inserisciItems(g, pasto, dati.items || [], modo));
+  }
+  finalizzaApplicazione(modello.nome);
+}
+
+function finalizzaApplicazione(nome) {
+  chiudiApplicaModello();
+  salvaStateRemoto();
+  renderDieta();
+  renderDraft();
+}
+
+// Aggancio eventi dei modelli (chiamato da inizializza()).
+function inizializzaModelli() {
+  if (!modelliBtn) return;
+  modelliBtn.addEventListener("click", apriModelli);
+  modelliChiudiBtn.addEventListener("click", chiudiModelli);
+  modelloNuovoBtn.addEventListener("click", apriNuovoModello);
+  modelloNuovoAnnullaBtn.addEventListener("click", chiudiNuovoModello);
+  modelloNuovoCreaBtn.addEventListener("click", creaNuovoModello);
+  modelloTornaBtn.addEventListener("click", chiudiEditorModello);
+  daModelloBtn.addEventListener("click", apriApplicaModello);
+  modelloApplicaAnnullaBtn.addEventListener("click", chiudiApplicaModello);
+
+  if (modelliFiltroInput) modelliFiltroInput.addEventListener("input", renderModelliBoard);
+  if (modelloApplicaFiltro) modelloApplicaFiltro.addEventListener("input", renderApplicaLista);
+
+  modelloTipoBtns.forEach(b => b.addEventListener("click", () => {
+    modelloNuovoTipo = b.dataset.tipo;
+    modelloTipoBtns.forEach(x => x.classList.toggle("attivo", x === b));
+    modelloPastoSuggeritoRiga.classList.toggle("hidden", modelloNuovoTipo !== "pasto");
+  }));
+
+  // Deleghe sulla board e sulla lista di applicazione.
+  modelliLista.addEventListener("click", (e) => {
+    const mod = e.target.closest(".modello-modifica-btn");
+    if (mod) { const m = listaModelli.find(x => x.id === mod.dataset.id); if (m) apriEditorModello(m); return; }
+    const del = e.target.closest(".modello-elimina-btn");
+    if (del) { eliminaModello(del.dataset.id, del.dataset.nome); return; }
+  });
+  modelloApplicaLista.addEventListener("click", (e) => {
+    const item = e.target.closest(".modello-applica-item");
+    if (!item) return;
+    const m = listaModelli.find(x => x.id === item.dataset.id);
+    if (m) avviaApplicazioneModello(m);
+  });
 }
 
 function popolaSelectPazienteTask(selezionato) {
@@ -4367,16 +4815,28 @@ function confermaDuplica() {
 function renderDieta() {
   dietaContainer.innerHTML = "";
 
-  // Aggiorna l'analisi allergeni del paziente e mostra un riepilogo se qualche
-  // alimento del piano corrisponde a un allergene dichiarato.
-  analisiAllergeniCorrente = analizzaAllergiePaziente(pazienteCorrente && pazienteCorrente.allergie);
-  const bannerAllergeni = costruisciRiepilogoAllergeni();
-  if (bannerAllergeni) dietaContainer.appendChild(bannerAllergeni);
+  // In modalità modello non c'è un paziente: niente analisi/banner allergeni.
+  const scopedModello = modelloContesto && modelloContesto.tipo !== "dieta";
+  if (modelloContesto) {
+    analisiAllergeniCorrente = { categorie: [], extra: [] };
+  } else {
+    // Aggiorna l'analisi allergeni del paziente e mostra un riepilogo se qualche
+    // alimento del piano corrisponde a un allergene dichiarato.
+    analisiAllergeniCorrente = analizzaAllergiePaziente(pazienteCorrente && pazienteCorrente.allergie);
+    const bannerAllergeni = costruisciRiepilogoAllergeni();
+    if (bannerAllergeni) dietaContainer.appendChild(bannerAllergeni);
+  }
 
-  GIORNI.forEach(giorno => {
+  giorniAttivi().forEach(giorno => {
     const totaleGiorno = totaliGiorno(giorno);
-    const superato = controllaLimite(giorno);
+    const superato = !scopedModello && controllaLimite(giorno);
     const collassato = collapsedGiorni.has(giorno);
+    // Nei modelli di giornata/pasto il "giorno" è solo uno slot interno: mostra
+    // un'etichetta neutra e nascondi i controlli di duplicazione/svuotamento.
+    const etichettaGiorno = scopedModello
+      ? (modelloContesto.tipo === "pasto" ? "Contenuto del pasto" : "Giornata standard")
+      : giorno;
+    const mostraControlliGiorno = !scopedModello && giornoHaAlimenti(giorno);
 
     const blocco = document.createElement("div");
     blocco.className = "giorno-block";
@@ -4385,10 +4845,10 @@ function renderDieta() {
     titolo.className = "giorno-titolo";
     titolo.dataset.giorno = giorno;
     titolo.innerHTML = `
-      <span class="giorno-nome"><span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${giorno}</span>
-      <span class="giorno-duplica-slot">${giornoHaAlimenti(giorno) ? `<button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">Duplica</button>` : ''}</span>
+      <span class="giorno-nome"><span class="freccia no-print">${collassato ? "▸" : "▾"}</span> ${etichettaGiorno}</span>
+      <span class="giorno-duplica-slot">${mostraControlliGiorno ? `<button class="duplica-giorno-btn no-print" data-giorno="${giorno}" title="Duplica l'intera giornata in altri giorni">Duplica</button>` : ''}</span>
       <span class="solo-nutrizionista giorno-totale">${superato ? '<span class="totale-warning">! ' : ''}Totale: ${formattaTotali(totaleGiorno)}${superato ? '</span>' : ''}</span>
-      <span class="giorno-svuota-slot">${giornoHaAlimenti(giorno) ? `
+      <span class="giorno-svuota-slot">${mostraControlliGiorno ? `
         <button class="svuota-giorno-btn no-print" data-giorno="${giorno}" title="Svuota tutti i pasti di ${giorno}" aria-label="Svuota tutti i pasti di ${giorno}">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="3 6 5 6 21 6"></polyline>
@@ -4413,7 +4873,7 @@ function renderDieta() {
       contenuto.appendChild(banner);
     }
 
-    PASTI.forEach(pasto => {
+    pastiAttivi().forEach(pasto => {
       const items = state.dieta[giorno][pasto];
       const pastoDiv = document.createElement("div");
       pastoDiv.className = "pasto-blocco";
@@ -4468,7 +4928,8 @@ function renderDieta() {
     dietaContainer.appendChild(blocco);
   });
 
-  renderPanoramica();
+  // La panoramica settimanale ha senso solo per il piano/modello di dieta intera.
+  if (!scopedModello) renderPanoramica();
 }
 
 // ---------- Panoramica settimanale ----------
@@ -5244,6 +5705,7 @@ function inizializza() {
 
   taskBoardBtn.addEventListener("click", apriTaskBoard);
   taskBoardChiudiBtn.addEventListener("click", chiudiTaskBoard);
+  inizializzaModelli();
   taskNuovaBtn.addEventListener("click", apriNuovaTask);
   taskArchivioBtn.addEventListener("click", apriArchivioTask);
   taskVediTutteBtn.addEventListener("click", apriVediTutteFatto);
