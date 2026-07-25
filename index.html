@@ -424,7 +424,6 @@
         </div>
         <button type="button" id="profilo-btn" class="secondary" disabled>Profilo paziente</button>
         <button type="button" id="storico-btn" class="secondary" disabled>Storico piani alimentari</button>
-        <button type="button" id="da-modello-btn" class="secondary" disabled>Da modello</button>
         <button type="button" id="agenda-nuovo-btn" class="secondary" disabled>+ Nuovo appuntamento</button>
       </div>
     </section>
@@ -511,7 +510,10 @@
       <section id="calcolatore" class="card no-print">
         <div class="calcolatore-intestazione">
           <h2>Calcolatore alimento</h2>
-          <button type="button" id="off-ricerca-toggle-btn" class="off-ricerca-toggle-btn" title="Ricerca prodotti confezionati (Open Food Facts)" aria-label="Ricerca prodotti confezionati (Open Food Facts)">🔍</button>
+          <div class="calcolatore-azioni">
+            <button type="button" id="da-modello-btn" class="off-ricerca-toggle-btn" title="Applica un modello di dieta" aria-label="Applica un modello di dieta" disabled>🗂️</button>
+            <button type="button" id="off-ricerca-toggle-btn" class="off-ricerca-toggle-btn" title="Ricerca prodotti confezionati (Open Food Facts)" aria-label="Ricerca prodotti confezionati (Open Food Facts)">🔍</button>
+          </div>
         </div>
 
         <div id="off-ricerca-admin-contenuto" class="hidden">

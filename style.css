@@ -1172,6 +1172,7 @@ table tfoot .riga-totale td {
 /* In modalità modello, nascondi le parti specifiche del paziente */
 body.modello-attivo #paziente-bar,
 body.modello-attivo #checkin-admin,
+body.modello-attivo #da-modello-btn,
 body.modello-attivo #piano-info-riga .griglia-2 > div:last-child,
 body.modello-attivo #dieta .pdf-buttons { display: none; }
 /* Giornata e pasto: niente calorie/impostazioni piano né panoramica */
@@ -2306,6 +2307,13 @@ textarea:focus {
 
 .calcolatore-intestazione h2 {
   margin: 0;
+}
+
+.calcolatore-azioni {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .off-ricerca-toggle-btn {
