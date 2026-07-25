@@ -3683,6 +3683,28 @@ function aggiornaDatalistCategorie() {
     .map(c => `<option value="${escapeHtml(c)}"></option>`).join("");
 }
 
+// Sezioni fisse della board, sempre mostrate (anche vuote).
+const MODELLI_SEZIONI = [
+  { tipo: "dieta", titolo: "Diete" },
+  { tipo: "giornata", titolo: "Giornate" },
+  { tipo: "pasto", titolo: "Pasti" }
+];
+
+function cardModello(m) {
+  const etichette = [];
+  if (m.categoria) etichette.push(`<span class="modello-badge modello-badge-cat">${escapeHtml(m.categoria)}</span>`);
+  if (m.tipo === "pasto" && m.pasto_suggerito) etichette.push(`<span class="hint">${escapeHtml(m.pasto_suggerito)}</span>`);
+  return `
+    <div class="modello-card" data-id="${m.id}">
+      ${etichette.length ? `<div class="modello-card-testa">${etichette.join(" ")}</div>` : ""}
+      <div class="modello-card-nome">${escapeHtml(m.nome)}</div>
+      <div class="modello-card-azioni">
+        <button type="button" class="secondary modello-modifica-btn" data-id="${m.id}">Modifica</button>
+        <button type="button" class="danger modello-elimina-btn" data-id="${m.id}" data-nome="${escapeHtml(m.nome)}">Elimina</button>
+      </div>
+    </div>`;
+}
+
 function renderModelliBoard() {
   aggiornaDatalistCategorie();
   const filtro = normalizzaTesto(modelliFiltroInput ? modelliFiltroInput.value : "");
@@ -3690,38 +3712,17 @@ function renderModelliBoard() {
     !filtro || normalizzaTesto(m.nome).includes(filtro) || normalizzaTesto(m.categoria || "").includes(filtro)
   );
 
-  if (modelli.length === 0) {
-    modelliLista.innerHTML = `<p class="vuoto">${listaModelli.length === 0 ? "Nessun modello ancora. Creane uno con «+ Nuovo modello»." : "Nessun modello corrisponde al filtro."}</p>`;
-    return;
-  }
-
-  // Raggruppa per categoria.
-  const gruppi = {};
-  modelli.forEach(m => {
-    const cat = (m.categoria || "").trim() || "Senza categoria";
-    (gruppi[cat] = gruppi[cat] || []).push(m);
-  });
-
-  modelliLista.innerHTML = Object.keys(gruppi).sort().map(cat => `
-    <div class="modelli-gruppo">
-      <h2 class="modelli-gruppo-titolo">${escapeHtml(cat)}</h2>
-      <div class="modelli-cards">
-        ${gruppi[cat].map(m => `
-          <div class="modello-card" data-id="${m.id}">
-            <div class="modello-card-testa">
-              <span class="modello-badge modello-badge-${m.tipo}">${MODELLO_TIPO_LABEL[m.tipo] || m.tipo}</span>
-              ${m.tipo === "pasto" && m.pasto_suggerito ? `<span class="hint">${escapeHtml(m.pasto_suggerito)}</span>` : ""}
-            </div>
-            <div class="modello-card-nome">${escapeHtml(m.nome)}</div>
-            <div class="modello-card-azioni">
-              <button type="button" class="secondary modello-modifica-btn" data-id="${m.id}">Modifica</button>
-              <button type="button" class="danger modello-elimina-btn" data-id="${m.id}" data-nome="${escapeHtml(m.nome)}">Elimina</button>
-            </div>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `).join("");
+  modelliLista.innerHTML = MODELLI_SEZIONI.map(({ tipo, titolo }) => {
+    const delTipo = modelli.filter(m => m.tipo === tipo);
+    const contenuto = delTipo.length
+      ? `<div class="modelli-cards">${delTipo.map(cardModello).join("")}</div>`
+      : `<p class="vuoto">${filtro ? "Nessun modello per questo filtro." : "Nessun modello ancora — creane uno con «+ Nuovo modello»."}</p>`;
+    return `
+      <div class="modelli-gruppo">
+        <h2 class="modelli-gruppo-titolo">${titolo} <span class="modelli-conteggio">${delTipo.length}</span></h2>
+        ${contenuto}
+      </div>`;
+  }).join("");
 }
 
 // ---- Nuovo modello ----
