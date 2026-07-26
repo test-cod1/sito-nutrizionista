@@ -1698,7 +1698,17 @@ function renderGraficoPeso(storico) {
   const y = v => margine.top + altezzaGrafico - ((v - yMin) / (yMax - yMin)) * altezzaGrafico;
 
   const punti = storico.map((r, i) => `${x(i)},${y(r.peso_kg)}`).join(" ");
-  const cerchi = storico.map((r, i) => `<circle cx="${x(i)}" cy="${y(r.peso_kg)}" r="4" class="peso-punto"><title>${new Date(r.created_at).toLocaleDateString("it-IT")}: ${r.peso_kg} kg</title></circle>`).join("");
+  // Ogni punto è un gruppo con un cerchio "hit" invisibile ma più grande, così
+  // l'hover/focus è comodo anche su punti vicini. I dati per il tooltip sono in
+  // data-* e vengono letti dai listener in attaccaHoverPunti().
+  const cerchi = storico.map((r, i) => {
+    const px = x(i), py = y(r.peso_kg);
+    const dataTxt = new Date(r.created_at).toLocaleDateString("it-IT");
+    return `<g class="peso-punto-g" tabindex="0" role="img" aria-label="${dataTxt}: ${r.peso_kg} kg" data-peso="${r.peso_kg}" data-data="${dataTxt}">
+      <circle cx="${px}" cy="${py}" r="13" class="peso-hit" />
+      <circle cx="${px}" cy="${py}" r="4" class="peso-punto" />
+    </g>`;
+  }).join("");
 
   const passoEtichette = Math.max(1, Math.ceil(storico.length / 6));
   const etichetteX = storico.map((r, i) => {
@@ -1714,7 +1724,55 @@ function renderGraficoPeso(storico) {
       ${cerchi}
       ${etichetteX}
     </svg>
+    <div class="peso-tooltip" hidden></div>
   `;
+
+  attaccaHoverPunti();
+}
+
+// Mostra un tooltip col peso (e la data) del punto sotto il cursore o col focus
+// da tastiera. La posizione si calcola dal rettangolo reale del punto, così
+// resta corretta con l'SVG scalato in modo responsivo.
+function attaccaHoverPunti() {
+  const tip = pesoGraficoEl.querySelector(".peso-tooltip");
+  if (!tip) return;
+
+  let attivoCorrente = null;
+
+  const nascondi = () => {
+    if (attivoCorrente) attivoCorrente.classList.remove("attivo");
+    attivoCorrente = null;
+    tip.hidden = true;
+  };
+  const mostra = (g) => {
+    if (attivoCorrente && attivoCorrente !== g) attivoCorrente.classList.remove("attivo");
+    g.classList.add("attivo");
+    attivoCorrente = g;
+    tip.innerHTML =
+      `<span class="peso-tooltip-peso">${g.dataset.peso} kg</span>` +
+      `<span class="peso-tooltip-data">${g.dataset.data}</span>`;
+    tip.hidden = false;
+    const rp = g.querySelector(".peso-punto").getBoundingClientRect();
+    const rg = pesoGraficoEl.getBoundingClientRect();
+    tip.style.left = (rp.left + rp.width / 2 - rg.left) + "px";
+    tip.style.top = (rp.top - rg.top) + "px";
+  };
+
+  pesoGraficoEl.querySelectorAll(".peso-punto-g").forEach(g => {
+    g.addEventListener("mouseenter", () => mostra(g));
+    g.addEventListener("mouseleave", nascondi);
+    g.addEventListener("focus", () => mostra(g));
+    g.addEventListener("blur", nascondi);
+    // Tap su mobile: mostra il punto toccato (e blocca la propagazione così il
+    // click "fuori" registrato sul grafico non lo chiuda subito).
+    g.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (attivoCorrente === g) nascondi(); else mostra(g);
+    });
+  });
+
+  // Un tap/click fuori dai punti chiude il tooltip aperto al tocco.
+  pesoGraficoEl.addEventListener("click", nascondi);
 }
 
 function aggiornaFiltroPeso(filtro) {

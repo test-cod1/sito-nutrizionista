@@ -2926,10 +2926,81 @@ textarea:focus {
   vector-effect: non-scaling-stroke;
 }
 
+.peso-grafico {
+  position: relative;
+}
+
 .peso-punto {
   fill: var(--accent);
   stroke: var(--surface);
   stroke-width: 1.5;
+  transition: r 0.12s ease;
+}
+
+/* Area di aggancio invisibile ma ampia attorno a ogni punto. */
+.peso-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.peso-punto-g {
+  cursor: pointer;
+  outline: none;
+}
+
+.peso-punto-g:hover .peso-punto,
+.peso-punto-g.attivo .peso-punto,
+.peso-punto-g:focus-visible .peso-punto {
+  r: 6;
+  fill: var(--accent-hover);
+}
+
+.peso-punto-g:focus-visible .peso-punto {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.peso-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--surface);
+  box-shadow: 0 4px 12px var(--shadow-modal);
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.peso-tooltip[hidden] {
+  display: none;
+}
+
+/* Codina del tooltip che punta al dato. */
+.peso-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--text);
+}
+
+.peso-tooltip-peso {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.peso-tooltip-data {
+  font-size: 0.72rem;
+  opacity: 0.8;
 }
 
 .peso-asse-testo {
