@@ -2552,6 +2552,11 @@ textarea:focus {
   justify-content: center;
   flex-wrap: wrap;
   gap: 10px 18px;
+  /* Sconfina fino ai bordi dell'area visibile annullando il padding del body,
+     così la barra è a tutta larghezza e simmetrica (nessuno stacco laterale
+     asimmetrico dovuto alla scrollbar verticale). */
+  margin-left: calc(-1 * (20px + env(safe-area-inset-left, 0px)));
+  margin-right: calc(-1 * (20px + env(safe-area-inset-right, 0px)));
   background: linear-gradient(135deg, var(--secondary), var(--secondary-hover));
   color: white;
   padding: 11px 20px;
