@@ -2551,31 +2551,59 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 12px;
-  background: var(--secondary);
+  gap: 10px 18px;
+  background: linear-gradient(135deg, var(--secondary), var(--secondary-hover));
   color: white;
-  padding: 10px 16px;
+  padding: 11px 20px;
   font-weight: 600;
   font-size: 0.9rem;
+  box-shadow: 0 2px 10px var(--shadow-strong);
 }
 
 .anteprima-banner.hidden {
   display: none;
 }
 
+.anteprima-banner-msg {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  letter-spacing: 0.1px;
+}
+
+.anteprima-banner-msg strong {
+  font-weight: 700;
+}
+
+.anteprima-banner-icona {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
 .anteprima-banner button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   margin: 0;
   background: white;
   color: var(--secondary);
   font-size: 0.85rem;
   font-weight: 700;
-  padding: 6px 14px;
+  padding: 7px 16px;
   border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .anteprima-banner button:hover {
-  background: rgba(255, 255, 255, 0.85);
-  transform: none;
+  background: #ffffff;
+  color: var(--secondary-hover);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
+}
+
+.anteprima-banner button svg {
+  flex-shrink: 0;
 }
 
 .task-scadenza-banner {
@@ -2829,6 +2857,16 @@ textarea:focus {
   background: var(--accent);
   color: white;
   transform: none;
+}
+
+.kcal-deficit-blocco {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--accent-border);
+}
+
+.kcal-deficit-blocco input {
+  max-width: 160px;
 }
 
 #fabbisogno-spiega-corpo h4 {

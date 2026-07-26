@@ -62,6 +62,7 @@ function creaStatoVuoto() {
   return {
     maxKcal: null,
     kcalModo: "manuale",
+    kcalDeficit: 0,
     dieta: creaDietaVuota(),
     sostituzioni: "",
     infoStudio: "",
@@ -76,6 +77,7 @@ function applicaDatiDieta(dati) {
   dati = dati || {};
   state.maxKcal = dati.maxKcal ?? null;
   state.kcalModo = dati.kcalModo === "auto" ? "auto" : "manuale";
+  state.kcalDeficit = Number(dati.kcalDeficit) || 0;
   state.dieta = dati.dieta ?? creaDietaVuota();
   state.sostituzioni = dati.sostituzioni ?? "";
   state.infoStudio = dati.infoStudio ?? "";
@@ -90,6 +92,7 @@ async function salvaStateRemoto() {
   const dati = {
     maxKcal: state.maxKcal,
     kcalModo: state.kcalModo,
+    kcalDeficit: state.kcalDeficit,
     dieta: state.dieta,
     sostituzioni: state.sostituzioni,
     infoStudio: state.infoStudio,
@@ -171,10 +174,22 @@ function fmtNumero(n) {
   return (Math.round(n * 100) / 100).toLocaleString("it-IT");
 }
 
+// Deficit calorico impostato (kcal da sottrarre al fabbisogno), sempre ≥ 0.
+function deficitCorrente() {
+  return Math.max(0, Number(state.kcalDeficit) || 0);
+}
+
+// Limite calorico effettivo usato per l'alert di sforamento in modalità auto:
+// fabbisogno (TDEE) meno il deficit, mai negativo.
+function limiteAutoEffettivo(tdee) {
+  return Math.max(0, tdee - deficitCorrente());
+}
+
 // Aggiorna il pannello "Automatico" in base al profilo del paziente corrente.
 function renderFabbisognoAuto() {
   if (!kcalAutoValore) return;
   const risultato = calcolaFabbisogno(pazienteCorrente);
+  if (kcalDeficitInput) kcalDeficitInput.value = deficitCorrente() || "";
   if (risultato.mancanti) {
     ultimoFabbisogno = null;
     kcalAutoValore.textContent = "—";
@@ -182,6 +197,7 @@ function renderFabbisognoAuto() {
       "Per il calcolo automatico completa il <strong>profilo del paziente</strong>: " +
       "mancano " + risultato.mancanti.join(", ") + ".";
     kcalAutoSpiegaBtn.classList.add("hidden");
+    if (kcalDeficitBlocco) kcalDeficitBlocco.classList.add("hidden");
     return;
   }
   ultimoFabbisogno = risultato;
@@ -190,12 +206,31 @@ function renderFabbisognoAuto() {
     "Stima con la formula di <strong>Mifflin-St Jeor</strong> sui dati del profilo. " +
     "Passa a «Manuale» per impostare un valore personalizzato.";
   kcalAutoSpiegaBtn.classList.remove("hidden");
+  if (kcalDeficitBlocco) kcalDeficitBlocco.classList.remove("hidden");
+  renderDeficitNota(risultato.tdee);
 }
 
-// In modalità automatica, allinea state.maxKcal al fabbisogno calcolato.
+// Mostra il limite effettivo per l'alert dopo aver sottratto il deficit.
+function renderDeficitNota(tdee) {
+  if (!kcalDeficitNota) return;
+  const deficit = deficitCorrente();
+  if (deficit <= 0) {
+    kcalDeficitNota.innerHTML =
+      "Nessun deficit: l'alert di sforamento usa il fabbisogno pieno.";
+    return;
+  }
+  const limite = limiteAutoEffettivo(tdee);
+  kcalDeficitNota.innerHTML =
+    "Limite per l'alert di sforamento: <strong>" +
+    limite.toLocaleString("it-IT") + " kcal/giorno</strong> (" +
+    tdee.toLocaleString("it-IT") + " − " + deficit.toLocaleString("it-IT") + ").";
+}
+
+// In modalità automatica, allinea state.maxKcal al fabbisogno calcolato meno
+// l'eventuale deficit impostato.
 function applicaFabbisognoAlloStato() {
   const risultato = calcolaFabbisogno(pazienteCorrente);
-  state.maxKcal = risultato.mancanti ? null : risultato.tdee;
+  state.maxKcal = risultato.mancanti ? null : limiteAutoEffettivo(risultato.tdee);
   maxKcalInput.value = state.maxKcal || "";
 }
 
@@ -526,6 +561,9 @@ const kcalAutoBlocco = document.getElementById("kcal-auto-blocco");
 const kcalAutoValore = document.getElementById("kcal-auto-valore");
 const kcalAutoNota = document.getElementById("kcal-auto-nota");
 const kcalAutoSpiegaBtn = document.getElementById("kcal-auto-spiega-btn");
+const kcalDeficitBlocco = document.getElementById("kcal-deficit-blocco");
+const kcalDeficitInput = document.getElementById("kcal-deficit-input");
+const kcalDeficitNota = document.getElementById("kcal-deficit-nota");
 const fabbisognoSpiegaOverlay = document.getElementById("fabbisogno-spiega-overlay");
 const fabbisognoSpiegaCorpo = document.getElementById("fabbisogno-spiega-corpo");
 const fabbisognoSpiegaChiudiBtn = document.getElementById("fabbisogno-spiega-chiudi-btn");
@@ -3628,6 +3666,7 @@ function datiDaStatoModello() {
   return {
     maxKcal: state.maxKcal,
     kcalModo: state.kcalModo,
+    kcalDeficit: state.kcalDeficit,
     dieta: clona(state.dieta),
     sostituzioni: state.sostituzioni,
     infoStudio: state.infoStudio,
@@ -5918,6 +5957,20 @@ function inizializza() {
   kcalModoBtns.forEach(btn => {
     btn.addEventListener("click", () => impostaModoKcal(btn.dataset.modo));
   });
+
+  if (kcalDeficitInput) {
+    kcalDeficitInput.addEventListener("input", () => {
+      state.kcalDeficit = Math.max(0, Number(kcalDeficitInput.value) || 0);
+      // In auto il deficit cambia il limite effettivo: ricalcola e ridisegna.
+      if (state.kcalModo === "auto") {
+        const risultato = calcolaFabbisogno(pazienteCorrente);
+        if (!risultato.mancanti) renderDeficitNota(risultato.tdee);
+        applicaFabbisognoAlloStato();
+      }
+      salvaStateRemoto();
+      renderDieta();
+    });
+  }
   kcalAutoSpiegaBtn.addEventListener("click", apriSpiegazioneFabbisogno);
   fabbisognoSpiegaChiudiBtn.addEventListener("click", chiudiSpiegazioneFabbisogno);
   fabbisognoSpiegaOverlay.addEventListener("click", (e) => {
