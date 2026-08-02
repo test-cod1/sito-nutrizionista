@@ -3427,15 +3427,21 @@ a.sezioni-link,
 }
 .cal-inner {
   min-width: 100%;
-  /* L'etichetta oraria di fondo è centrata sull'ultima linea e sporgerebbe di
-     ~6px oltre il corpo (altezza fissa): questo spazio la fa rientrare, così
-     non viene tagliata dagli angoli arrotondati della griglia. */
-  padding-bottom: 10px;
 }
 .cal-header-riga,
 .cal-corpo {
   display: grid;
   grid-template-columns: var(--cal-gutter-w) repeat(var(--cal-n), minmax(92px, 1fr));
+}
+/* Le etichette orarie sono centrate sulle linee: la prima e l'ultima
+   sporgerebbero di ~6px oltre il corpo (la prima finirebbe coperta dall'header
+   fisso, l'ultima tagliata dagli angoli arrotondati). Questo spazio sopra/sotto
+   le fa rientrare. box-sizing:content-box perché il corpo ha un'altezza fissa
+   inline (le fasce orarie): con border-box il padding la comprimerebbe. */
+.cal-corpo {
+  box-sizing: content-box;
+  padding-top: 15px;
+  padding-bottom: 12px;
 }
 .cal-header-riga {
   position: sticky;
