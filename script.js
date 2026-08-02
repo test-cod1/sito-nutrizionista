@@ -3952,25 +3952,59 @@ function chiudiEditorModello() {
 }
 
 // ---- Applicazione di un modello al piano del paziente ----
+let modelloApplicaTipo = null; // null = deve ancora scegliere il tipo
+
+const MODELLO_TIPO_SCELTA = [
+  { tipo: "dieta", label: "Dieta intera", icona: "📅" },
+  { tipo: "giornata", label: "Giornata", icona: "☀️" },
+  { tipo: "pasto", label: "Pasto singolo", icona: "🍽️" },
+];
+
 function apriApplicaModello() {
   if (!pazienteCorrente || modelloContesto) return;
+  modelloApplicaTipo = null;
   modelloApplicaFiltro.value = "";
   modelloApplicaOverlay.classList.remove("hidden");
-  caricaModelli().then(renderApplicaLista);
+  caricaModelli().then(renderApplicaTipoScelta);
 }
 
 function chiudiApplicaModello() { modelloApplicaOverlay.classList.add("hidden"); }
 
+// Passo 0: scelta del tipo di modello da cercare.
+function renderApplicaTipoScelta() {
+  modelloApplicaTipo = null;
+  modelloApplicaFiltro.classList.add("hidden");
+  modelloApplicaLista.innerHTML = MODELLO_TIPO_SCELTA.map(t => {
+    const n = listaModelli.filter(m => m.tipo === t.tipo).length;
+    return `
+      <button type="button" class="modello-applica-tipo-btn" data-tipo="${t.tipo}">
+        <span class="modello-applica-tipo-icona">${t.icona}</span>
+        <span class="modello-applica-tipo-label">${t.label}</span>
+        <span class="hint">${n} ${n === 1 ? "modello" : "modelli"}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+// Passo 1: elenco filtrato per il tipo scelto.
 function renderApplicaLista() {
+  if (!modelloApplicaTipo) { renderApplicaTipoScelta(); return; }
+  modelloApplicaFiltro.classList.remove("hidden");
   const filtro = normalizzaTesto(modelloApplicaFiltro.value);
   const modelli = listaModelli.filter(m =>
-    !filtro || normalizzaTesto(m.nome).includes(filtro) || normalizzaTesto(m.categoria || "").includes(filtro)
+    m.tipo === modelloApplicaTipo &&
+    (!filtro || normalizzaTesto(m.nome).includes(filtro) || normalizzaTesto(m.categoria || "").includes(filtro))
   );
+  const scelta = MODELLO_TIPO_SCELTA.find(t => t.tipo === modelloApplicaTipo);
+  const intestazione = `
+    <button type="button" class="modello-applica-cambia-tipo secondary">← Cambia tipo</button>
+    <p class="duplica-sottotitolo">${scelta ? scelta.icona + " " + scelta.label : ""}</p>
+  `;
   if (modelli.length === 0) {
-    modelloApplicaLista.innerHTML = `<p class="vuoto">Nessun modello disponibile.</p>`;
+    modelloApplicaLista.innerHTML = intestazione + `<p class="vuoto">Nessun modello disponibile.</p>`;
     return;
   }
-  modelloApplicaLista.innerHTML = modelli.map(m => `
+  modelloApplicaLista.innerHTML = intestazione + modelli.map(m => `
     <button type="button" class="modello-applica-item" data-id="${m.id}">
       <span class="modello-badge modello-badge-${m.tipo}">${MODELLO_TIPO_LABEL[m.tipo] || m.tipo}</span>
       <strong>${escapeHtml(m.nome)}</strong>
@@ -4106,6 +4140,14 @@ function inizializzaModelli() {
     if (del) { eliminaModello(del.dataset.id, del.dataset.nome); return; }
   });
   modelloApplicaLista.addEventListener("click", (e) => {
+    const tipoBtn = e.target.closest(".modello-applica-tipo-btn");
+    if (tipoBtn) {
+      modelloApplicaTipo = tipoBtn.dataset.tipo;
+      modelloApplicaFiltro.value = "";
+      renderApplicaLista();
+      return;
+    }
+    if (e.target.closest(".modello-applica-cambia-tipo")) { renderApplicaTipoScelta(); return; }
     const item = e.target.closest(".modello-applica-item");
     if (!item) return;
     const m = listaModelli.find(x => x.id === item.dataset.id);

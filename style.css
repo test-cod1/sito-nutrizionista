@@ -1187,6 +1187,26 @@ table tfoot .riga-totale td {
 }
 .modello-applica-item:hover { background: var(--accent-tint); transform: none; }
 
+/* Passo 0: scelta del tipo di modello */
+.modello-applica-tipo-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  margin: 0 0 10px;
+  background: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-weight: 600;
+}
+.modello-applica-tipo-btn:hover { background: var(--accent-tint); transform: none; }
+.modello-applica-tipo-icona { font-size: 1.5rem; line-height: 1; }
+.modello-applica-tipo-label { font-size: 1.05rem; flex: 1; }
+.modello-applica-cambia-tipo { margin: 0 0 10px; }
+
 /* In modalità modello, nascondi le parti specifiche del paziente */
 body.modello-attivo #paziente-bar,
 body.modello-attivo #checkin-admin,
