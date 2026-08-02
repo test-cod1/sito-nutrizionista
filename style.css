@@ -3476,31 +3476,35 @@ a.sezioni-link,
 .cal-gutter-header {
   border-right: 1px solid var(--border);
 }
+/* Nome giorno e data su una sola riga ("LUN 20/07") per un'intestazione più bassa */
 .cal-giorno-header {
   padding: 4px 4px;
   text-align: center;
   border-left: 1px solid var(--border);
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 .cal-giorno-header .cal-dow {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.03em;
 }
 .cal-giorno-header .cal-daynum {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
 }
 .cal-giorno-header.cal-oggi .cal-daynum {
   display: inline-block;
   background: var(--accent);
   color: #fff;
   border-radius: 999px;
-  padding: 1px 8px;
-  margin: 0 auto;
+  padding: 1px 7px;
+  margin: 0;
 }
 
 .cal-gutter {
