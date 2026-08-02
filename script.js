@@ -2240,7 +2240,8 @@ async function cercaOpenFoodFacts({ query, barcode }) {
 
 const OFF_NUTRISCORE_LABEL = { a: "A", b: "B", c: "C", d: "D", e: "E" };
 
-function renderSchedaProdottoOFF(p) {
+function renderSchedaProdottoOFF(p, opts = {}) {
+  const { importabile = false, index = 0 } = opts;
   const badgeNutriscore = p.nutriscore && OFF_NUTRISCORE_LABEL[p.nutriscore]
     ? `<span class="off-badge-nutriscore off-nutriscore-${p.nutriscore}">Nutri-Score ${OFF_NUTRISCORE_LABEL[p.nutriscore]}</span>`
     : "";
@@ -2280,6 +2281,7 @@ function renderSchedaProdottoOFF(p) {
       <p class="hint">Valori per 100 g/ml.</p>
       ${p.ingredienti ? `<p><strong>Ingredienti:</strong> ${escapeHtml(p.ingredienti)}</p>` : ""}
       ${p.allergeni ? `<p><strong>Allergeni:</strong> ${escapeHtml(p.allergeni)}</p>` : ""}
+      ${importabile ? `<button type="button" class="off-importa-btn" data-index="${index}">➕ Importa nel calcolatore</button>` : ""}
     </article>
   `;
 }
@@ -2288,9 +2290,10 @@ function renderSchedaProdottoOFF(p) {
 // tra cui scegliere, invece di scaricare in pagina tutte le schede intere:
 // i prodotti vengono tenuti in memoria sull'elemento contenitore stesso, così
 // "torna all'elenco" non deve rifare la ricerca.
-function renderRisultatiOFF(container, erroreEl, risultato) {
+function renderRisultatiOFF(container, erroreEl, risultato, importabile = false) {
   erroreEl.classList.add("hidden");
   container._prodottiOFF = null;
+  container._importabileOFF = importabile;
 
   if (risultato.errore) {
     erroreEl.textContent = risultato.errore;
@@ -2299,12 +2302,15 @@ function renderRisultatiOFF(container, erroreEl, risultato) {
     return;
   }
 
+  container._prodottiOFF = risultato.prodotti;
+
   if (risultato.prodotti.length <= 1) {
-    container.innerHTML = risultato.prodotti.map(renderSchedaProdottoOFF).join("");
+    container.innerHTML = risultato.prodotti
+      .map((p, i) => renderSchedaProdottoOFF(p, { importabile, index: i }))
+      .join("");
     return;
   }
 
-  container._prodottiOFF = risultato.prodotti;
   renderElencoOFF(container);
 }
 
@@ -2328,8 +2334,30 @@ function selezionaRisultatoOFF(container, index) {
   if (!prodotti || !prodotti[index]) return;
   container.innerHTML = `
     <button type="button" class="secondary off-torna-elenco-btn">← Torna all'elenco</button>
-    ${renderSchedaProdottoOFF(prodotti[index])}
+    ${renderSchedaProdottoOFF(prodotti[index], { importabile: container._importabileOFF, index })}
   `;
+}
+
+// Porta i valori di un prodotto Open Food Facts nel form "Nuovo alimento" già
+// esistente: l'admin li rivede/corregge e li salva col flusso ordinario
+// (upsert su alimenti_personalizzati). I valori OFF sono per 100 g, come il
+// resto del database alimenti. Se un macro manca su OFF il campo resta vuoto,
+// così la validazione di salvaNuovoAlimento obbliga a completarlo prima di salvare.
+function importaProdottoOFFInAlimento(p) {
+  if (!p) return;
+  const nomeBase = (p.nome || "PRODOTTO").trim().toUpperCase();
+  const marca = (p.marca || "").split(",")[0].trim().toUpperCase();
+  nuovoNomeInput.value = marca ? `${nomeBase} (${marca})` : nomeBase;
+  nuovoKcalInput.value = p.kcal100g != null ? round1(p.kcal100g) : "";
+  nuovoProtInput.value = p.proteine100g != null ? round1(p.proteine100g) : "";
+  nuovoFatInput.value = p.grassi100g != null ? round1(p.grassi100g) : "";
+  nuovoCarbInput.value = p.carboidrati100g != null ? round1(p.carboidrati100g) : "";
+
+  nuovoAlimentoForm.classList.remove("hidden");
+  nuovoAlimentoError.classList.add("hidden");
+  nascondiSuggerimenti();
+  nuovoAlimentoForm.scrollIntoView({ behavior: "smooth", block: "center" });
+  nuovoNomeInput.focus();
 }
 
 function apriFotoProdotto(url) {
@@ -2353,7 +2381,7 @@ async function cercaOFFAdmin() {
   }
   offAdminRisultati.innerHTML = '<p class="hint">Ricerca in corso...</p>';
   const risultato = await cercaOpenFoodFacts({ query, barcode });
-  renderRisultatiOFF(offAdminRisultati, offAdminErrore, risultato);
+  renderRisultatiOFF(offAdminRisultati, offAdminErrore, risultato, true);
 }
 
 // ---------- Open Food Facts: scanner barcode (paziente e admin) ----------
@@ -2450,7 +2478,7 @@ async function cercaOFFBarcodeManuale() {
 async function cercaOFFAdminBarcode(barcode) {
   offAdminRisultati.innerHTML = '<p class="hint">Ricerca in corso...</p>';
   const risultato = await cercaOpenFoodFacts({ barcode });
-  renderRisultatiOFF(offAdminRisultati, offAdminErrore, risultato);
+  renderRisultatiOFF(offAdminRisultati, offAdminErrore, risultato, true);
 }
 
 // ---------- Notifiche push: consenso e subscription ----------
@@ -6056,6 +6084,13 @@ function inizializza() {
     const tornaBtn = e.target.closest(".off-torna-elenco-btn");
     if (tornaBtn) {
       renderElencoOFF(e.currentTarget);
+      return;
+    }
+    const importaBtn = e.target.closest(".off-importa-btn");
+    if (importaBtn) {
+      const prodotti = e.currentTarget._prodottiOFF;
+      const p = prodotti && prodotti[parseInt(importaBtn.dataset.index, 10)];
+      importaProdottoOFFInAlimento(p);
     }
   };
   offAdminRisultati.addEventListener("click", gestisciClickRisultatiOFF);

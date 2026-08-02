@@ -1293,6 +1293,11 @@ body.modello-tipo-pasto #panoramica { display: none; }
   margin-top: 14px;
 }
 
+.off-importa-btn {
+  margin-top: 14px;
+  width: 100%;
+}
+
 .off-scheda-intestazione {
   display: flex;
   gap: 14px;
