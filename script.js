@@ -4024,6 +4024,110 @@ function chiudiTaskBoard() {
   appShell.classList.remove("hidden");
 }
 
+// ==================== Swipe "torna indietro" (iPad/touch) ====================
+// Uno scorrimento da sinistra verso destra, partendo dal bordo sinistro dello
+// schermo, chiude la schermata attualmente aperta sopra la home (bacheca task o
+// modelli di dieta) e torna al calcolatore, con la schermata che segue il dito.
+function inizializzaSwipeIndietro() {
+  const EDGE = 32;    // px dal bordo sinistro entro cui il gesto può iniziare
+  const SOGLIA = 90;  // px minimi di scorrimento per attivare il ritorno
+  let startX = 0, startY = 0;
+  let tracking = false;    // gesto valido in corso
+  let orizzontale = null;  // direzione bloccata: true=orizzontale, false=verticale
+  let board = null;        // { el, chiudi } della schermata da chiudere
+
+  // Schermata "sopra" la home che si può chiudere con lo swipe. Restituisce null
+  // se siamo già alla home o se c'è un modale aperto (in quel caso non intercetta).
+  function schermataAttiva() {
+    if (document.querySelector(".duplica-overlay:not(.hidden), .sezioni-overlay:not(.hidden)")) {
+      return null;
+    }
+    if (taskBoard && !taskBoard.classList.contains("hidden")) {
+      return { el: taskBoard, chiudi: chiudiTaskBoard };
+    }
+    if (modelliBoard && !modelliBoard.classList.contains("hidden")) {
+      return { el: modelliBoard, chiudi: () => modelliChiudiBtn.click() };
+    }
+    return null;
+  }
+
+  function ripristina(el) {
+    if (!el) return;
+    el.style.transition = "transform .2s ease, opacity .2s ease";
+    el.style.transform = "";
+    el.style.opacity = "";
+    window.setTimeout(() => {
+      el.style.transition = "";
+      el.style.willChange = "";
+    }, 220);
+  }
+
+  document.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (t.clientX > EDGE) return;          // deve partire dal bordo sinistro
+    const s = schermataAttiva();
+    if (!s) return;
+    board = s;
+    startX = t.clientX;
+    startY = t.clientY;
+    tracking = true;
+    orizzontale = null;
+  }, { passive: true });
+
+  document.addEventListener("touchmove", (e) => {
+    if (!tracking || !board) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    if (orizzontale === null) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      orizzontale = Math.abs(dx) > Math.abs(dy);
+      if (orizzontale) {
+        board.el.style.transition = "none";
+        board.el.style.willChange = "transform";
+      } else {
+        tracking = false;                  // è uno scroll verticale: non intercettare
+        return;
+      }
+    }
+    const spostamento = Math.max(0, dx);
+    board.el.style.transform = `translateX(${spostamento}px)`;
+    board.el.style.opacity = String(1 - Math.min(spostamento / window.innerWidth, 0.3));
+  }, { passive: true });
+
+  document.addEventListener("touchend", (e) => {
+    if (!tracking || !orizzontale || !board) { tracking = false; board = null; return; }
+    const dx = e.changedTouches[0].clientX - startX;
+    const b = board;
+    tracking = false;
+    board = null;
+    orizzontale = null;
+    if (dx > SOGLIA) {
+      // completa lo scorrimento fuori schermo, poi chiude la schermata
+      b.el.style.transition = "transform .18s ease, opacity .18s ease";
+      b.el.style.transform = `translateX(${window.innerWidth}px)`;
+      b.el.style.opacity = "0";
+      window.setTimeout(() => {
+        b.chiudi();
+        b.el.style.transition = "";
+        b.el.style.transform = "";
+        b.el.style.opacity = "";
+        b.el.style.willChange = "";
+      }, 180);
+    } else {
+      ripristina(b.el);                    // torna al suo posto
+    }
+  }, { passive: true });
+
+  document.addEventListener("touchcancel", () => {
+    if (board) ripristina(board.el);
+    tracking = false;
+    board = null;
+    orizzontale = null;
+  }, { passive: true });
+}
+
 // ==================== Modelli di dieta (diete/giornate/pasti standard) ====================
 // Riusano lo stesso editor del piano paziente in "modalità modello"
 // (modelloContesto). Persistiti sulla tabella Supabase modelli_dieta.
@@ -6291,6 +6395,7 @@ function inizializza() {
   taskScadenzaBannerChiudiBtn.addEventListener("click", () => taskScadenzaBanner.classList.add("hidden"));
 
   inizializzaTaskBoardDragDrop();
+  inizializzaSwipeIndietro();
 
   prossimoAppuntamentoAdminContenuto.addEventListener("click", (e) => {
     const btn = e.target.closest(".agenda-modifica-btn");
