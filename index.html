@@ -984,17 +984,39 @@
     </div>
   </div>
 
-  <!-- Agenda appuntamenti (elenco completo) -->
+  <!-- Agenda appuntamenti (calendario completo) -->
   <div id="agenda-overlay" class="duplica-overlay hidden no-print">
-    <div class="duplica-modal duplica-modal-larga">
-      <h3>Agenda appuntamenti</h3>
-      <label for="agenda-filtro-paziente">Filtra per paziente</label>
-      <div class="autocomplete-wrapper paziente-combo">
-        <input type="text" id="agenda-filtro-paziente" placeholder="Tutti i pazienti" autocomplete="off">
-        <span class="combo-caret" aria-hidden="true">▾</span>
-        <div id="agenda-filtro-paziente-suggestions" class="suggestions hidden"></div>
+    <div class="duplica-modal duplica-modal-calendario">
+      <div class="agenda-intestazione">
+        <h3>Agenda appuntamenti</h3>
+        <button type="button" id="agenda-nuovo-overlay-btn" class="secondary">+ Nuovo appuntamento</button>
       </div>
-      <div id="agenda-lista"></div>
+
+      <div class="agenda-controlli">
+        <div class="agenda-nav">
+          <button type="button" id="agenda-oggi-btn" class="secondary">Oggi</button>
+          <button type="button" id="agenda-prec-btn" class="agenda-freccia" aria-label="Periodo precedente">‹</button>
+          <button type="button" id="agenda-succ-btn" class="agenda-freccia" aria-label="Periodo successivo">›</button>
+          <span id="agenda-periodo-label" class="agenda-periodo-label"></span>
+        </div>
+        <div class="agenda-viste">
+          <button type="button" class="agenda-vista-btn" data-vista="mese">Mese</button>
+          <button type="button" class="agenda-vista-btn" data-vista="settimana">Settimana</button>
+          <button type="button" class="agenda-vista-btn" data-vista="giorno">Giorno</button>
+        </div>
+      </div>
+
+      <div class="agenda-filtro-riga">
+        <label for="agenda-filtro-paziente">Filtra per paziente</label>
+        <div class="autocomplete-wrapper paziente-combo">
+          <input type="text" id="agenda-filtro-paziente" placeholder="Tutti i pazienti" autocomplete="off">
+          <span class="combo-caret" aria-hidden="true">▾</span>
+          <div id="agenda-filtro-paziente-suggestions" class="suggestions hidden"></div>
+        </div>
+      </div>
+
+      <div id="agenda-calendario"></div>
+
       <div class="duplica-azioni">
         <button id="agenda-chiudi-btn" class="danger">Chiudi</button>
       </div>
@@ -1044,6 +1066,21 @@
           </div>
         </div>
       </div>
+
+      <div class="griglia-2">
+        <div>
+          <label for="appuntamento-tipo-visita-select">Tipo di visita</label>
+          <select id="appuntamento-tipo-visita-select">
+            <option value="prima_visita">Prima visita</option>
+            <option value="controllo">Controllo</option>
+          </select>
+        </div>
+        <div>
+          <label for="appuntamento-durata-select">Durata</label>
+          <select id="appuntamento-durata-select"></select>
+        </div>
+      </div>
+      <p class="appuntamento-fine-riga">Fine prevista: <strong id="appuntamento-fine-display">—</strong></p>
 
       <label for="appuntamento-tipologia-select">Tipologia</label>
       <select id="appuntamento-tipologia-select">

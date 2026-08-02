@@ -812,14 +812,20 @@ const offFotoChiudiBtn = document.getElementById("off-foto-chiudi-btn");
 const agendaBtn = document.getElementById("agenda-btn");
 const agendaOverlay = document.getElementById("agenda-overlay");
 const agendaChiudiBtn = document.getElementById("agenda-chiudi-btn");
-const agendaListaEl = document.getElementById("agenda-lista");
+const agendaCalendarioEl = document.getElementById("agenda-calendario");
 const agendaNuovoBtn = document.getElementById("agenda-nuovo-btn");
+const agendaNuovoOverlayBtn = document.getElementById("agenda-nuovo-overlay-btn");
+const agendaPeriodoLabel = document.getElementById("agenda-periodo-label");
+const agendaOggiBtn = document.getElementById("agenda-oggi-btn");
+const agendaPrecBtn = document.getElementById("agenda-prec-btn");
+const agendaSuccBtn = document.getElementById("agenda-succ-btn");
+const agendaVistaBtns = document.querySelectorAll(".agenda-vista-btn");
 const agendaFiltroPazienteSelect = creaComboPazienteRicerca(
   document.getElementById("agenda-filtro-paziente"),
   document.getElementById("agenda-filtro-paziente-suggestions"),
   "Tutti i pazienti"
 );
-agendaFiltroPazienteSelect.onChange = () => renderListaAppuntamenti();
+agendaFiltroPazienteSelect.onChange = () => renderCalendario();
 const prossimoAppuntamentoAdminContenuto = document.getElementById("prossimo-appuntamento-admin-contenuto");
 
 // Richieste di cancellazione dati (admin)
@@ -937,6 +943,9 @@ const appuntamentoOraInput = {
   }
 };
 const appuntamentoTipologiaSelect = document.getElementById("appuntamento-tipologia-select");
+const appuntamentoTipoVisitaSelect = document.getElementById("appuntamento-tipo-visita-select");
+const appuntamentoDurataSelect = document.getElementById("appuntamento-durata-select");
+const appuntamentoFineDisplay = document.getElementById("appuntamento-fine-display");
 const appuntamentoNoteInput = document.getElementById("appuntamento-note-input");
 const appuntamentoErrore = document.getElementById("appuntamento-error");
 const appuntamentoSalvaBtn = document.getElementById("appuntamento-salva-btn");
@@ -1832,13 +1841,14 @@ function renderProssimoAppuntamento() {
 
   const a = prossimoAppuntamentoCorrente;
   const dataOra = new Date(a.data_ora);
+  const fine = fineAppuntamento(a);
   const tipologiaLabel = a.tipologia === "remoto" ? "Da remoto" : "In studio";
 
   prossimoAppuntamentoContenuto.innerHTML = `
     <div class="prossimo-appuntamento-riga">
       <div>
         <strong>${dataOra.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</strong>
-        <p>${dataOra.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })} · ${tipologiaLabel}</p>
+        <p>${oraHM(dataOra)}–${oraHM(fine)} · ${tipologiaLabel}</p>
         ${a.note ? `<p class="hint">${escapeHtml(a.note)}</p>` : ""}
       </div>
       <button type="button" id="appuntamento-calendario-btn" class="secondary">Aggiungi al calendario</button>
@@ -1856,7 +1866,7 @@ function scaricaIcsAppuntamento() {
   if (!prossimoAppuntamentoCorrente) return;
   const a = prossimoAppuntamentoCorrente;
   const inizio = new Date(a.data_ora);
-  const fine = new Date(inizio.getTime() + 60 * 60 * 1000); // durata di default: 1 ora
+  const fine = fineAppuntamento(a); // durata reale dell'appuntamento
   const tipologiaLabel = a.tipologia === "remoto" ? "Da remoto" : "In studio";
   const note = (a.note || "").replace(/\n/g, "\\n");
 
@@ -3130,6 +3140,55 @@ async function confermaNuovoPaziente() {
 
 let listaAppuntamenti = [];
 
+// Vista calendario (ispirata a Google Calendar): stato corrente.
+let agendaVista = "settimana";   // 'mese' | 'settimana' | 'giorno'
+let agendaDataRif = new Date();  // periodo/giorno di riferimento mostrato
+
+// La griglia oraria di Settimana/Giorno copre Lun–Sab, 8:00–20:00.
+const ORA_GRIGLIA_INIZIO = 8;
+const ORA_GRIGLIA_FINE = 20;
+const GRIGLIA_MINUTI = (ORA_GRIGLIA_FINE - ORA_GRIGLIA_INIZIO) * 60;
+const PIXEL_PER_MINUTO = 0.9;    // 1 ora = 54px (coerente con --cal-ora-h nel CSS)
+const GIORNI_SETTIMANA_GRIGLIA = 6; // Lun–Sab (la domenica non compare)
+// GIORNI_BREVI (["Lun".."Dom"]) è già definito più avanti a livello di modulo.
+
+// Durata predefinita per tipo: prima visita 60 min, controllo 30 min.
+const DURATE_DEFAULT = { prima_visita: 60, controllo: 30 };
+
+function durataAppuntamento(a) {
+  if (a && a.durata_minuti && a.durata_minuti > 0) return a.durata_minuti;
+  return DURATE_DEFAULT[a && a.tipo_visita] || 30;
+}
+
+function fineAppuntamento(a) {
+  return new Date(new Date(a.data_ora).getTime() + durataAppuntamento(a) * 60000);
+}
+
+function oraHM(d) {
+  return d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+}
+
+// Data locale in formato yyyy-mm-dd (non usa toISOString per non slittare di fuso).
+function isoDataLocale(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const g = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${g}`;
+}
+
+// Lunedì (00:00) della settimana che contiene d.
+function inizioSettimana(d) {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  const giornoLun = (r.getDay() + 6) % 7; // 0 = lunedì
+  r.setDate(r.getDate() - giornoLun);
+  return r;
+}
+
+function stessoGiorno(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
 async function caricaAppuntamenti() {
   const { data, error } = await supabaseClient
     .from("appuntamenti")
@@ -3143,18 +3202,220 @@ async function caricaAppuntamenti() {
     listaAppuntamenti = data || [];
   }
   popolaFiltroAgenda();
-  renderListaAppuntamenti();
+  renderCalendario();
   renderProssimoAppuntamentoAdmin();
 }
 
 function apriAgendaModale() {
+  agendaDataRif = new Date(); // apre sempre sul periodo corrente
   popolaFiltroAgenda();
-  renderListaAppuntamenti();
+  renderCalendario();
   agendaOverlay.classList.remove("hidden");
 }
 
 function chiudiAgendaModale() {
   agendaOverlay.classList.add("hidden");
+}
+
+// ---------- Navigazione e cambio vista ----------
+function aggiornaBottoniVista() {
+  agendaVistaBtns.forEach(b => b.classList.toggle("attivo", b.dataset.vista === agendaVista));
+}
+
+function cambiaVistaAgenda(v) {
+  agendaVista = v;
+  renderCalendario();
+}
+
+function navigaAgenda(direzione) {
+  if (direzione === 0) { agendaDataRif = new Date(); renderCalendario(); return; }
+  const d = new Date(agendaDataRif);
+  if (agendaVista === "mese") d.setMonth(d.getMonth() + direzione);
+  else if (agendaVista === "settimana") d.setDate(d.getDate() + 7 * direzione);
+  else d.setDate(d.getDate() + direzione);
+  agendaDataRif = d;
+  renderCalendario();
+}
+
+function appuntamentiFiltrati() {
+  const f = agendaFiltroPazienteSelect.value;
+  return listaAppuntamenti.filter(a => !f || a.paziente_id === f);
+}
+
+function renderCalendario() {
+  aggiornaBottoniVista();
+  if (agendaVista === "mese") renderVistaMese();
+  else if (agendaVista === "giorno") renderVistaGiorno();
+  else renderVistaSettimana();
+}
+
+// Dispone gli appuntamenti sovrapposti di una giornata in "corsie" affiancate.
+// Restituisce, per ciascuno, la corsia (lane) e il numero di corsie del gruppo.
+function layoutColonnaGiorno(appts) {
+  const eventi = appts
+    .map(a => ({ a, start: new Date(a.data_ora).getTime(), end: fineAppuntamento(a).getTime() }))
+    .sort((x, y) => x.start - y.start || x.end - y.end);
+
+  const risultato = [];
+  let cluster = [];
+  let clusterEnd = -Infinity;
+
+  const chiudiCluster = () => {
+    const laneEnds = [];
+    cluster.forEach(ev => {
+      let messo = false;
+      for (let i = 0; i < laneEnds.length; i++) {
+        if (laneEnds[i] <= ev.start) { ev.lane = i; laneEnds[i] = ev.end; messo = true; break; }
+      }
+      if (!messo) { ev.lane = laneEnds.length; laneEnds.push(ev.end); }
+    });
+    cluster.forEach(ev => { ev.nLanes = laneEnds.length; risultato.push(ev); });
+    cluster = [];
+  };
+
+  eventi.forEach(ev => {
+    if (cluster.length && ev.start >= clusterEnd) chiudiCluster();
+    cluster.push(ev);
+    clusterEnd = Math.max(clusterEnd, ev.end);
+  });
+  if (cluster.length) chiudiCluster();
+  return risultato;
+}
+
+// Blocchi-evento posizionati nella griglia oraria (Settimana/Giorno).
+function eventiColonnaHtml(giorno, app, adesso) {
+  const disposti = layoutColonnaGiorno(app.filter(a => stessoGiorno(new Date(a.data_ora), giorno)));
+  return disposti.map(ev => {
+    const a = ev.a;
+    const inizio = new Date(a.data_ora);
+    const fine = fineAppuntamento(a);
+    const minInizio = Math.max(0, (inizio.getHours() * 60 + inizio.getMinutes()) - ORA_GRIGLIA_INIZIO * 60);
+    let minFine = (fine.getHours() * 60 + fine.getMinutes()) - ORA_GRIGLIA_INIZIO * 60;
+    if (!stessoGiorno(fine, inizio)) minFine = GRIGLIA_MINUTI; // oltre le 24 (raro)
+    minFine = Math.min(GRIGLIA_MINUTI, minFine);
+    const top = minInizio * PIXEL_PER_MINUTO;
+    const height = Math.max(20, (minFine - minInizio) * PIXEL_PER_MINUTO);
+    const largh = 100 / ev.nLanes;
+    const sx = ev.lane * largh;
+    const passato = fine < adesso;
+    const nome = a.pazienti ? a.pazienti.nome : "—";
+    const tv = a.tipo_visita === "prima_visita" ? "1ª visita" : (a.tipo_visita === "controllo" ? "Controllo" : "");
+    return `<div class="cal-evento cal-evento-${a.tipologia === "remoto" ? "remoto" : "studio"} ${passato ? "cal-evento-passato" : ""}"
+                 style="top:${top}px;height:${height}px;left:calc(${sx}% + 1px);width:calc(${largh}% - 3px)"
+                 data-id="${a.id}">
+              <span class="cal-evento-ora">${oraHM(inizio)}–${oraHM(fine)}</span>
+              <span class="cal-evento-nome">${escapeHtml(nome)}</span>
+              ${tv ? `<span class="cal-evento-tag">${tv}</span>` : ""}
+            </div>`;
+  }).join("");
+}
+
+function grigliaOrariaHtml(giorni) {
+  const adesso = new Date();
+  const app = appuntamentiFiltrati();
+  const altezza = GRIGLIA_MINUTI * PIXEL_PER_MINUTO;
+
+  let gutter = "";
+  for (let h = ORA_GRIGLIA_INIZIO; h <= ORA_GRIGLIA_FINE; h++) {
+    gutter += `<div class="cal-ora-label" style="top:${(h - ORA_GRIGLIA_INIZIO) * 60 * PIXEL_PER_MINUTO}px">${String(h).padStart(2, "0")}:00</div>`;
+  }
+
+  let header = `<div class="cal-gutter-header"></div>`;
+  giorni.forEach(g => {
+    const isOggi = stessoGiorno(g, adesso);
+    header += `<div class="cal-giorno-header ${isOggi ? "cal-oggi" : ""}">
+        <span class="cal-dow">${GIORNI_BREVI[(g.getDay() + 6) % 7]}</span>
+        <span class="cal-daynum">${g.getDate()}/${String(g.getMonth() + 1).padStart(2, "0")}</span>
+      </div>`;
+  });
+
+  let colonne = "";
+  giorni.forEach(g => {
+    let adessoLinea = "";
+    if (stessoGiorno(g, adesso)) {
+      const min = (adesso.getHours() * 60 + adesso.getMinutes()) - ORA_GRIGLIA_INIZIO * 60;
+      if (min >= 0 && min <= GRIGLIA_MINUTI) {
+        adessoLinea = `<div class="cal-linea-adesso" style="top:${min * PIXEL_PER_MINUTO}px"></div>`;
+      }
+    }
+    colonne += `<div class="cal-colonna" data-giorno="${isoDataLocale(g)}" style="height:${altezza}px">${eventiColonnaHtml(g, app, adesso)}${adessoLinea}</div>`;
+  });
+
+  return `<div class="cal-griglia" style="--cal-n:${giorni.length}">
+      <div class="cal-scroll">
+        <div class="cal-inner">
+          <div class="cal-header-riga">${header}</div>
+          <div class="cal-corpo" style="height:${altezza}px">
+            <div class="cal-gutter" style="height:${altezza}px">${gutter}</div>
+            ${colonne}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderVistaSettimana() {
+  const lunedi = inizioSettimana(agendaDataRif);
+  const giorni = [];
+  for (let i = 0; i < GIORNI_SETTIMANA_GRIGLIA; i++) {
+    const g = new Date(lunedi);
+    g.setDate(lunedi.getDate() + i);
+    giorni.push(g);
+  }
+  const opt = { day: "2-digit", month: "short" };
+  agendaPeriodoLabel.textContent = `${giorni[0].toLocaleDateString("it-IT", opt)} – ${giorni[5].toLocaleDateString("it-IT", { ...opt, year: "numeric" })}`;
+  agendaCalendarioEl.innerHTML = grigliaOrariaHtml(giorni);
+}
+
+function renderVistaGiorno() {
+  const g = new Date(agendaDataRif);
+  g.setHours(0, 0, 0, 0);
+  agendaPeriodoLabel.textContent = g.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+  agendaCalendarioEl.innerHTML = grigliaOrariaHtml([g]);
+}
+
+function renderVistaMese() {
+  const rif = new Date(agendaDataRif);
+  agendaPeriodoLabel.textContent = rif.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+
+  const primo = new Date(rif.getFullYear(), rif.getMonth(), 1);
+  const inizio = inizioSettimana(primo);
+  const celle = [];
+  for (let i = 0; i < 42; i++) {
+    const g = new Date(inizio);
+    g.setDate(inizio.getDate() + i);
+    celle.push(g);
+  }
+
+  const adesso = new Date();
+  const app = appuntamentiFiltrati();
+  const dow = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map(x => `<div class="cal-mese-dow">${x}</div>`).join("");
+
+  const celleHtml = celle.map(g => {
+    const fuori = g.getMonth() !== rif.getMonth();
+    const isOggi = stessoGiorno(g, adesso);
+    const delGiorno = app
+      .filter(a => stessoGiorno(new Date(a.data_ora), g))
+      .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora));
+    const eventi = delGiorno.slice(0, 3).map(a => {
+      const inizio = new Date(a.data_ora);
+      const passato = fineAppuntamento(a) < adesso;
+      const nome = a.pazienti ? a.pazienti.nome : "—";
+      return `<div class="cal-mese-evento cal-evento-${a.tipologia === "remoto" ? "remoto" : "studio"} ${passato ? "cal-evento-passato" : ""}" data-id="${a.id}">
+                <span class="cal-mese-ora">${oraHM(inizio)}</span> ${escapeHtml(nome)}
+              </div>`;
+    }).join("");
+    const extra = delGiorno.length > 3 ? `<div class="cal-mese-piu">+${delGiorno.length - 3} altri</div>` : "";
+    return `<div class="cal-mese-cella ${fuori ? "cal-fuori-mese" : ""} ${isOggi ? "cal-oggi" : ""}" data-giorno="${isoDataLocale(g)}">
+              <div class="cal-mese-num">${g.getDate()}</div>
+              ${eventi}${extra}
+            </div>`;
+  }).join("");
+
+  agendaCalendarioEl.innerHTML = `<div class="cal-mese">
+      <div class="cal-mese-dow-riga">${dow}</div>
+      <div class="cal-mese-griglia">${celleHtml}</div>
+    </div>`;
 }
 
 // Prossimo appuntamento futuro del paziente in lavorazione, calcolato da
@@ -3176,12 +3437,13 @@ function renderProssimoAppuntamentoAdmin() {
   }
 
   const dataOra = new Date(prossimo.data_ora);
+  const fine = fineAppuntamento(prossimo);
   const tipologiaLabel = prossimo.tipologia === "remoto" ? "Da remoto" : "In studio";
   prossimoAppuntamentoAdminContenuto.innerHTML = `
     <div class="prossimo-appuntamento-riga">
       <div>
         <strong>${dataOra.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</strong>
-        <p>${dataOra.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })} · ${tipologiaLabel}</p>
+        <p>${oraHM(dataOra)}–${oraHM(fine)} · ${tipologiaLabel}</p>
         ${prossimo.note ? `<p class="hint">${escapeHtml(prossimo.note)}</p>` : ""}
       </div>
       <button type="button" class="secondary agenda-modifica-btn" data-id="${prossimo.id}">Modifica</button>
@@ -3195,62 +3457,49 @@ function popolaFiltroAgenda() {
   agendaFiltroPazienteSelect.value = selezionato || "";
 }
 
-function renderListaAppuntamenti() {
-  const filtroPaziente = agendaFiltroPazienteSelect.value;
-  const ora = new Date();
-  const righeFiltrate = listaAppuntamenti.filter(a => !filtroPaziente || a.paziente_id === filtroPaziente);
-
-  const futuri = righeFiltrate
-    .filter(a => new Date(a.data_ora) >= ora)
-    .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora));
-
-  let righe;
-  if (!filtroPaziente) {
-    // Senza filtro: solo gli appuntamenti futuri, dal più vicino al più lontano.
-    righe = futuri;
-  } else {
-    // Con un paziente selezionato: il prossimo appuntamento in alto, poi lo
-    // storico dei passati (dal più recente al più lontano) sotto.
-    const passati = righeFiltrate
-      .filter(a => new Date(a.data_ora) < ora)
-      .sort((a, b) => new Date(b.data_ora) - new Date(a.data_ora));
-    righe = futuri.concat(passati);
-  }
-
-  if (righe.length === 0) {
-    agendaListaEl.innerHTML = filtroPaziente
-      ? '<p class="vuoto">Nessun appuntamento registrato per questo paziente.</p>'
-      : '<p class="vuoto">Nessun appuntamento futuro in programma.</p>';
-    return;
-  }
-
-  agendaListaEl.innerHTML = righe.map(a => {
-    const dataOra = new Date(a.data_ora);
-    const passato = dataOra < ora;
-    const nomePaziente = a.pazienti ? a.pazienti.nome : "—";
-    const tipologiaLabel = a.tipologia === "remoto" ? "Da remoto" : "In studio";
-    return `
-      <div class="agenda-riga ${passato ? "agenda-passato" : "agenda-futuro"}">
-        <div class="agenda-riga-info">
-          <span class="badge-checkin ${passato ? "in-ritardo" : "in-linea"}">${passato ? "Passato" : "Futuro"}</span>
-          <strong>${dataOra.toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })} · ${dataOra.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</strong>
-          <span>${escapeHtml(nomePaziente)} — ${tipologiaLabel}</span>
-          ${a.note ? `<span class="hint">${escapeHtml(a.note)}</span>` : ""}
-        </div>
-        ${!passato ? `<button type="button" class="secondary agenda-modifica-btn" data-id="${a.id}">Modifica</button>` : ""}
-      </div>
-    `;
+// Popola il menu Durata (una sola volta) e mostra ogni valore in modo leggibile.
+function popolaDurateAppuntamento() {
+  const valori = [15, 30, 45, 60, 90, 120];
+  appuntamentoDurataSelect.innerHTML = valori.map(m => {
+    const ore = Math.floor(m / 60);
+    const min = m % 60;
+    let label;
+    if (ore === 0) label = `${min} min`;
+    else if (min === 0) label = `${ore} h`;
+    else label = `${ore} h ${min} min`;
+    return `<option value="${m}">${label}</option>`;
   }).join("");
 }
 
-function apriNuovoAppuntamento() {
+// Ricalcola e mostra l'orario di fine in base a data, ora e durata scelte.
+function aggiornaFineAppuntamento() {
+  const data = appuntamentoDataInput.value;
+  const ora = appuntamentoOraInput.value;
+  const durata = parseInt(appuntamentoDurataSelect.value, 10);
+  if (!ora || !durata) { appuntamentoFineDisplay.textContent = "—"; return; }
+  const base = data ? new Date(`${data}T${ora}:00`) : new Date(`2000-01-01T${ora}:00`);
+  if (isNaN(base.getTime())) { appuntamentoFineDisplay.textContent = "—"; return; }
+  const fine = new Date(base.getTime() + durata * 60000);
+  appuntamentoFineDisplay.textContent = oraHM(fine);
+}
+
+// Cambiando il tipo di visita si imposta la durata predefinita (resta modificabile).
+function applicaDurataDaTipoVisita() {
+  appuntamentoDurataSelect.value = String(DURATE_DEFAULT[appuntamentoTipoVisitaSelect.value] || 30);
+  aggiornaFineAppuntamento();
+}
+
+function apriNuovoAppuntamento(prefill) {
   appuntamentoInModifica = null;
   appuntamentoTitolo.textContent = "Nuovo appuntamento";
   appuntamentoPazienteSelect.setElenco(listaPazienti);
   if (pazienteCorrente) appuntamentoPazienteSelect.value = pazienteCorrente.id;
-  appuntamentoDataInput.value = "";
-  appuntamentoOraInput.value = "";
+  // prefill (da clic su uno slot vuoto del calendario): data e ora già pronte.
+  appuntamentoDataInput.value = (prefill && prefill.data) || "";
+  appuntamentoOraInput.value = (prefill && prefill.ora) || "";
   appuntamentoTipologiaSelect.value = "studio";
+  appuntamentoTipoVisitaSelect.value = "controllo";
+  applicaDurataDaTipoVisita();
   appuntamentoNoteInput.value = "";
   appuntamentoErrore.classList.add("hidden");
   appuntamentoEliminaBtn.classList.add("hidden");
@@ -3266,9 +3515,12 @@ function apriModificaAppuntamento(id) {
   appuntamentoPazienteSelect.setElenco(listaPazienti);
   appuntamentoPazienteSelect.value = a.paziente_id;
   const dataOra = new Date(a.data_ora);
-  appuntamentoDataInput.value = dataOra.toISOString().slice(0, 10);
+  appuntamentoDataInput.value = isoDataLocale(dataOra);
   appuntamentoOraInput.value = dataOra.toTimeString().slice(0, 5);
   appuntamentoTipologiaSelect.value = a.tipologia;
+  appuntamentoTipoVisitaSelect.value = a.tipo_visita || "controllo";
+  appuntamentoDurataSelect.value = String(durataAppuntamento(a));
+  aggiornaFineAppuntamento();
   appuntamentoNoteInput.value = a.note || "";
   appuntamentoErrore.classList.add("hidden");
   appuntamentoEliminaBtn.classList.remove("hidden");
@@ -3298,10 +3550,30 @@ async function salvaAppuntamento() {
     return;
   }
 
+  const durata = parseInt(appuntamentoDurataSelect.value, 10) || 30;
+
+  // Controllo sovrapposizioni: avviso non bloccante se si accavalla con un
+  // altro appuntamento (escluso quello che si sta modificando).
+  const inizioNuovo = dataOraLocale.getTime();
+  const fineNuovo = inizioNuovo + durata * 60000;
+  const conflitto = listaAppuntamenti.find(a => {
+    if (appuntamentoInModifica && a.id === appuntamentoInModifica.id) return false;
+    const s = new Date(a.data_ora).getTime();
+    const e = fineAppuntamento(a).getTime();
+    return inizioNuovo < e && fineNuovo > s;
+  });
+  if (conflitto) {
+    const nome = conflitto.pazienti ? conflitto.pazienti.nome : "un altro paziente";
+    const quando = `${oraHM(new Date(conflitto.data_ora))}–${oraHM(fineAppuntamento(conflitto))}`;
+    if (!confirm(`Attenzione: si sovrappone all'appuntamento di ${nome} (${quando}). Salvare comunque?`)) return;
+  }
+
   const corpo = {
     paziente_id: pazienteId,
     data_ora: dataOraLocale.toISOString(),
     tipologia: appuntamentoTipologiaSelect.value,
+    tipo_visita: appuntamentoTipoVisitaSelect.value,
+    durata_minuti: durata,
     note: appuntamentoNoteInput.value.trim() || null
   };
 
@@ -5844,7 +6116,41 @@ function inizializza() {
   agendaOverlay.addEventListener("click", (e) => {
     if (e.target === agendaOverlay) chiudiAgendaModale();
   });
-  agendaNuovoBtn.addEventListener("click", apriNuovoAppuntamento);
+  agendaNuovoBtn.addEventListener("click", () => apriNuovoAppuntamento());
+  agendaNuovoOverlayBtn.addEventListener("click", () => apriNuovoAppuntamento());
+
+  // Barra di navigazione del calendario (stile Google Calendar).
+  agendaOggiBtn.addEventListener("click", () => navigaAgenda(0));
+  agendaPrecBtn.addEventListener("click", () => navigaAgenda(-1));
+  agendaSuccBtn.addEventListener("click", () => navigaAgenda(1));
+  agendaVistaBtns.forEach(b => b.addEventListener("click", () => cambiaVistaAgenda(b.dataset.vista)));
+
+  // Clic sul calendario: su un evento apre la modifica; su uno slot/giorno
+  // vuoto apre un nuovo appuntamento già precompilato con quel giorno/ora.
+  agendaCalendarioEl.addEventListener("click", (e) => {
+    const evento = e.target.closest(".cal-evento, .cal-mese-evento");
+    if (evento) { apriModificaAppuntamento(evento.dataset.id); return; }
+
+    const cellaMese = e.target.closest(".cal-mese-cella");
+    if (cellaMese) {
+      // Nella vista mese, un tocco su un giorno apre quel giorno in dettaglio.
+      agendaDataRif = new Date(`${cellaMese.dataset.giorno}T00:00:00`);
+      cambiaVistaAgenda("giorno");
+      return;
+    }
+
+    const colonna = e.target.closest(".cal-colonna");
+    if (colonna) {
+      const rect = colonna.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      let minuti = Math.floor(y / PIXEL_PER_MINUTO / 30) * 30; // arrotonda a 30 min
+      minuti = Math.max(0, Math.min(GRIGLIA_MINUTI - 30, minuti));
+      const oraTot = ORA_GRIGLIA_INIZIO * 60 + minuti;
+      const hh = String(Math.floor(oraTot / 60)).padStart(2, "0");
+      const mm = String(oraTot % 60).padStart(2, "0");
+      apriNuovoAppuntamento({ data: colonna.dataset.giorno, ora: `${hh}:${mm}` });
+    }
+  });
 
   richiesteBtn.addEventListener("click", apriRichieste);
   richiesteChiudiBtn.addEventListener("click", chiudiRichieste);
@@ -5915,14 +6221,16 @@ function inizializza() {
 
   inizializzaTaskBoardDragDrop();
 
-  agendaListaEl.addEventListener("click", (e) => {
-    const btn = e.target.closest(".agenda-modifica-btn");
-    if (btn) apriModificaAppuntamento(btn.dataset.id);
-  });
   prossimoAppuntamentoAdminContenuto.addEventListener("click", (e) => {
     const btn = e.target.closest(".agenda-modifica-btn");
     if (btn) apriModificaAppuntamento(btn.dataset.id);
   });
+  popolaDurateAppuntamento();
+  appuntamentoTipoVisitaSelect.addEventListener("change", applicaDurataDaTipoVisita);
+  appuntamentoDurataSelect.addEventListener("change", aggiornaFineAppuntamento);
+  appuntamentoDataInput.addEventListener("change", aggiornaFineAppuntamento);
+  appuntamentoOraOreSelect.addEventListener("change", aggiornaFineAppuntamento);
+  appuntamentoOraMinutiSelect.addEventListener("change", aggiornaFineAppuntamento);
   appuntamentoSalvaBtn.addEventListener("click", salvaAppuntamento);
   appuntamentoEliminaBtn.addEventListener("click", eliminaAppuntamentoCorrente);
   appuntamentoAnnullaBtn.addEventListener("click", chiudiAppuntamento);
