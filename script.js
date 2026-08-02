@@ -2595,6 +2595,9 @@ function chiudiGestioneUtenti() {
 function apriTabGestioneUtenti(tabId) {
   document.querySelectorAll("#gestione-utenti-overlay .tab-btn").forEach(b => b.classList.toggle("attivo", b.dataset.tab === tabId));
   document.querySelectorAll("#gestione-utenti-overlay .tab-pannello").forEach(p => p.classList.toggle("hidden", p.id !== tabId));
+  // Mostra nel footer solo il pulsante d'azione della scheda attiva.
+  invitoInviaBtn.classList.toggle("hidden", tabId !== "gestione-invito-tab");
+  nuovoPazienteConfermaBtn.classList.toggle("hidden", tabId !== "gestione-nuovo-paziente-tab");
   if (tabId === "gestione-nuovo-paziente-tab") nuovoPazienteNomeInput.focus();
 }
 
