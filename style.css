@@ -3008,17 +3008,20 @@ textarea:focus {
   font-size: 9px;
 }
 
-#paziente-dieta-vista .p-giorno {
+#paziente-dieta-vista .p-giorno,
+#paziente-storico-dettaglio .p-giorno {
   margin: 20px 0;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
 }
 
-#paziente-dieta-vista .p-giorno:last-child {
+#paziente-dieta-vista .p-giorno:last-child,
+#paziente-storico-dettaglio .p-giorno:last-child {
   border-bottom: none;
 }
 
-#paziente-dieta-vista .p-giorno-titolo {
+#paziente-dieta-vista .p-giorno-titolo,
+#paziente-storico-dettaglio .p-giorno-titolo {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -3029,36 +3032,43 @@ textarea:focus {
   user-select: none;
 }
 
-#paziente-dieta-vista .p-giorno-titolo:hover {
+#paziente-dieta-vista .p-giorno-titolo:hover,
+#paziente-storico-dettaglio .p-giorno-titolo:hover {
   color: var(--accent);
 }
 
-#paziente-dieta-vista .freccia-giorno {
+#paziente-dieta-vista .freccia-giorno,
+#paziente-storico-dettaglio .freccia-giorno {
   display: inline-block;
   width: 1em;
   color: var(--accent);
 }
 
-#paziente-dieta-vista .p-giorno-corpo.collassato {
+#paziente-dieta-vista .p-giorno-corpo.collassato,
+#paziente-storico-dettaglio .p-giorno-corpo.collassato {
   display: none;
 }
 
-#paziente-dieta-vista .p-giorno-titolo .solo-nutrizionista {
+#paziente-dieta-vista .p-giorno-titolo .solo-nutrizionista,
+#paziente-storico-dettaglio .p-giorno-titolo .solo-nutrizionista {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
-#paziente-dieta-vista .p-pasto {
+#paziente-dieta-vista .p-pasto,
+#paziente-storico-dettaglio .p-pasto {
   margin-bottom: 16px;
   overflow-x: auto;
 }
 
-#paziente-dieta-vista .p-tabella {
+#paziente-dieta-vista .p-tabella,
+#paziente-storico-dettaglio .p-tabella {
   min-width: 380px;
 }
 
-#paziente-dieta-vista .p-pasto-titolo {
+#paziente-dieta-vista .p-pasto-titolo,
+#paziente-storico-dettaglio .p-pasto-titolo {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -3070,7 +3080,8 @@ textarea:focus {
   margin-bottom: 6px;
 }
 
-#paziente-dieta-vista .p-pasto-titolo .solo-nutrizionista {
+#paziente-dieta-vista .p-pasto-titolo .solo-nutrizionista,
+#paziente-storico-dettaglio .p-pasto-titolo .solo-nutrizionista {
   font-size: 0.8rem;
   text-transform: none;
   letter-spacing: normal;
@@ -3078,14 +3089,16 @@ textarea:focus {
   font-weight: 600;
 }
 
-#paziente-dieta-vista .p-tabella {
+#paziente-dieta-vista .p-tabella,
+#paziente-storico-dettaglio .p-tabella {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
 
-#paziente-dieta-vista .p-tabella th {
+#paziente-dieta-vista .p-tabella th,
+#paziente-storico-dettaglio .p-tabella th {
   text-align: left;
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -3097,32 +3110,40 @@ textarea:focus {
   white-space: nowrap;
 }
 
-#paziente-dieta-vista .p-tabella td {
+#paziente-dieta-vista .p-tabella td,
+#paziente-storico-dettaglio .p-tabella td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--border-2);
   overflow-wrap: break-word;
 }
 
-#paziente-dieta-vista .p-tabella th:nth-child(1), #paziente-dieta-vista .p-tabella td:nth-child(1) { width: 45%; }
-#paziente-dieta-vista .p-tabella th:nth-child(2), #paziente-dieta-vista .p-tabella td:nth-child(2) { width: 20%; }
-#paziente-dieta-vista .p-tabella th:nth-child(3), #paziente-dieta-vista .p-tabella td:nth-child(3) { width: 35%; }
+#paziente-dieta-vista .p-tabella th:nth-child(1), #paziente-dieta-vista .p-tabella td:nth-child(1),
+#paziente-storico-dettaglio .p-tabella th:nth-child(1), #paziente-storico-dettaglio .p-tabella td:nth-child(1) { width: 45%; }
+#paziente-dieta-vista .p-tabella th:nth-child(2), #paziente-dieta-vista .p-tabella td:nth-child(2),
+#paziente-storico-dettaglio .p-tabella th:nth-child(2), #paziente-storico-dettaglio .p-tabella td:nth-child(2) { width: 20%; }
+#paziente-dieta-vista .p-tabella th:nth-child(3), #paziente-dieta-vista .p-tabella td:nth-child(3),
+#paziente-storico-dettaglio .p-tabella th:nth-child(3), #paziente-storico-dettaglio .p-tabella td:nth-child(3) { width: 35%; }
 
 /* Il paziente non deve vedere calorie e macronutrienti nella propria vista */
-#paziente-dieta-vista .solo-nutrizionista {
+#paziente-dieta-vista .solo-nutrizionista,
+#paziente-storico-dettaglio .solo-nutrizionista {
   display: none;
 }
 
 /* Quando è impostata una porzione, il paziente vede solo quella (mai i grammi),
    come nel PDF cliente */
-#paziente-dieta-vista .ha-porzione .solo-non-cliente {
+#paziente-dieta-vista .ha-porzione .solo-non-cliente,
+#paziente-storico-dettaglio .ha-porzione .solo-non-cliente {
   display: none;
 }
 
-#paziente-dieta-vista .ha-porzione .solo-cliente {
+#paziente-dieta-vista .ha-porzione .solo-cliente,
+#paziente-storico-dettaglio .ha-porzione .solo-cliente {
   display: inline;
 }
 
-#paziente-dieta-vista .p-riga-libero td {
+#paziente-dieta-vista .p-riga-libero td,
+#paziente-storico-dettaglio .p-riga-libero td {
   font-style: italic;
   color: var(--accent);
 }
