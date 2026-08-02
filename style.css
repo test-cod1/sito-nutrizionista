@@ -681,6 +681,9 @@ button.danger-scuro:hover {
   margin-top: 0;
   white-space: nowrap;
   flex: 0 1 auto;
+  /* line-height fissa: evita che l'emoji (es. 📦) gonfi la line-box
+     rendendo il pulsante più alto di quelli senza emoji */
+  line-height: 1.4;
 }
 
 .storico-riga {
