@@ -956,6 +956,8 @@ const profiloResetMsg = document.getElementById("profilo-reset-msg");
 const sicurezzaBtn = document.getElementById("sicurezza-btn");
 const sicurezzaOverlay = document.getElementById("sicurezza-overlay");
 const sicurezzaChiudiBtn = document.getElementById("sicurezza-chiudi-btn");
+const sicurezzaPasswordBtn = document.getElementById("sicurezza-password-btn");
+const sicurezzaPasswordMsg = document.getElementById("sicurezza-password-msg");
 const sicurezzaStatoEl = document.getElementById("sicurezza-stato");
 const sicurezzaAttivaBtn = document.getElementById("sicurezza-attiva-btn");
 const sicurezzaDisattivaBlocco = document.getElementById("sicurezza-disattiva-blocco");
@@ -2674,7 +2676,36 @@ async function inviaInvito() {
 // Di default la 2FA e' disattivata: se l'admin non la attiva mai,
 // verificaSeServe2FA() non trovera' nessun fattore e il login resta invariato.
 
+// ---------- Cambia password (amministratore già loggato) ----------
+// Stesso meccanismo del lato paziente: invia un'email con link di reset
+// monouso all'indirizzo dell'account con cui l'admin ha effettuato l'accesso,
+// senza bisogno di conoscere/digitare la password attuale.
+async function inviaResetPasswordAdmin() {
+  sicurezzaPasswordMsg.classList.add("hidden");
+
+  const { data: { user }, error: erroreUser } = await supabaseClient.auth.getUser();
+  if (erroreUser || !user || !user.email) {
+    sicurezzaPasswordMsg.textContent = "Errore nel recupero dell'account: " + (erroreUser ? erroreUser.message : "email non disponibile.");
+    sicurezzaPasswordMsg.classList.remove("hidden");
+    return;
+  }
+
+  sicurezzaPasswordBtn.disabled = true;
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(user.email);
+  sicurezzaPasswordBtn.disabled = false;
+
+  if (error) {
+    sicurezzaPasswordMsg.textContent = "Errore nell'invio dell'email: " + error.message;
+    sicurezzaPasswordMsg.classList.remove("hidden");
+    return;
+  }
+
+  sicurezzaPasswordMsg.textContent = `Ti abbiamo inviato un'email a ${user.email} con le istruzioni per impostare una nuova password.`;
+  sicurezzaPasswordMsg.classList.remove("hidden");
+}
+
 async function apriSicurezza() {
+  sicurezzaPasswordMsg.classList.add("hidden");
   sicurezzaSetupBlocco.classList.add("hidden");
   sicurezzaDisattivaBlocco.classList.add("hidden");
   sicurezzaAttivaBtn.classList.add("hidden");
@@ -5703,6 +5734,7 @@ function inizializza() {
 
   sicurezzaBtn.addEventListener("click", apriSicurezza);
   sicurezzaChiudiBtn.addEventListener("click", chiudiSicurezza);
+  sicurezzaPasswordBtn.addEventListener("click", inviaResetPasswordAdmin);
   sicurezzaOverlay.addEventListener("click", (e) => {
     if (e.target === sicurezzaOverlay) chiudiSicurezza();
   });
