@@ -3144,12 +3144,18 @@ let listaAppuntamenti = [];
 let agendaVista = "settimana";   // 'mese' | 'settimana' | 'giorno'
 let agendaDataRif = new Date();  // periodo/giorno di riferimento mostrato
 
-// La griglia oraria di Settimana/Giorno copre Lun–Sab, 8:00–20:00.
+// La griglia oraria di Settimana/Giorno copre di base 8:00–20:00, ma si
+// estende automaticamente se ci sono appuntamenti prima delle 8 o dopo le 20
+// (così nessun appuntamento resta schiacciato o nascosto ai bordi).
 const ORA_GRIGLIA_INIZIO = 8;
 const ORA_GRIGLIA_FINE = 20;
-const GRIGLIA_MINUTI = (ORA_GRIGLIA_FINE - ORA_GRIGLIA_INIZIO) * 60;
-const PIXEL_PER_MINUTO = 0.9;    // 1 ora = 54px (coerente con --cal-ora-h nel CSS)
+const PIXEL_PER_MINUTO = 1;      // 1 ora = 60px (coerente con --cal-ora-h nel CSS)
 const GIORNI_SETTIMANA_GRIGLIA = 6; // Lun–Sab (la domenica non compare)
+
+// Fascia oraria effettivamente disegnata (aggiornata a ogni render della
+// griglia): serve anche al clic su slot vuoto per calcolare l'ora corretta.
+let calGridInizio = ORA_GRIGLIA_INIZIO;
+let calGridMinuti = (ORA_GRIGLIA_FINE - ORA_GRIGLIA_INIZIO) * 60;
 // GIORNI_BREVI (["Lun".."Dom"]) è già definito più avanti a livello di modulo.
 
 // Durata predefinita per tipo: prima visita 60 min, controllo 30 min.
@@ -3282,6 +3288,25 @@ function layoutColonnaGiorno(appts) {
   return risultato;
 }
 
+// Calcola la fascia oraria da disegnare: di base 8–20, ma allargata (senza mai
+// restringere) per contenere eventuali appuntamenti che iniziano prima o
+// finiscono dopo, così nessuno resta schiacciato o fuori vista.
+function calcolaRangeGriglia(giorni, app) {
+  let inizio = ORA_GRIGLIA_INIZIO;
+  let fine = ORA_GRIGLIA_FINE;
+  giorni.forEach(g => {
+    app.filter(a => stessoGiorno(new Date(a.data_ora), g)).forEach(a => {
+      const s = new Date(a.data_ora);
+      const e = fineAppuntamento(a);
+      inizio = Math.min(inizio, s.getHours());
+      let hFine = e.getHours() + (e.getMinutes() > 0 ? 1 : 0);
+      if (!stessoGiorno(e, s)) hFine = 24; // sfora la mezzanotte (raro)
+      fine = Math.max(fine, hFine);
+    });
+  });
+  return { inizio: Math.max(0, inizio), fine: Math.min(24, fine) };
+}
+
 // Blocchi-evento posizionati nella griglia oraria (Settimana/Giorno).
 function eventiColonnaHtml(giorno, app, adesso) {
   const disposti = layoutColonnaGiorno(app.filter(a => stessoGiorno(new Date(a.data_ora), giorno)));
@@ -3289,23 +3314,27 @@ function eventiColonnaHtml(giorno, app, adesso) {
     const a = ev.a;
     const inizio = new Date(a.data_ora);
     const fine = fineAppuntamento(a);
-    const minInizio = Math.max(0, (inizio.getHours() * 60 + inizio.getMinutes()) - ORA_GRIGLIA_INIZIO * 60);
-    let minFine = (fine.getHours() * 60 + fine.getMinutes()) - ORA_GRIGLIA_INIZIO * 60;
-    if (!stessoGiorno(fine, inizio)) minFine = GRIGLIA_MINUTI; // oltre le 24 (raro)
-    minFine = Math.min(GRIGLIA_MINUTI, minFine);
+    const minInizio = Math.max(0, (inizio.getHours() * 60 + inizio.getMinutes()) - calGridInizio * 60);
+    let minFine = (fine.getHours() * 60 + fine.getMinutes()) - calGridInizio * 60;
+    if (!stessoGiorno(fine, inizio)) minFine = calGridMinuti; // oltre le 24 (raro)
+    minFine = Math.min(calGridMinuti, minFine);
     const top = minInizio * PIXEL_PER_MINUTO;
-    const height = Math.max(20, (minFine - minInizio) * PIXEL_PER_MINUTO);
+    const height = Math.max(18, (minFine - minInizio) * PIXEL_PER_MINUTO);
     const largh = 100 / ev.nLanes;
     const sx = ev.lane * largh;
     const passato = fine < adesso;
     const nome = a.pazienti ? a.pazienti.nome : "—";
     const tv = a.tipo_visita === "prima_visita" ? "1ª visita" : (a.tipo_visita === "controllo" ? "Controllo" : "");
-    return `<div class="cal-evento cal-evento-${a.tipologia === "remoto" ? "remoto" : "studio"} ${passato ? "cal-evento-passato" : ""}"
+    // Blocchi bassi (appuntamenti brevi): tutto su una riga sola, senza tag,
+    // così il testo resta leggibile e non deborda.
+    const compatto = height < 42;
+    const contenuto = compatto
+      ? `<span class="cal-evento-ora">${oraHM(inizio)}</span><span class="cal-evento-nome">${escapeHtml(nome)}</span>`
+      : `<span class="cal-evento-ora">${oraHM(inizio)}–${oraHM(fine)}</span><span class="cal-evento-nome">${escapeHtml(nome)}</span>${tv ? `<span class="cal-evento-tag">${tv}</span>` : ""}`;
+    return `<div class="cal-evento cal-evento-${a.tipologia === "remoto" ? "remoto" : "studio"} ${passato ? "cal-evento-passato" : ""} ${compatto ? "cal-evento-compatto" : ""}"
                  style="top:${top}px;height:${height}px;left:calc(${sx}% + 1px);width:calc(${largh}% - 3px)"
-                 data-id="${a.id}">
-              <span class="cal-evento-ora">${oraHM(inizio)}–${oraHM(fine)}</span>
-              <span class="cal-evento-nome">${escapeHtml(nome)}</span>
-              ${tv ? `<span class="cal-evento-tag">${tv}</span>` : ""}
+                 data-id="${a.id}" title="${oraHM(inizio)}–${oraHM(fine)} · ${escapeHtml(nome)}">
+              ${contenuto}
             </div>`;
   }).join("");
 }
@@ -3313,11 +3342,15 @@ function eventiColonnaHtml(giorno, app, adesso) {
 function grigliaOrariaHtml(giorni) {
   const adesso = new Date();
   const app = appuntamentiFiltrati();
-  const altezza = GRIGLIA_MINUTI * PIXEL_PER_MINUTO;
+
+  const range = calcolaRangeGriglia(giorni, app);
+  calGridInizio = range.inizio;
+  calGridMinuti = (range.fine - range.inizio) * 60;
+  const altezza = calGridMinuti * PIXEL_PER_MINUTO;
 
   let gutter = "";
-  for (let h = ORA_GRIGLIA_INIZIO; h <= ORA_GRIGLIA_FINE; h++) {
-    gutter += `<div class="cal-ora-label" style="top:${(h - ORA_GRIGLIA_INIZIO) * 60 * PIXEL_PER_MINUTO}px">${String(h).padStart(2, "0")}:00</div>`;
+  for (let h = range.inizio; h <= range.fine; h++) {
+    gutter += `<div class="cal-ora-label" style="top:${(h - range.inizio) * 60 * PIXEL_PER_MINUTO}px">${String(h).padStart(2, "0")}:00</div>`;
   }
 
   let header = `<div class="cal-gutter-header"></div>`;
@@ -3333,8 +3366,8 @@ function grigliaOrariaHtml(giorni) {
   giorni.forEach(g => {
     let adessoLinea = "";
     if (stessoGiorno(g, adesso)) {
-      const min = (adesso.getHours() * 60 + adesso.getMinutes()) - ORA_GRIGLIA_INIZIO * 60;
-      if (min >= 0 && min <= GRIGLIA_MINUTI) {
+      const min = (adesso.getHours() * 60 + adesso.getMinutes()) - calGridInizio * 60;
+      if (min >= 0 && min <= calGridMinuti) {
         adessoLinea = `<div class="cal-linea-adesso" style="top:${min * PIXEL_PER_MINUTO}px"></div>`;
       }
     }
@@ -6144,8 +6177,8 @@ function inizializza() {
       const rect = colonna.getBoundingClientRect();
       const y = e.clientY - rect.top;
       let minuti = Math.floor(y / PIXEL_PER_MINUTO / 30) * 30; // arrotonda a 30 min
-      minuti = Math.max(0, Math.min(GRIGLIA_MINUTI - 30, minuti));
-      const oraTot = ORA_GRIGLIA_INIZIO * 60 + minuti;
+      minuti = Math.max(0, Math.min(calGridMinuti - 30, minuti));
+      const oraTot = calGridInizio * 60 + minuti;
       const hh = String(Math.floor(oraTot / 60)).padStart(2, "0");
       const mm = String(oraTot % 60).padStart(2, "0");
       apriNuovoAppuntamento({ data: colonna.dataset.giorno, ora: `${hh}:${mm}` });

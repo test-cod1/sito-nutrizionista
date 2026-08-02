@@ -3409,7 +3409,7 @@ a.sezioni-link,
 
 /* ---- Griglia oraria (Settimana / Giorno) ---- */
 .cal-griglia {
-  --cal-ora-h: 54px;
+  --cal-ora-h: 60px;
   --cal-gutter-w: 52px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -3512,6 +3512,23 @@ a.sezioni-link,
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Appuntamenti brevi: ora e nome sulla stessa riga, senza sbordare */
+.cal-evento-compatto {
+  padding: 1px 5px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+.cal-evento-compatto .cal-evento-ora {
+  display: inline;
+  flex: 0 0 auto;
+}
+.cal-evento-compatto .cal-evento-nome {
+  display: inline;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .cal-evento .cal-evento-tag {
   display: block;
