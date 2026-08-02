@@ -381,6 +381,29 @@ button.danger-scuro:hover {
   line-height: 1;
 }
 
+.rinomina-alimento-riga {
+  background: var(--surface-alt-2);
+  border: 1.5px dashed var(--accent-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 10px;
+}
+
+.rinomina-alimento-riga label {
+  margin-top: 0;
+}
+
+.rinomina-alimento-azioni {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rinomina-alimento-azioni button {
+  margin-top: 0;
+}
+
 .autocomplete-wrapper {
   position: relative;
 }

@@ -562,9 +562,21 @@
             <input type="text" id="food-input" placeholder="Inizia a scrivere il nome dell'alimento..." autocomplete="off">
             <div id="suggestions" class="suggestions hidden"></div>
           </div>
+          <button type="button" id="rinomina-alimento-btn" class="secondary btn-plus" title="Rinomina questo alimento (nome personalizzato)" aria-label="Rinomina alimento" disabled>✏️</button>
           <button id="nuovo-alimento-btn" class="secondary btn-plus" title="Aggiungi un nuovo alimento al database" aria-label="Aggiungi un nuovo alimento">+</button>
         </div>
         <p id="food-error" class="error hidden">Alimento non trovato. Selezionalo dall'elenco suggerito mentre scrivi.</p>
+
+        <div id="rinomina-alimento-riga" class="rinomina-alimento-riga hidden">
+          <label for="rinomina-alimento-input">Nome personalizzato per questo alimento</label>
+          <input type="text" id="rinomina-alimento-input" placeholder="es. Latte parzialmente scremato">
+          <div class="rinomina-alimento-azioni">
+            <button type="button" id="rinomina-alimento-salva-btn">Salva nome</button>
+            <button type="button" id="rinomina-alimento-ripristina-btn" class="secondary">Ripristina predefinito</button>
+            <button type="button" id="rinomina-alimento-annulla-btn" class="danger">Annulla</button>
+          </div>
+          <p class="hint">Il nome personalizzato viene mostrato nelle diete che crei d'ora in poi e proposto quando cerchi questo alimento. Non cambia i valori nutrizionali.</p>
+        </div>
 
         <div id="nuovo-alimento-form" class="nuovo-alimento-form hidden">
           <h3>Nuovo alimento</h3>

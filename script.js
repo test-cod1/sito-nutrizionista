@@ -12,6 +12,9 @@ const TEMA_KEY = "dieta-nutrizionista-tema";
 
 let baseAlimenti = [];
 let customFoodsRemoti = [];
+let etichetteCustom = new Map();   // chiave alimento (nome originale) -> nome personalizzato
+let displayToKey = new Map();      // nome visualizzato normalizzato -> chiave, per risolvere l'input
+let chiaveInRinomina = null;       // alimento attualmente in fase di rinomina
 let foodMap = new Map();
 let foodNames = [];
 let currentCalc = null;
@@ -550,6 +553,13 @@ const nuovoCarbInput = document.getElementById("nuovo-carb");
 const nuovoAlimentoError = document.getElementById("nuovo-alimento-error");
 const salvaAlimentoBtn = document.getElementById("salva-alimento-btn");
 const annullaAlimentoBtn = document.getElementById("annulla-alimento-btn");
+
+const rinominaAlimentoBtn = document.getElementById("rinomina-alimento-btn");
+const rinominaAlimentoRiga = document.getElementById("rinomina-alimento-riga");
+const rinominaAlimentoInput = document.getElementById("rinomina-alimento-input");
+const rinominaAlimentoSalvaBtn = document.getElementById("rinomina-alimento-salva-btn");
+const rinominaAlimentoAnnullaBtn = document.getElementById("rinomina-alimento-annulla-btn");
+const rinominaAlimentoRipristinaBtn = document.getElementById("rinomina-alimento-ripristina-btn");
 
 const temaChiaroBtn = document.getElementById("tema-chiaro-btn");
 const temaNotteBtn = document.getElementById("tema-notte-btn");
@@ -1627,6 +1637,7 @@ async function avviaAppAdmin() {
 
   await caricaAlimentiBase();
   customFoodsRemoti = await caricaAlimentiPersonalizzatiRemoti();
+  etichetteCustom = await caricaEtichetteAlimenti();
   ricostruisciElencoAlimenti();
 
   await caricaListaPazienti();
@@ -4976,7 +4987,11 @@ function ricostruisciElencoAlimenti() {
   foodMap = new Map();
   baseAlimenti.forEach(a => foodMap.set(a.nome, normalizzaValoriAlimento(a)));
   customFoodsRemoti.forEach(a => foodMap.set(a.nome, normalizzaValoriAlimento(a)));
-  foodNames = Array.from(foodMap.keys()).sort((a, b) => a.localeCompare(b, "it"));
+  foodNames = Array.from(foodMap.keys())
+    .sort((a, b) => nomeVisualizzato(a).localeCompare(nomeVisualizzato(b), "it"));
+  // Mappa inversa per risolvere il testo digitato/mostrato nella chiave originale.
+  displayToKey = new Map();
+  foodNames.forEach(k => displayToKey.set(normalizzaTesto(nomeVisualizzato(k)), k));
 }
 
 async function caricaAlimentiBase() {
@@ -4991,6 +5006,17 @@ async function caricaAlimentiPersonalizzatiRemoti() {
     return [];
   }
   return data || [];
+}
+
+// Etichette (nomi personalizzati) degli alimenti. Degrada in modo pulito: se la
+// tabella non esiste ancora o l'utente non è admin, si torna ai nomi automatici.
+async function caricaEtichetteAlimenti() {
+  const { data, error } = await supabaseClient.from("alimenti_etichette").select("chiave, etichetta");
+  if (error) {
+    console.warn("Errore nel caricamento etichette alimenti:", error);
+    return new Map();
+  }
+  return new Map((data || []).map(r => [r.chiave, r.etichetta]));
 }
 
 function apriFormNuovoAlimento() {
@@ -5047,7 +5073,8 @@ async function salvaNuovoAlimento() {
   ricostruisciElencoAlimenti();
 
   chiudiFormNuovoAlimento();
-  foodInput.value = nome;
+  foodInput.value = nomeVisualizzato(nome);
+  foodInput.dataset.chiave = nome;
   aggiornaPreview();
   gramsInput.focus();
 }
@@ -5055,15 +5082,20 @@ async function salvaNuovoAlimento() {
 // ---------- Calcolo live ----------
 
 function aggiornaPreview() {
-  const nome = foodInput.value.trim();
+  const raw = foodInput.value.trim();
+  const chiave = risolviChiaveAlimento(raw);
+  const alimento = chiave ? foodMap.get(chiave) : null;
   const grammi = parseFloat(gramsInput.value);
-  const alimento = foodMap.get(nome);
 
-  if (!nome) {
+  if (!raw) {
     foodError.classList.add("hidden");
   } else {
     foodError.classList.toggle("hidden", !!alimento);
   }
+
+  // La matita "rinomina" è attiva solo con un alimento valido selezionato.
+  if (rinominaAlimentoBtn) rinominaAlimentoBtn.disabled = !alimento;
+  if (!alimento) chiudiRinominaAlimento();
 
   if (!alimento || !grammi || grammi <= 0) {
     preview.classList.add("hidden");
@@ -5074,7 +5106,7 @@ function aggiornaPreview() {
 
   const fattore = grammi / 100;
   currentCalc = {
-    alimento: nome,
+    alimento: nomeVisualizzato(chiave),
     grammi: grammi,
     kcal: round1(alimento.kcal * fattore),
     proteine: round1(alimento.proteine * fattore),
@@ -5090,24 +5122,137 @@ function aggiornaPreview() {
   addDraftBtn.disabled = false;
 }
 
+// ---------- Nome personalizzato alimento (etichette) ----------
+
+function apriRinominaAlimento() {
+  const chiave = risolviChiaveAlimento(foodInput.value.trim());
+  if (!chiave) return;
+  chiaveInRinomina = chiave;
+  rinominaAlimentoInput.value = nomeVisualizzato(chiave);
+  rinominaAlimentoRiga.classList.remove("hidden");
+  rinominaAlimentoInput.focus();
+  rinominaAlimentoInput.select();
+}
+
+function chiudiRinominaAlimento() {
+  chiaveInRinomina = null;
+  if (rinominaAlimentoRiga) rinominaAlimentoRiga.classList.add("hidden");
+}
+
+// Aggancia l'input al risultato dell'operazione e ricalcola la preview.
+function riagganciaAlimento(chiave) {
+  ricostruisciElencoAlimenti();
+  foodInput.value = nomeVisualizzato(chiave);
+  foodInput.dataset.chiave = chiave;
+  chiudiRinominaAlimento();
+  aggiornaPreview();
+}
+
+async function salvaRinominaAlimento() {
+  if (!chiaveInRinomina) return;
+  const chiave = chiaveInRinomina;
+  const etichetta = rinominaAlimentoInput.value.trim();
+  if (!etichetta) return;
+  // Se coincide col nome automatico, equivale a non avere etichetta: la rimuovo.
+  if (etichetta === formattaNome(chiave)) {
+    await ripristinaNomeAlimento();
+    return;
+  }
+  const { error } = await supabaseClient
+    .from("alimenti_etichette")
+    .upsert({ chiave, etichetta }, { onConflict: "chiave" });
+  if (error) {
+    alert("Errore nel salvataggio del nome personalizzato: " + error.message);
+    return;
+  }
+  etichetteCustom.set(chiave, etichetta);
+  riagganciaAlimento(chiave);
+}
+
+async function ripristinaNomeAlimento() {
+  if (!chiaveInRinomina) return;
+  const chiave = chiaveInRinomina;
+  const { error } = await supabaseClient.from("alimenti_etichette").delete().eq("chiave", chiave);
+  if (error) {
+    alert("Errore nel ripristino del nome predefinito: " + error.message);
+    return;
+  }
+  etichetteCustom.delete(chiave);
+  riagganciaAlimento(chiave);
+}
+
 // ---------- Autocompletamento ----------
 
 function normalizza(testo) {
   return testo.toUpperCase();
 }
 
-function mostraSuggerimenti(elenco) {
+// Parole che in sentence-case restano minuscole se non iniziali, e nomi propri
+// da mantenere con l'iniziale maiuscola anche a metà nome.
+const PAROLE_MINUSCOLE = new Set(["di","da","in","con","e","ed","al","alla","allo","ai","agli","alle","del","della","dei","degli","delle","a","su","per","il","lo","la","le","i","gli","un","uno","una","tra","fra","d'","l'"]);
+const NOMI_PROPRI = new Set(["bruxelles","witloof","iceberg","cheddar","grana","parmigiano","gouda","brie","emmental","camembert","philadelphia","gorgonzola"]);
+
+function iniziMaiuscola(w) {
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
+// Sentence-case all'italiana: maiuscola solo alla prima parola (e ai nomi
+// propri noti), il resto minuscolo. Preserva gli apostrofi (es. "sott'olio").
+function sentenceCase(str) {
+  return str.trim().split(/\s+/).map((p, i) => {
+    const w = p.toLowerCase();
+    if (NOMI_PROPRI.has(w)) return iniziMaiuscola(w);
+    if (i === 0) return iniziMaiuscola(w);
+    return w;
+  }).join(" ");
+}
+
+// Nome "bello" derivato automaticamente dalla chiave grezza del database CREA:
+// toglie il MAIUSCOLO e gira le code invertite ("AGLIO, fresco" -> "Aglio (fresco)").
+function formattaNome(nome) {
+  if (!nome) return nome;
+  const i = nome.indexOf(",");
+  const main = i >= 0 ? nome.slice(0, i) : nome;
+  const qual = i >= 0 ? nome.slice(i + 1).trim() : "";
+  const mainFmt = sentenceCase(main);
+  return qual ? `${mainFmt} (${qual.toLowerCase()})` : mainFmt;
+}
+
+// Nome da mostrare: etichetta personalizzata se presente, altrimenti auto-formattato.
+function nomeVisualizzato(chiave) {
+  return etichetteCustom.get(chiave) || formattaNome(chiave);
+}
+
+// Dalla stringa presente nel campo (nome visualizzato o chiave digitata) risale
+// alla chiave originale dell'alimento in foodMap. Preferisce la chiave "agganciata"
+// alla selezione (dataset.chiave) quando il testo coincide ancora col suo display.
+function risolviChiaveAlimento(testo) {
+  const raw = (testo || "").trim();
+  if (!raw) return null;
+  const agganciata = foodInput.dataset.chiave;
+  if (agganciata && foodMap.has(agganciata) && nomeVisualizzato(agganciata) === raw) {
+    return agganciata;
+  }
+  if (foodMap.has(raw)) return raw;
+  return displayToKey.get(normalizzaTesto(raw)) || null;
+}
+
+// L'elenco contiene le CHIAVI originali; a video si mostra il nome visualizzato.
+function mostraSuggerimenti(chiavi) {
   suggestionIndex = -1;
-  if (elenco.length === 0) {
+  if (chiavi.length === 0) {
     suggestions.innerHTML = "";
     suggestions.classList.add("hidden");
     return;
   }
   const customNames = new Set(customFoodsRemoti.map(a => a.nome));
-  suggestions.innerHTML = elenco
-    .map((nome, i) => `<div class="suggestion-item" data-index="${i}">${nome}${customNames.has(nome) ? ' <span class="tag-custom">personalizzato</span>' : ''}</div>`)
+  suggestions.innerHTML = chiavi
+    .map((k, i) => {
+      const tag = customNames.has(k) ? ' <span class="tag-custom">personalizzato</span>' : '';
+      return `<div class="suggestion-item" data-index="${i}">${escapeHtml(nomeVisualizzato(k))}${tag}</div>`;
+    })
     .join("");
-  suggestions.dataset.items = JSON.stringify(elenco);
+  suggestions.dataset.items = JSON.stringify(chiavi);
   suggestions.classList.remove("hidden");
 }
 
@@ -5117,12 +5262,16 @@ function nascondiSuggerimenti() {
 }
 
 function aggiornaSuggerimenti() {
-  const testo = normalizza(foodInput.value.trim());
-  if (!testo) {
+  const q = normalizzaTesto(foodInput.value.trim());
+  if (!q) {
     nascondiSuggerimenti();
     return;
   }
-  const match = foodNames.filter(nome => normalizza(nome).startsWith(testo)).slice(0, 50);
+  // "contiene" (non più "inizia con") e accenti/virgole ignorati, cercando sia
+  // nel nome originale sia nel nome visualizzato/personalizzato.
+  const match = foodNames.filter(k =>
+    normalizzaTesto(k).includes(q) || normalizzaTesto(nomeVisualizzato(k)).includes(q)
+  ).slice(0, 50);
   mostraSuggerimenti(match);
 }
 
@@ -6438,8 +6587,18 @@ function inizializza() {
   anteprimaTornaBtn.addEventListener("click", chiudiAnteprimaPaziente);
 
   foodInput.addEventListener("input", () => {
+    delete foodInput.dataset.chiave;   // l'utente sta digitando: sgancia la selezione
     aggiornaSuggerimenti();
     aggiornaPreview();
+  });
+
+  rinominaAlimentoBtn.addEventListener("click", apriRinominaAlimento);
+  rinominaAlimentoSalvaBtn.addEventListener("click", salvaRinominaAlimento);
+  rinominaAlimentoAnnullaBtn.addEventListener("click", chiudiRinominaAlimento);
+  rinominaAlimentoRipristinaBtn.addEventListener("click", ripristinaNomeAlimento);
+  rinominaAlimentoInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); salvaRinominaAlimento(); }
+    else if (e.key === "Escape") chiudiRinominaAlimento();
   });
 
   foodInput.addEventListener("keydown", (e) => {
@@ -6456,9 +6615,10 @@ function inizializza() {
       evidenziaSuggerimento();
     } else if (e.key === "Enter" && suggestionIndex >= 0) {
       e.preventDefault();
-      const scelto = JSON.parse(suggestions.dataset.items || "[]")[suggestionIndex];
-      if (scelto) {
-        foodInput.value = scelto;
+      const chiave = JSON.parse(suggestions.dataset.items || "[]")[suggestionIndex];
+      if (chiave) {
+        foodInput.value = nomeVisualizzato(chiave);
+        foodInput.dataset.chiave = chiave;
         nascondiSuggerimenti();
         aggiornaPreview();
       }
@@ -6472,8 +6632,9 @@ function inizializza() {
     if (!item) return;
     e.preventDefault();
     const elenco = JSON.parse(suggestions.dataset.items || "[]");
-    const nome = elenco[parseInt(item.dataset.index, 10)];
-    foodInput.value = nome;
+    const chiave = elenco[parseInt(item.dataset.index, 10)];
+    foodInput.value = nomeVisualizzato(chiave);
+    foodInput.dataset.chiave = chiave;
     nascondiSuggerimenti();
     aggiornaPreview();
   });
