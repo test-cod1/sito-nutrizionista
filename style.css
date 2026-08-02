@@ -3152,3 +3152,142 @@ textarea:focus {
   border-bottom: 1px solid #b3c2ba;
   height: 26px;
 }
+
+/* ============================================================
+   OTTIMIZZAZIONE iPad / TOUCH  (aggiunta 2026-08-02)
+   La nutrizionista usa il gestionale soprattutto da iPad.
+   Obiettivi:
+   - target di tocco ≥44px (Apple Human Interface Guidelines)
+   - nessuno stato :hover che resta "appiccicato" dopo il tocco
+   - scorrimento fluido con inerzia nelle aree scrollabili
+   - niente doppio-tap-zoom / ritardo di 300ms sui controlli
+   I blocchi usano (pointer: coarse) e (hover: none): si applicano
+   a iPad/tablet/telefoni ma NON a desktop con mouse o iPad con
+   trackpad (che riportano pointer: fine / hover: hover).
+   ============================================================ */
+
+/* Elimina il ritardo di 300ms e il doppio-tap-zoom sui controlli.
+   Innocuo su desktop, quindi applicato a tutti i dispositivi. */
+button,
+a.sezioni-link,
+.pan-cella,
+.task-card,
+.tab-btn,
+.suggestion-item,
+.check-inline,
+.profilo-accordion-toggle,
+.giorno-titolo,
+.panoramica-toggle {
+  touch-action: manipulation;
+}
+
+/* Scorrimento con inerzia + niente "rimbalzo" che trascina lo sfondo */
+.pasto-blocco,
+.panoramica-scroll,
+.pan-dettaglio-scroll,
+.task-lista,
+.suggestions,
+.duplica-overlay {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* -------- Dispositivi touch: ingrandimento aree di tocco -------- */
+@media (pointer: coarse) {
+  /* Le sei icone-azione dell'header admin (👤🔒📅📋🗂️🔔): 32 → 44px */
+  #gestione-utenti-btn,
+  #sicurezza-btn,
+  #agenda-btn,
+  #task-board-btn,
+  #modelli-btn,
+  #richieste-btn,
+  #paziente-impostazioni-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.25rem;
+  }
+
+  /* Toggle tema ☀/☾ */
+  .tema-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.15rem;
+  }
+
+  .esci-header-btn {
+    height: 44px;
+  }
+
+  /* Pulsante × di rimozione riga alimento: area comoda da toccare */
+  .remove-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 1.25rem;
+  }
+
+  /* Cestino "svuota giorno": 26 → 40px */
+  .svuota-giorno-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .svuota-giorno-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Piccoli pulsanti in-riga / a pillola → altezza minima comoda */
+  .reset-piccolo-btn {
+    height: 32px;
+  }
+  .duplica-giorno-btn,
+  .duplica-pasto-btn {
+    min-height: 36px;
+  }
+  .tab-btn,
+  .modello-tipo-btn,
+  .peso-filtro-btn,
+  .kcal-modo-btn,
+  .giorni-dropdown-btn,
+  .preset-btn {
+    min-height: 40px;
+  }
+
+  /* Voci menu sidebar sezioni e suggerimenti autocomplete: più alte */
+  .sezioni-link {
+    padding-top: 13px;
+    padding-bottom: 13px;
+  }
+  .suggestion-item {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  /* Freccia dropdown giorni: bersaglio più ampio */
+  .modello-modifica-btn,
+  .modello-elimina-btn,
+  .agenda-modifica-btn,
+  .task-sposta-btn {
+    min-height: 38px;
+  }
+}
+
+/* -------- Dispositivi senza hover: niente stati bloccati -------- */
+@media (hover: none) {
+  /* Il pulsante non resta "sollevato" dopo il tocco */
+  button:hover {
+    transform: none;
+  }
+  /* La card non resta con l'ombra accentuata */
+  .card:hover {
+    box-shadow: 0 2px 10px var(--shadow);
+  }
+  /* La riga di tabella non resta evidenziata dopo il tocco */
+  table tbody tr:hover {
+    background: transparent;
+  }
+  /* La cella panoramica non resta evidenziata dopo il tocco */
+  .pan-cella:not(.pan-vuota):not(.pan-tot):hover {
+    background: var(--accent-tint-2);
+  }
+}
