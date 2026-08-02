@@ -1453,7 +1453,9 @@ body.modello-tipo-pasto #panoramica { display: none; }
 }
 
 #agenda-filtro-paziente {
-  margin-bottom: 12px;
+  /* Il filtro ora sta su una riga flex compatta: lo spazio sotto è gestito da
+     .agenda-filtro-riga, quindi qui niente margine (gonfiava la riga). */
+  margin-bottom: 0;
 }
 
 .agenda-riga {
@@ -3317,27 +3319,39 @@ a.sezioni-link,
    ========================================================= */
 .duplica-modal-calendario {
   max-width: 960px;
+  padding: 16px 18px;
+}
+/* Azzera i margini verticali di default di bottoni/campi nelle barre di
+   controllo: nel layout flex si sommavano all'altezza, gonfiando le righe. */
+.duplica-modal-calendario .agenda-intestazione button,
+.duplica-modal-calendario .agenda-controlli button,
+.duplica-modal-calendario .agenda-controlli .agenda-viste,
+.duplica-modal-calendario .agenda-filtro-riga .paziente-combo,
+.duplica-modal-calendario .agenda-filtro-riga input {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .agenda-intestazione {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .agenda-intestazione h3 {
   margin: 0;
+  font-size: 1.1rem;
 }
 
 .agenda-controlli {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .agenda-nav {
   display: flex;
@@ -3354,10 +3368,10 @@ a.sezioni-link,
 
 /* Frecce e pulsante Oggi: aspetto neutro, non "primario" verde */
 .agenda-freccia {
-  min-width: 40px;
-  min-height: 40px;
-  padding: 0 12px;
-  font-size: 1.2rem;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 1.1rem;
   line-height: 1;
   background: var(--surface-alt);
   color: var(--text);
@@ -3377,8 +3391,8 @@ a.sezioni-link,
 }
 .agenda-vista-btn {
   margin: 0;
-  padding: 8px 14px;
-  min-height: 40px;
+  padding: 7px 13px;
+  min-height: 38px;
   background: var(--surface-alt);
   color: var(--text);
   border: none;
@@ -3397,14 +3411,23 @@ a.sezioni-link,
   color: #fff;
 }
 
+/* Filtro su una sola riga: etichetta e menu affiancati (invece di due righe) */
 .agenda-filtro-riga {
-  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 .agenda-filtro-riga label {
-  display: block;
-  margin-bottom: 4px;
+  margin: 0;
+  flex: 0 0 auto;
   font-size: 0.85rem;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+.agenda-filtro-riga .paziente-combo {
+  flex: 1 1 auto;
+  max-width: 360px;
 }
 
 /* ---- Griglia oraria (Settimana / Giorno) ---- */
@@ -3454,12 +3477,12 @@ a.sezioni-link,
   border-right: 1px solid var(--border);
 }
 .cal-giorno-header {
-  padding: 6px 4px;
+  padding: 4px 4px;
   text-align: center;
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 .cal-giorno-header .cal-dow {
   font-size: 0.72rem;
@@ -3681,6 +3704,6 @@ a.sezioni-link,
    posiziona i blocchi-evento); non va cambiato qui o le righe si disallineano. */
 @media (pointer: coarse) {
   .agenda-vista-btn {
-    padding: 10px 16px;
+    padding: 8px 14px;
   }
 }
