@@ -730,11 +730,6 @@ button.danger-scuro:hover {
   color: var(--text);
 }
 
-.storico-riga-info .storico-meta {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
 .storico-riga button {
   margin-top: 0;
   flex-shrink: 0;
@@ -1115,11 +1110,47 @@ table tfoot .riga-totale td {
 .modelli-lista { display: flex; flex-direction: column; gap: 22px; }
 
 .modelli-gruppo-titolo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
   font-size: 1rem;
+  font-weight: 700;
   color: var(--text-muted);
+  background: none;
+  border: none;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 6px;
-  margin-bottom: 12px;
+  border-radius: 0;
+  padding: 0 0 8px;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+}
+
+.modelli-gruppo-titolo:hover {
+  background: none;
+  color: var(--text);
+  transform: none;
+}
+
+.modelli-gruppo-freccia {
+  color: var(--accent);
+  font-size: 0.85rem;
+  width: 1em;
+  flex-shrink: 0;
+}
+
+.modelli-gruppo-nome {
+  margin-right: auto;
+}
+
+.modelli-gruppo-contenuto {
+  margin-top: 12px;
+}
+
+.modelli-gruppo.chiusa .modelli-gruppo-contenuto {
+  display: none;
 }
 
 .modelli-cards {
@@ -1471,63 +1502,10 @@ body.modello-tipo-pasto #panoramica { display: none; }
 
 /* ---------- Agenda appuntamenti ---------- */
 
-#agenda-admin .paziente-bar-riga {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-#agenda-admin .paziente-bar-riga h2 {
-  margin: 0;
-}
-
 #agenda-filtro-paziente {
   /* Il filtro ora sta su una riga flex compatta: lo spazio sotto è gestito da
      .agenda-filtro-riga, quindi qui niente margine (gonfiava la riga). */
   margin-bottom: 0;
-}
-
-.agenda-riga {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.agenda-riga:last-child {
-  border-bottom: none;
-}
-
-.agenda-riga-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.agenda-passato {
-  opacity: 0.7;
-}
-
-#sicurezza-backup-lista {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  margin: 12px 0;
-}
-
-#sicurezza-backup-lista code {
-  display: block;
-  background: var(--accent-tint);
-  border: 1px solid var(--accent-border);
-  border-radius: 6px;
-  padding: 6px 10px;
-  text-align: center;
-  font-size: 0.95rem;
 }
 
 /* Il QR va SEMPRE mostrato scuro su bianco, con un margine (quiet zone),
@@ -2302,26 +2280,6 @@ textarea:focus {
   accent-color: var(--accent);
 }
 
-.cancellazione-link {
-  display: block;
-  width: auto;
-  background: none;
-  border: none;
-  color: var(--danger);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-decoration: underline;
-  padding: 0;
-  margin-top: 18px;
-  cursor: pointer;
-}
-
-.cancellazione-link:hover {
-  color: var(--danger-hover);
-  transform: none;
-  background: none;
-}
-
 #porzione-input {
   margin-top: 6px;
 }
@@ -2799,11 +2757,6 @@ textarea:focus {
 }
 
 /* ---------- Progressi peso (paziente) ---------- */
-
-#peso-bmi p {
-  margin: 0 0 14px;
-  font-size: 1.05rem;
-}
 
 .peso-filtro-periodo {
   display: flex;

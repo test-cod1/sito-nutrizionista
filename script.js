@@ -88,9 +88,31 @@ function applicaDatiDieta(dati) {
   state.validoAl = dati.validoAl ?? "";
 }
 
-async function salvaStateRemoto() {
+// Serializza i salvataggi remoti: se uno è già in corso, ne programma UNO solo
+// successivo (coalescente) invece di lanciarne diversi in parallelo. Così, con
+// digitazione rapida, un update più vecchio non può arrivare al DB dopo uno più
+// nuovo (evita il last-write-wins fuori ordine) senza perdere l'ultimo stato.
+let salvataggioRemotoInCorso = null;
+let salvataggioRemotoDaRifare = false;
+
+function salvaStateRemoto() {
+  if (salvataggioRemotoInCorso) {
+    salvataggioRemotoDaRifare = true;
+    return salvataggioRemotoInCorso;
+  }
+  salvataggioRemotoInCorso = eseguiSalvataggioRemoto().finally(() => {
+    salvataggioRemotoInCorso = null;
+    if (salvataggioRemotoDaRifare) {
+      salvataggioRemotoDaRifare = false;
+      salvaStateRemoto();
+    }
+  });
+  return salvataggioRemotoInCorso;
+}
+
+async function eseguiSalvataggioRemoto() {
   // In modalità modello il salvataggio va sulla tabella dei modelli, non su diete.
-  if (modelloContesto) { salvaModelloRemoto(); return; }
+  if (modelloContesto) { await salvaModelloRemoto(); return; }
   if (!dietaCorrenteId) return;
   const dati = {
     maxKcal: state.maxKcal,
@@ -1034,6 +1056,16 @@ function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
+// Rimuove le foto prodotto Open Food Facts che non caricano. Sostituisce il
+// vecchio attributo inline onerror="this.remove()" (bloccato dalla CSP): l'evento
+// "error" delle immagini non fa bubbling, quindi lo intercettiamo in cattura.
+document.addEventListener("error", (e) => {
+  const t = e.target;
+  if (t && t.tagName === "IMG" && t.classList && t.classList.contains("off-foto-prodotto")) {
+    t.remove();
+  }
+}, true);
+
 // Fa escape anche delle virgolette (" e '), non solo di &<>: così è sicura
 // anche quando il valore finisce dentro un attributo HTML (es. src="...").
 // Senza questo, un URL immagine malevolo da Open Food Facts (DB modificabile
@@ -1377,7 +1409,7 @@ function mostraImpostaPassword() {
 }
 
 function passwordRispettaRequisiti(pw) {
-  return pw.length >= 8 && /[A-Z]/.test(pw) && /[0-9]/.test(pw);
+  return pw.length >= 8 && /[A-Z]/.test(pw) && /[a-z]/.test(pw) && /[0-9]/.test(pw);
 }
 
 async function confermaImpostaPassword() {
@@ -1385,7 +1417,7 @@ async function confermaImpostaPassword() {
   impostaPasswordError.classList.add("hidden");
 
   if (!passwordRispettaRequisiti(nuovaPassword)) {
-    impostaPasswordError.textContent = "La password deve avere almeno 8 caratteri, con almeno una lettera maiuscola e un numero.";
+    impostaPasswordError.textContent = "La password deve avere almeno 8 caratteri, con almeno una lettera maiuscola, una minuscola e un numero.";
     impostaPasswordError.classList.remove("hidden");
     return;
   }
@@ -1508,7 +1540,16 @@ async function determinaRuolo() {
 async function avviaDopoLogin() {
   loginOverlay.classList.add("hidden");
 
-  if (await verificaSeServe2FA()) return;
+  try {
+    if (await verificaSeServe2FA()) return;
+  } catch (e) {
+    // Fail-closed: se non riusciamo a verificare il 2FA non facciamo entrare
+    // (il 2FA admin non è imposto lato DB, quindi questo è l'unico controllo).
+    alert("Non è stato possibile verificare l'autenticazione a due fattori. Riprova.\n" + (e?.message || ""));
+    await supabaseClient.auth.signOut();
+    mostraLogin();
+    return;
+  }
 
   const ruoloInfo = await determinaRuolo();
 
@@ -1576,12 +1617,19 @@ async function confermaConsensoPrivacy() {
 
 async function verificaSeServe2FA() {
   const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (error || !data) return false;
+  // Fail-closed: se non riusciamo a leggere il livello non tiriamo a indovinare
+  // "2FA non serve", ma solleviamo (il chiamante blocca il login).
+  if (error) throw new Error("Impossibile verificare lo stato del 2FA: " + error.message);
+  if (!data) throw new Error("Impossibile verificare lo stato del 2FA.");
+  // Il 2FA è richiesto solo se la sessione è aal1 ma il livello richiesto è aal2.
   if (data.currentLevel !== "aal1" || data.nextLevel !== "aal2") return false;
 
-  const { data: fattori } = await supabaseClient.auth.mfa.listFactors();
+  // Da qui il 2FA È richiesto: se non recuperiamo il fattore verificato NON
+  // proseguiamo, altrimenti si salterebbe il secondo fattore.
+  const { data: fattori, error: erroreFattori } = await supabaseClient.auth.mfa.listFactors();
+  if (erroreFattori) throw new Error("Impossibile recuperare i fattori 2FA: " + erroreFattori.message);
   const totp = fattori && fattori.totp ? fattori.totp.find(f => f.status === "verified") : null;
-  if (!totp) return false;
+  if (!totp) throw new Error("2FA richiesto ma nessun fattore verificato trovato.");
 
   mfaFactorIdLogin = totp.id;
   mostraVerifica2FA();
@@ -1710,7 +1758,11 @@ function renderGraficoPeso(storico) {
   const larghezzaGrafico = larghezza - margine.left - margine.right;
   const altezzaGrafico = altezza - margine.top - margine.bottom;
 
-  const pesi = storico.map(r => r.peso_kg);
+  const pesi = storico.map(r => r.peso_kg).filter(v => v !== null && v !== undefined && !isNaN(v));
+  if (pesi.length === 0) {
+    pesoGraficoEl.innerHTML = '<p class="vuoto">Nessun dato di peso ancora registrato per questo periodo.</p>';
+    return;
+  }
   const min = Math.min(...pesi), max = Math.max(...pesi);
   const range = max - min || 1;
   const padding = range * 0.2;
@@ -2034,14 +2086,23 @@ function calcolaProssimoCheckin(ultimaData, frequenza) {
   const d = new Date(ultimaData);
   if (frequenza === "settimanale") d.setDate(d.getDate() + 7);
   else if (frequenza === "quindicinale") d.setDate(d.getDate() + 14);
-  else if (frequenza === "mensile") d.setMonth(d.getMonth() + 1);
+  else if (frequenza === "mensile") {
+    // Evita l'overflow di fine mese (31 gen + 1 mese ≠ 3 mar): se il giorno non
+    // esiste nel mese successivo, si usa l'ultimo giorno di quel mese.
+    const giorno = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + 1);
+    const ultimoGiorno = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(giorno, ultimoGiorno));
+  }
   else return null;
   return d;
 }
 
 function formattaVariazioneBreve(attuale, precedente, unita) {
-  if (precedente === null || precedente === undefined) return "";
-  const diff = round1(attuale - precedente);
+  if (precedente === null || precedente === undefined || precedente === "") return "";
+  const diff = round1(Number(attuale) - Number(precedente));
+  if (isNaN(diff)) return "";
   if (diff === 0) return "invariato";
   return `${diff > 0 ? "+" : ""}${diff} ${unita}`;
 }
@@ -2060,6 +2121,11 @@ function costruisciTabellaCheckin(righe) {
       ["circonferenza_petto", "cm"],
       ["circonferenza_coscia", "cm"]
     ].map(([campo, unita]) => {
+      // Dati storici possono avere campi non compilati: mostriamo "—" e non
+      // calcoliamo variazioni inventate (es. null - 30 = -30).
+      if (r[campo] === null || r[campo] === undefined || r[campo] === "") {
+        return `<td>—</td>`;
+      }
       const variazione = formattaVariazioneBreve(r[campo], precedente?.[campo], unita);
       return `<td>${r[campo]} ${unita}${variazione ? `<span class="variazione">${escapeHtml(variazione)}</span>` : ""}</td>`;
     }).join("");
@@ -2259,7 +2325,7 @@ function renderSchedaProdottoOFF(p, opts = {}) {
   const badgeNova = p.nova ? `<span class="off-badge-nova">NOVA ${escapeHtml(String(p.nova))}</span>` : "";
 
   const foto = p.immagine
-    ? `<img src="${escapeHtml(p.immagine)}" data-full="${escapeHtml(p.immagineGrande || p.immagine)}" alt="Foto prodotto (clicca per ingrandire)" class="off-foto-prodotto" loading="lazy" onerror="this.remove()">`
+    ? `<img src="${escapeHtml(p.immagine)}" data-full="${escapeHtml(p.immagineGrande || p.immagine)}" alt="Foto prodotto (clicca per ingrandire)" class="off-foto-prodotto" loading="lazy">`
     : "";
 
   // Avviso se il prodotto contiene un allergene dichiarato dal paziente in uso
@@ -3152,7 +3218,7 @@ async function selezionaPaziente(pazienteId) {
 
   renderDraft();
   renderDieta();
-  caricaEMostraCheckinAdmin(p);
+  caricaEMostraCheckinAdmin(p).catch(e => console.error("Errore nel caricamento dei check-in:", e));
 }
 
 async function confermaNuovoPaziente() {
@@ -3784,6 +3850,15 @@ async function accettaRichiesta(id) {
   if (!richiesta) return;
   if (!confirm(`Confermi la cancellazione DEFINITIVA di tutti i dati di ${richiesta.paziente_nome_snapshot}? L'operazione non può essere annullata.`)) return;
 
+  // Recuperiamo la sessione PRIMA di segnare la richiesta come "accettata":
+  // senza token non potremmo comunque chiamare l'endpoint di cancellazione, e
+  // marcare "accettata" lascerebbe la richiesta in stato incoerente.
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) {
+    alert("Sessione scaduta: effettua di nuovo l'accesso e riprova.");
+    return;
+  }
+
   const { data: { user } } = await supabaseClient.auth.getUser();
   const { error: erroreAccetta } = await supabaseClient
     .from("richieste_cancellazione")
@@ -3795,7 +3870,6 @@ async function accettaRichiesta(id) {
     return;
   }
 
-  const { data: { session } } = await supabaseClient.auth.getSession();
   try {
     const res = await fetch("/api/elimina-paziente", {
       method: "POST",
@@ -4238,6 +4312,11 @@ async function apriModelli() {
   pazientePrimaDeiModelli = pazienteCorrente ? pazienteCorrente.id : null;
   appShell.classList.add("hidden");
   modelliBoard.classList.remove("hidden");
+  // Ogni apertura della schermata parte con le tre sezioni chiuse e senza filtro.
+  modelliSezioniAperte.dieta = false;
+  modelliSezioniAperte.giornata = false;
+  modelliSezioniAperte.pasto = false;
+  if (modelliFiltroInput) modelliFiltroInput.value = "";
   await caricaModelli();
   renderModelliBoard();
 }
@@ -4269,6 +4348,11 @@ const MODELLI_SEZIONI = [
   { tipo: "pasto", titolo: "Pasti" }
 ];
 
+// Stato apertura delle tre sezioni: di default TUTTE chiuse a ogni apertura
+// della schermata. Con un filtro attivo le sezioni si aprono comunque, così
+// i risultati della ricerca restano visibili.
+const modelliSezioniAperte = { dieta: false, giornata: false, pasto: false };
+
 function cardModello(m) {
   const etichette = [];
   if (m.categoria) etichette.push(`<span class="modello-badge modello-badge-cat">${escapeHtml(m.categoria)}</span>`);
@@ -4293,13 +4377,18 @@ function renderModelliBoard() {
 
   modelliLista.innerHTML = MODELLI_SEZIONI.map(({ tipo, titolo }) => {
     const delTipo = modelli.filter(m => m.tipo === tipo);
+    const aperta = !!filtro || modelliSezioniAperte[tipo];
     const contenuto = delTipo.length
       ? `<div class="modelli-cards">${delTipo.map(cardModello).join("")}</div>`
       : `<p class="vuoto">${filtro ? "Nessun modello per questo filtro." : "Nessun modello ancora — creane uno con «+ Nuovo modello»."}</p>`;
     return `
-      <div class="modelli-gruppo">
-        <h2 class="modelli-gruppo-titolo">${titolo} <span class="modelli-conteggio">${delTipo.length}</span></h2>
-        ${contenuto}
+      <div class="modelli-gruppo ${aperta ? "aperta" : "chiusa"}" data-tipo="${tipo}">
+        <button type="button" class="modelli-gruppo-titolo" data-tipo="${tipo}" aria-expanded="${aperta}">
+          <span class="modelli-gruppo-freccia">${aperta ? "▾" : "▸"}</span>
+          <span class="modelli-gruppo-nome">${titolo}</span>
+          <span class="modelli-conteggio">${delTipo.length}</span>
+        </button>
+        <div class="modelli-gruppo-contenuto">${contenuto}</div>
       </div>`;
   }).join("");
 }
@@ -4585,6 +4674,13 @@ function inizializzaModelli() {
 
   // Deleghe sulla board e sulla lista di applicazione.
   modelliLista.addEventListener("click", (e) => {
+    const testa = e.target.closest(".modelli-gruppo-titolo");
+    if (testa) {
+      const tipo = testa.dataset.tipo;
+      modelliSezioniAperte[tipo] = !modelliSezioniAperte[tipo];
+      renderModelliBoard();
+      return;
+    }
     const mod = e.target.closest(".modello-modifica-btn");
     if (mod) { const m = listaModelli.find(x => x.id === mod.dataset.id); if (m) apriEditorModello(m); return; }
     const del = e.target.closest(".modello-elimina-btn");
@@ -4782,6 +4878,7 @@ async function apriProfiloPaziente() {
   profiloEmailInput.value = data.email || "";
   impostaAllergeniProfilo(data.allergie);
   profiloNoteInput.value = data.note || "";
+  profiloNonSeguitoCheck.checked = data.attivo === false;
   profiloPesoOriginale = data.peso_kg ?? null;
   profiloResetMsg.classList.add("hidden");
 
@@ -4887,6 +4984,8 @@ async function salvaComeStorico() {
 
   const dati = {
     maxKcal: state.maxKcal,
+    kcalModo: state.kcalModo,
+    kcalDeficit: state.kcalDeficit,
     dieta: state.dieta,
     sostituzioni: state.sostituzioni,
     infoStudio: state.infoStudio,
@@ -5187,9 +5286,7 @@ function normalizza(testo) {
   return testo.toUpperCase();
 }
 
-// Parole che in sentence-case restano minuscole se non iniziali, e nomi propri
-// da mantenere con l'iniziale maiuscola anche a metà nome.
-const PAROLE_MINUSCOLE = new Set(["di","da","in","con","e","ed","al","alla","allo","ai","agli","alle","del","della","dei","degli","delle","a","su","per","il","lo","la","le","i","gli","un","uno","una","tra","fra","d'","l'"]);
+// Nomi propri da mantenere con l'iniziale maiuscola anche a metà nome.
 const NOMI_PROPRI = new Set(["bruxelles","witloof","iceberg","cheddar","grana","parmigiano","gouda","brie","emmental","camembert","philadelphia","gorgonzola"]);
 
 function iniziMaiuscola(w) {
@@ -5351,9 +5448,9 @@ function renderDraft() {
 
   const righe = draftPasto.map((item, index) => `
     <tr>
-      <td>${item.alimento}</td>
-      <td>${item.mostraPorzione ? `${item.porzione || "porzione"} <em>(${item.grammi} g)</em>` : `${item.grammi} g`}</td>
-      <td>${item.nota || "-"}</td>
+      <td>${escapeHtml(item.alimento)}</td>
+      <td>${item.mostraPorzione ? `${escapeHtml(item.porzione || "porzione")} <em>(${item.grammi} g)</em>` : `${item.grammi} g`}</td>
+      <td>${escapeHtml(item.nota || "-")}</td>
       <td>${item.kcal} kcal</td>
       <td>${item.proteine} g</td>
       <td>${item.grassi} g</td>
@@ -5647,7 +5744,7 @@ function renderDieta() {
           if (item.libero) {
             cellaQta = `<td>—</td>`;
           } else if (item.mostraPorzione) {
-            cellaQta = `<td class="ha-porzione"><span class="solo-non-cliente">${item.porzione || "porzione"} <em>(${item.grammi} g)</em></span><span class="solo-cliente">${item.porzione || ""}</span></td>`;
+            cellaQta = `<td class="ha-porzione"><span class="solo-non-cliente">${escapeHtml(item.porzione || "porzione")} <em>(${item.grammi} g)</em></span><span class="solo-cliente">${escapeHtml(item.porzione || "")}</span></td>`;
           } else {
             cellaQta = `<td>${item.grammi} g</td>`;
           }
@@ -5656,9 +5753,9 @@ function renderDieta() {
             : `${item.kcal} kcal`;
           return `
           <tr${item.libero ? ' class="riga-libero"' : ''}>
-            <td>${item.alimento}${badgeAllergeneAlimento(item)}</td>
+            <td>${escapeHtml(item.alimento)}${badgeAllergeneAlimento(item)}</td>
             ${cellaQta}
-            <td>${item.nota || "-"}</td>
+            <td>${escapeHtml(item.nota || "-")}</td>
             <td class="solo-nutrizionista">${cellaKcal}</td>
             <td class="solo-nutrizionista">${item.libero ? "—" : `${item.proteine} g`}</td>
             <td class="solo-nutrizionista">${item.libero ? "—" : `${item.grassi} g`}</td>
@@ -5893,7 +5990,7 @@ function costruisciRigaPrint(item) {
   if (item.libero) {
     cellaQta = "—";
   } else if (item.mostraPorzione) {
-    cellaQta = `<span class="solo-non-cliente">${item.porzione || "porzione"} <em>(${item.grammi} g)</em></span><span class="solo-cliente">${item.porzione || ""}</span>`;
+    cellaQta = `<span class="solo-non-cliente">${escapeHtml(item.porzione || "porzione")} <em>(${item.grammi} g)</em></span><span class="solo-cliente">${escapeHtml(item.porzione || "")}</span>`;
   } else {
     cellaQta = `${item.grammi} g`;
   }
@@ -5901,9 +5998,9 @@ function costruisciRigaPrint(item) {
 
   return `
     <tr${item.libero ? ' class="p-riga-libero"' : ''}>
-      <td>${item.alimento}</td>
+      <td>${escapeHtml(item.alimento)}</td>
       <td class="${item.mostraPorzione ? "ha-porzione" : ""}">${cellaQta}</td>
-      <td>${item.nota || "-"}</td>
+      <td>${escapeHtml(item.nota || "-")}</td>
       <td class="solo-nutrizionista">${cellaKcal}</td>
       <td class="solo-nutrizionista">${item.libero ? "—" : `${item.proteine} g`}</td>
       <td class="solo-nutrizionista">${item.libero ? "—" : `${item.grassi} g`}</td>
@@ -5952,7 +6049,7 @@ function costruisciContenutoListaSpesa() {
   if (lista.length === 0) return "<p>Il piano alimentare è vuoto: nessun alimento da acquistare.</p>";
 
   const righe = lista.map(voce => `
-    <tr><td class="p-checkbox">☐</td><td>${voce.nome}</td><td>${voce.grammi} g</td></tr>
+    <tr><td class="p-checkbox">☐</td><td>${escapeHtml(voce.nome)}</td><td>${voce.grammi} g</td></tr>
   `).join("");
 
   return `
