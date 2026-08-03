@@ -1543,8 +1543,10 @@ async function avviaDopoLogin() {
   try {
     if (await verificaSeServe2FA()) return;
   } catch (e) {
-    // Fail-closed: se non riusciamo a verificare il 2FA non facciamo entrare
-    // (il 2FA admin non è imposto lato DB, quindi questo è l'unico controllo).
+    // Fail-closed: se non riusciamo a verificare lo stato del 2FA non facciamo
+    // entrare. La barriera vera resta lato DB (policy RLS restrittive con
+    // mfa_soddisfatta(): per un admin con TOTP attivo serve aal2), ma questo
+    // gate evita di far proseguire la UI in uno stato incoerente.
     alert("Non è stato possibile verificare l'autenticazione a due fattori. Riprova.\n" + (e?.message || ""));
     await supabaseClient.auth.signOut();
     mostraLogin();

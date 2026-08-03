@@ -656,16 +656,20 @@ button.danger-scuro:hover {
 .paziente-selettore-testa {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap; /* se manca spazio, la pill va a capo invece di sovrapporsi */
+  row-gap: 6px;
 }
 
 .paziente-selettore-testa label {
   white-space: nowrap;
+  flex: 0 0 auto; /* l'etichetta non si restringe: il suo testo non finisce sotto la pill */
+  /* Spaziatura con margin (non solo gap): Safari iPad < 14.1 ignora gap nel flex */
+  margin-right: 10px;
 }
 
 .vista-paziente-btn {
   margin: 0;
+  flex: 0 0 auto;
   background: var(--secondary);
   color: white;
   font-size: 0.8rem;
