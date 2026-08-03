@@ -1,0 +1,11 @@
+# Header di sicurezza applicati da Cloudflare Pages a tutte le risposte.
+# Nota: se dopo il deploy qualcosa non carica (immagini OFF, scanner, PDF),
+# la causa piu' probabile e' una sorgente mancante in questa CSP: aggiungerla
+# alla direttiva giusta invece di rimuovere l'intera policy.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.openfoodfacts.org; font-src 'self' data:; connect-src 'self' https://scckmrmgbpvqqcungrsj.supabase.co wss://scckmrmgbpvqqcungrsj.supabase.co; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000

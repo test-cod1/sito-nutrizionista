@@ -67,13 +67,24 @@ export async function onRequestPost(context) {
       await eliminaUtenteAuth(secretKey, paziente.user_id);
     }
   } catch (e) {
-    return risposta(500, { error: "Errore durante la cancellazione: " + e.message });
+    // La sequenza è idempotente (DELETE con WHERE, Auth 404 tollerato): la
+    // richiesta NON viene segnata "completata", così può essere ritentata in
+    // sicurezza. Non rimandiamo il messaggio grezzo al client.
+    console.error("Errore durante la cancellazione paziente:", e && e.message);
+    return risposta(500, { error: "Errore durante la cancellazione. Riprova." });
   }
 
-  await chiamataRest(secretKey, "PATCH", `/rest/v1/richieste_cancellazione?id=eq.${encodeURIComponent(richiestaId)}`, {
-    stato: "completata",
-    completata_il: new Date().toISOString()
-  });
+  // I dati sono già stati eliminati: se la PATCH di chiusura fallisce non
+  // annulliamo l'esito, logghiamo e restituiamo comunque ok. La richiesta
+  // resterà "accettata" e potrà essere richiusa manualmente.
+  try {
+    await chiamataRest(secretKey, "PATCH", `/rest/v1/richieste_cancellazione?id=eq.${encodeURIComponent(richiestaId)}`, {
+      stato: "completata",
+      completata_il: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error("Paziente eliminato ma impossibile segnare la richiesta come completata:", e && e.message);
+  }
 
   return risposta(200, { ok: true });
 }
@@ -132,7 +143,9 @@ async function eliminaUtenteAuth(secretKey, userId) {
       Authorization: `Bearer ${secretKey}`
     }
   });
-  if (!res.ok) {
+  // 404 = utente Auth già eliminato: è un no-op accettabile, così un retry
+  // dopo un fallimento parziale non resta bloccato.
+  if (!res.ok && res.status !== 404) {
     const dati = await res.json().catch(() => ({}));
     throw new Error(dati.msg || dati.message || `Errore nella cancellazione dell'account (${res.status}).`);
   }

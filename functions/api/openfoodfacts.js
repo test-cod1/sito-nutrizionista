@@ -22,6 +22,16 @@ export async function onRequestGet(context) {
     return risposta(400, { errore: "Specifica un nome prodotto oppure un codice a barre." });
   }
 
+  // Limiti di lunghezza input: evitano abusi come proxy verso Open Food Facts
+  // con stringhe enormi. Un vero rate-limit per IP va configurato come regola
+  // Cloudflare (dashboard), non è possibile in modo affidabile qui.
+  if (query.length > 100 || barcode.length > 50) {
+    return risposta(400, { errore: "Termine di ricerca troppo lungo." });
+  }
+  if (barcode && !/^[0-9]+$/.test(barcode)) {
+    return risposta(400, { errore: "Codice a barre non valido." });
+  }
+
   const cache = caches.default;
   const cacheKey = new Request(request.url);
   const cachata = await cache.match(cacheKey);

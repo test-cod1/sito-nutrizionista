@@ -28,6 +28,7 @@ const APP_SHELL = [
   "index.html",
   "style.css",
   "script.js",
+  "tema-init.js",
   "config.js",
   "foods.json",
   "manifest.json",
@@ -44,7 +45,7 @@ const APP_SHELL = [
 // (altrimenti la pagina non riesce nemmeno a mostrare il piano già in cache).
 // Gli URL sono "pinnati" a una versione precisa, quindi cacharli è sicuro.
 const CDN_LIBS = [
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js",
   "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js",
   "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
   "https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"
@@ -121,18 +122,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Risorse esterne dinamiche (es. immagini prodotto Open Food Facts): rete
+  // diretta, NON in cache-shell. Altrimenti si accumulerebbero risposte che non
+  // vengono mai invalidate (la shell si aggiorna solo con network-first sui suoi
+  // file). Le librerie CDN note restano invece cache-abili.
+  const isSameOrigin = url.origin === self.location.origin;
+  const isCdnLib = url.origin === "https://cdn.jsdelivr.net";
+  if (!isSameOrigin && !isCdnLib) return; // non intercettata: la gestisce il browser
+
   // App shell (HTML/CSS/JS/icone/foods.json/CDN): network-first sulla cache-shell.
   event.respondWith(networkFirst(req, SHELL_CACHE));
 });
 
-// Al logout la pagina chiede di svuotare la cache-dati (privacy su dispositivi
-// condivisi): così l'eventuale copia offline dei dati di un utente non resta
-// disponibile dopo l'uscita.
-self.addEventListener("message", (event) => {
-  if (event.data === "clear-data-cache") {
-    event.waitUntil(caches.delete(DATA_CACHE));
-  }
-});
+// Nota: la pulizia della cache-dati al logout (privacy su dispositivi condivisi)
+// è gestita direttamente dalla pagina in effettuaLogout(), che cancella tutte le
+// cache "nutriplan-data-*" via Cache API. Non serve un handler di messaggi qui.
 
 // Promemoria check-in periodico, inviato dal job schedulato lato server.
 self.addEventListener("push", (event) => {

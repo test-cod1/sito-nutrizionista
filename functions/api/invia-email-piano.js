@@ -57,6 +57,22 @@ export async function onRequestPost(context) {
     return risposta(400, { error: "Ogni allegato richiede nome e contenuto." });
   }
 
+  // Limiti di dimensione: evitano payload enormi verso Brevo (contenuti in
+  // base64). Sono ampi ma finiti; oltre, la richiesta viene respinta.
+  const MAX_HTML = 2_000_000;            // ~2 MB di HTML
+  const MAX_ALLEGATI = 5;                // numero massimo di allegati
+  const MAX_ALLEGATI_TOTALE = 15_000_000; // ~15 MB totali (base64)
+  if (html.length > MAX_HTML) {
+    return risposta(413, { error: "Il contenuto dell'email è troppo grande." });
+  }
+  if (allegati.length > MAX_ALLEGATI) {
+    return risposta(413, { error: `Troppi allegati (massimo ${MAX_ALLEGATI}).` });
+  }
+  const dimensioneAllegati = allegati.reduce((tot, a) => tot + (a.contenuto ? a.contenuto.length : 0), 0);
+  if (dimensioneAllegati > MAX_ALLEGATI_TOTALE) {
+    return risposta(413, { error: "Gli allegati superano la dimensione massima consentita." });
+  }
+
   const paziente = await recuperaPaziente(secretKey, pazienteId);
   if (!paziente) {
     return risposta(404, { error: "Paziente non trovato." });
@@ -139,7 +155,11 @@ async function inviaEmailBrevo(brevoKey, mittenteEmail, { destinatarioEmail, des
     body: JSON.stringify(corpo)
   });
   if (!res.ok) {
-    throw new Error(`Errore invio email (${res.status}): ${await res.text()}`);
+    // Non rimandiamo al client la risposta grezza di Brevo (può contenere
+    // dettagli di account/quota): la logghiamo e restituiamo un errore generico.
+    const dettaglio = await res.text().catch(() => "");
+    console.error("Errore invio email Brevo:", res.status, dettaglio);
+    throw new Error(`Invio email non riuscito (${res.status}).`);
   }
 }
 

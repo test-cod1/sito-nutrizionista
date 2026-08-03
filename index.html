@@ -16,23 +16,13 @@
 
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 
-  <script>
-    (function () {
-      try {
-        var t = localStorage.getItem("dieta-nutrizionista-tema");
-        if (t !== "chiaro" && t !== "notte") {
-          t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "notte" : "chiaro";
-        }
-        if (t === "notte") document.documentElement.classList.add("tema-notte");
-      } catch (e) {}
-    })();
-  </script>
+  <script src="tema-init.js"></script>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.min.js" integrity="sha384-fPWur1rx/DE6YtXP/x0MD6dd90RgnVsz5yX/DIg7CcVAnTBZsENWuIcpvVTM39ti" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
   <!-- Generazione PDF lato client per gli allegati email (piano alimentare + lista della spesa) -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -98,7 +88,7 @@
       <p class="duplica-sottotitolo">Imposta una password per il tuo account.</p>
       <label for="nuova-password-input">Nuova password</label>
       <input type="password" id="nuova-password-input" autocomplete="new-password">
-      <p class="hint">Almeno 8 caratteri, con una lettera maiuscola e un numero.</p>
+      <p class="hint">Almeno 8 caratteri, con una lettera maiuscola, una minuscola e un numero.</p>
       <p id="imposta-password-error" class="error hidden"></p>
       <div class="duplica-azioni">
         <button id="imposta-password-btn">Conferma</button>
