@@ -17,10 +17,18 @@ alter table public.impegni enable row level security;
 
 -- Solo gli amministratori possono vedere e gestire gli impegni.
 -- (Coerente con determinaRuolo(): un utente è admin se compare in amministratori.)
--- NB: se le policy della tabella "appuntamenti" richiedono anche mfa_soddisfatta(),
--- aggiungere la stessa condizione qui per allineare il livello di sicurezza.
 drop policy if exists impegni_admin_all on public.impegni;
 create policy impegni_admin_all on public.impegni
   for all
   using (exists (select 1 from public.amministratori a where a.user_id = auth.uid()))
   with check (exists (select 1 from public.amministratori a where a.user_id = auth.uid()));
+
+-- Gate MFA identico a quello della tabella "appuntamenti": policy RESTRICTIVE
+-- (in AND con quella admin), così l'accesso richiede il 2FA completato quando
+-- attivo. Senza "as restrictive" verrebbe messa in OR e il 2FA sarebbe aggirabile.
+drop policy if exists "Richiede MFA se attiva" on public.impegni;
+create policy "Richiede MFA se attiva" on public.impegni
+  as restrictive
+  for all
+  using (mfa_soddisfatta())
+  with check (mfa_soddisfatta());
