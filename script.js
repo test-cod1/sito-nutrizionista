@@ -985,6 +985,48 @@ const appuntamentoEliminaBtn = document.getElementById("appuntamento-elimina-btn
 const appuntamentoAnnullaBtn = document.getElementById("appuntamento-annulla-btn");
 let appuntamentoInModifica = null;
 
+// ---- Impegni personali (eventi del calendario non legati a un paziente) ----
+const agendaNuovoImpegnoOverlayBtn = document.getElementById("agenda-nuovo-impegno-overlay-btn");
+const impegnoOverlay = document.getElementById("impegno-overlay");
+const impegnoTitoloH = document.getElementById("impegno-titolo-h");
+const impegnoTitoloInput = document.getElementById("impegno-titolo-input");
+const impegnoDataInput = document.getElementById("impegno-data-input");
+const impegnoOraOreSelect = document.getElementById("impegno-ora-ore-select");
+const impegnoOraMinutiSelect = document.getElementById("impegno-ora-minuti-select");
+const impegnoDurataSelect = document.getElementById("impegno-durata-select");
+const impegnoFineDisplay = document.getElementById("impegno-fine-display");
+const impegnoNoteInput = document.getElementById("impegno-note-input");
+const impegnoErrore = document.getElementById("impegno-error");
+const impegnoSalvaBtn = document.getElementById("impegno-salva-btn");
+const impegnoEliminaBtn = document.getElementById("impegno-elimina-btn");
+const impegnoAnnullaBtn = document.getElementById("impegno-annulla-btn");
+// Le ore selezionabili sono le stesse dell'appuntamento (07–23).
+for (let h = 7; h < 24; h++) {
+  const ora = String(h).padStart(2, "0");
+  const opzione = document.createElement("option");
+  opzione.value = ora;
+  opzione.textContent = ora;
+  impegnoOraOreSelect.appendChild(opzione);
+}
+const impegnoOraInput = {
+  get value() {
+    if (!impegnoOraOreSelect.value) return "";
+    return `${impegnoOraOreSelect.value}:${impegnoOraMinutiSelect.value}`;
+  },
+  set value(orario) {
+    if (!orario) {
+      impegnoOraOreSelect.value = "";
+      impegnoOraMinutiSelect.value = "00";
+      return;
+    }
+    const [ore, minuti] = orario.split(":");
+    impegnoOraOreSelect.value = ore;
+    const minutiArrotondati = Math.round((parseInt(minuti, 10) || 0) / 15) * 15 % 60;
+    impegnoOraMinutiSelect.value = String(minutiArrotondati).padStart(2, "0");
+  }
+};
+let impegnoInModifica = null;
+
 // Prossimo appuntamento (paziente)
 const prossimoAppuntamentoContenuto = document.getElementById("prossimo-appuntamento-contenuto");
 let prossimoAppuntamentoCorrente = null;
@@ -3249,6 +3291,7 @@ async function confermaNuovoPaziente() {
 // anche lato database); il paziente li vede in sola lettura, solo i propri.
 
 let listaAppuntamenti = [];
+let listaImpegni = [];
 
 // Vista calendario (ispirata a Google Calendar): stato corrente.
 let agendaVista = "settimana";   // 'mese' | 'settimana' | 'giorno'
@@ -3317,9 +3360,26 @@ async function caricaAppuntamenti() {
   } else {
     listaAppuntamenti = data || [];
   }
+  await caricaImpegni();
   popolaFiltroAgenda();
   renderCalendario();
   renderProssimoAppuntamentoAdmin();
+}
+
+// Impegni personali dell'admin (eventi non legati a un paziente). Se la tabella
+// non esiste ancora sul database, si degrada senza rompere il calendario.
+async function caricaImpegni() {
+  const { data, error } = await supabaseClient
+    .from("impegni")
+    .select("*")
+    .order("data_ora", { ascending: true });
+
+  if (error) {
+    console.warn("Impegni non disponibili (tabella mancante o permessi):", error.message);
+    listaImpegni = [];
+  } else {
+    listaImpegni = data || [];
+  }
 }
 
 function apriAgendaModale() {
@@ -3356,6 +3416,17 @@ function navigaAgenda(direzione) {
 function appuntamentiFiltrati() {
   const f = agendaFiltroPazienteSelect.value;
   return listaAppuntamenti.filter(a => !f || a.paziente_id === f);
+}
+
+// Elementi da disegnare sul calendario: appuntamenti (filtrati per paziente) più
+// gli impegni personali. Gli impegni non sono legati a un paziente, quindi
+// compaiono solo quando non è attivo un filtro paziente. Ogni impegno viene
+// marcato con _impegno per distinguerlo in fase di rendering e al clic.
+function elementiCalendario() {
+  const f = agendaFiltroPazienteSelect.value;
+  const app = listaAppuntamenti.filter(a => !f || a.paziente_id === f);
+  if (f) return app;
+  return app.concat(listaImpegni.map(i => ({ ...i, _impegno: true })));
 }
 
 function renderCalendario() {
@@ -3433,17 +3504,19 @@ function eventiColonnaHtml(giorno, app, adesso) {
     const largh = 100 / ev.nLanes;
     const sx = ev.lane * largh;
     const passato = fine < adesso;
-    const nome = a.pazienti ? a.pazienti.nome : "—";
-    const tv = a.tipo_visita === "prima_visita" ? "1ª visita" : (a.tipo_visita === "controllo" ? "Controllo" : "");
+    const impegno = !!a._impegno;
+    const nome = impegno ? (a.titolo || "Impegno") : (a.pazienti ? a.pazienti.nome : "—");
+    const tv = impegno ? "" : (a.tipo_visita === "prima_visita" ? "1ª visita" : (a.tipo_visita === "controllo" ? "Controllo" : ""));
+    const classeTipo = impegno ? "cal-evento-impegno" : (a.tipologia === "remoto" ? "cal-evento-remoto" : "cal-evento-studio");
     // Blocchi bassi (appuntamenti brevi): tutto su una riga sola, senza tag,
     // così il testo resta leggibile e non deborda.
     const compatto = height < 42;
     const contenuto = compatto
       ? `<span class="cal-evento-ora">${oraHM(inizio)}</span><span class="cal-evento-nome">${escapeHtml(nome)}</span>`
       : `<span class="cal-evento-ora">${oraHM(inizio)}–${oraHM(fine)}</span><span class="cal-evento-nome">${escapeHtml(nome)}</span>${tv ? `<span class="cal-evento-tag">${tv}</span>` : ""}`;
-    return `<div class="cal-evento cal-evento-${a.tipologia === "remoto" ? "remoto" : "studio"} ${passato ? "cal-evento-passato" : ""} ${compatto ? "cal-evento-compatto" : ""}"
+    return `<div class="cal-evento ${classeTipo} ${passato ? "cal-evento-passato" : ""} ${compatto ? "cal-evento-compatto" : ""}"
                  style="top:${top}px;height:${height}px;left:calc(${sx}% + 1px);width:calc(${largh}% - 3px)"
-                 data-id="${a.id}" title="${oraHM(inizio)}–${oraHM(fine)} · ${escapeHtml(nome)}">
+                 data-id="${a.id}"${impegno ? ' data-tipo="impegno"' : ''} title="${oraHM(inizio)}–${oraHM(fine)} · ${escapeHtml(nome)}">
               ${contenuto}
             </div>`;
   }).join("");
@@ -3451,7 +3524,7 @@ function eventiColonnaHtml(giorno, app, adesso) {
 
 function grigliaOrariaHtml(giorni) {
   const adesso = new Date();
-  const app = appuntamentiFiltrati();
+  const app = elementiCalendario();
 
   const range = calcolaRangeGriglia(giorni, app);
   calGridInizio = range.inizio;
@@ -3531,7 +3604,7 @@ function renderVistaMese() {
   }
 
   const adesso = new Date();
-  const app = appuntamentiFiltrati();
+  const app = elementiCalendario();
   const dow = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map(x => `<div class="cal-mese-dow">${x}</div>`).join("");
 
   const celleHtml = celle.map(g => {
@@ -3543,8 +3616,10 @@ function renderVistaMese() {
     const eventi = delGiorno.slice(0, 3).map(a => {
       const inizio = new Date(a.data_ora);
       const passato = fineAppuntamento(a) < adesso;
-      const nome = a.pazienti ? a.pazienti.nome : "—";
-      return `<div class="cal-mese-evento cal-evento-${a.tipologia === "remoto" ? "remoto" : "studio"} ${passato ? "cal-evento-passato" : ""}" data-id="${a.id}">
+      const impegno = !!a._impegno;
+      const nome = impegno ? (a.titolo || "Impegno") : (a.pazienti ? a.pazienti.nome : "—");
+      const classeTipo = impegno ? "cal-evento-impegno" : (a.tipologia === "remoto" ? "cal-evento-remoto" : "cal-evento-studio");
+      return `<div class="cal-mese-evento ${classeTipo} ${passato ? "cal-evento-passato" : ""}" data-id="${a.id}"${impegno ? ' data-tipo="impegno"' : ''}>
                 <span class="cal-mese-ora">${oraHM(inizio)}</span> ${escapeHtml(nome)}
               </div>`;
     }).join("");
@@ -3603,7 +3678,7 @@ function popolaFiltroAgenda() {
 // Popola il menu Durata (una sola volta) e mostra ogni valore in modo leggibile.
 function popolaDurateAppuntamento() {
   const valori = [15, 30, 45, 60, 90, 120];
-  appuntamentoDurataSelect.innerHTML = valori.map(m => {
+  const opzioni = valori.map(m => {
     const ore = Math.floor(m / 60);
     const min = m % 60;
     let label;
@@ -3612,6 +3687,8 @@ function popolaDurateAppuntamento() {
     else label = `${ore} h ${min} min`;
     return `<option value="${m}">${label}</option>`;
   }).join("");
+  appuntamentoDurataSelect.innerHTML = opzioni;
+  impegnoDurataSelect.innerHTML = opzioni;
 }
 
 // Ricalcola e mostra l'orario di fine in base a data, ora e durata scelte.
@@ -3756,6 +3833,117 @@ async function eliminaAppuntamentoCorrente() {
     return;
   }
   chiudiAppuntamento();
+  await caricaAppuntamenti();
+}
+
+// ---------- Impegni personali (eventi del calendario senza paziente) ----------
+function aggiornaFineImpegno() {
+  const data = impegnoDataInput.value;
+  const ora = impegnoOraInput.value;
+  const durata = parseInt(impegnoDurataSelect.value, 10);
+  if (!ora || !durata) { impegnoFineDisplay.textContent = "—"; return; }
+  const base = data ? new Date(`${data}T${ora}:00`) : new Date(`2000-01-01T${ora}:00`);
+  if (isNaN(base.getTime())) { impegnoFineDisplay.textContent = "—"; return; }
+  const fine = new Date(base.getTime() + durata * 60000);
+  impegnoFineDisplay.textContent = oraHM(fine);
+}
+
+function apriNuovoImpegno(prefill) {
+  impegnoInModifica = null;
+  impegnoTitoloH.textContent = "Nuovo impegno";
+  impegnoTitoloInput.value = "";
+  impegnoDataInput.value = (prefill && prefill.data) || "";
+  impegnoOraInput.value = (prefill && prefill.ora) || "";
+  impegnoDurataSelect.value = "60";
+  aggiornaFineImpegno();
+  impegnoNoteInput.value = "";
+  impegnoErrore.classList.add("hidden");
+  impegnoEliminaBtn.classList.add("hidden");
+  impegnoOverlay.classList.remove("hidden");
+  impegnoTitoloInput.focus();
+}
+
+function apriModificaImpegno(id) {
+  const i = listaImpegni.find(x => x.id === id);
+  if (!i) return;
+  impegnoInModifica = i;
+  impegnoTitoloH.textContent = "Modifica impegno";
+  impegnoTitoloInput.value = i.titolo || "";
+  const dataOra = new Date(i.data_ora);
+  impegnoDataInput.value = isoDataLocale(dataOra);
+  impegnoOraInput.value = dataOra.toTimeString().slice(0, 5);
+  impegnoDurataSelect.value = String(i.durata_minuti && i.durata_minuti > 0 ? i.durata_minuti : 60);
+  aggiornaFineImpegno();
+  impegnoNoteInput.value = i.note || "";
+  impegnoErrore.classList.add("hidden");
+  impegnoEliminaBtn.classList.remove("hidden");
+  impegnoOverlay.classList.remove("hidden");
+}
+
+function chiudiImpegno() {
+  impegnoOverlay.classList.add("hidden");
+}
+
+async function salvaImpegno() {
+  const titolo = impegnoTitoloInput.value.trim();
+  const data = impegnoDataInput.value;
+  const ora = impegnoOraInput.value;
+  impegnoErrore.classList.add("hidden");
+
+  if (!titolo || !data || !ora) {
+    impegnoErrore.textContent = "Inserisci un titolo, una data e un'ora.";
+    impegnoErrore.classList.remove("hidden");
+    return;
+  }
+
+  const dataOraLocale = new Date(`${data}T${ora}:00`);
+  if (isNaN(dataOraLocale.getTime())) {
+    impegnoErrore.textContent = "Data o ora non valide.";
+    impegnoErrore.classList.remove("hidden");
+    return;
+  }
+
+  const durata = parseInt(impegnoDurataSelect.value, 10) || 60;
+
+  const corpo = {
+    titolo,
+    data_ora: dataOraLocale.toISOString(),
+    durata_minuti: durata,
+    note: impegnoNoteInput.value.trim() || null
+  };
+
+  let error;
+  impegnoSalvaBtn.disabled = true;
+  try {
+    if (impegnoInModifica) {
+      ({ error } = await supabaseClient.from("impegni").update(corpo).eq("id", impegnoInModifica.id));
+    } else {
+      ({ error } = await supabaseClient.from("impegni").insert(corpo));
+    }
+  } finally {
+    impegnoSalvaBtn.disabled = false;
+  }
+
+  if (error) {
+    impegnoErrore.textContent = "Errore: " + error.message;
+    impegnoErrore.classList.remove("hidden");
+    return;
+  }
+
+  chiudiImpegno();
+  await caricaAppuntamenti();
+}
+
+async function eliminaImpegnoCorrente() {
+  if (!impegnoInModifica) return;
+  if (!confirm("Eliminare questo impegno?")) return;
+
+  const { error } = await supabaseClient.from("impegni").delete().eq("id", impegnoInModifica.id);
+  if (error) {
+    alert("Errore nell'eliminazione: " + error.message);
+    return;
+  }
+  chiudiImpegno();
   await caricaAppuntamenti();
 }
 
@@ -6552,7 +6740,11 @@ function inizializza() {
   // vuoto apre un nuovo appuntamento già precompilato con quel giorno/ora.
   agendaCalendarioEl.addEventListener("click", (e) => {
     const evento = e.target.closest(".cal-evento, .cal-mese-evento");
-    if (evento) { apriModificaAppuntamento(evento.dataset.id); return; }
+    if (evento) {
+      if (evento.dataset.tipo === "impegno") apriModificaImpegno(evento.dataset.id);
+      else apriModificaAppuntamento(evento.dataset.id);
+      return;
+    }
 
     const cellaMese = e.target.closest(".cal-mese-cella");
     if (cellaMese) {
@@ -6660,6 +6852,19 @@ function inizializza() {
   appuntamentoAnnullaBtn.addEventListener("click", chiudiAppuntamento);
   appuntamentoOverlay.addEventListener("click", (e) => {
     if (e.target === appuntamentoOverlay) chiudiAppuntamento();
+  });
+
+  // Impegni personali
+  agendaNuovoImpegnoOverlayBtn.addEventListener("click", () => apriNuovoImpegno());
+  impegnoDurataSelect.addEventListener("change", aggiornaFineImpegno);
+  impegnoDataInput.addEventListener("change", aggiornaFineImpegno);
+  impegnoOraOreSelect.addEventListener("change", aggiornaFineImpegno);
+  impegnoOraMinutiSelect.addEventListener("change", aggiornaFineImpegno);
+  impegnoSalvaBtn.addEventListener("click", salvaImpegno);
+  impegnoEliminaBtn.addEventListener("click", eliminaImpegnoCorrente);
+  impegnoAnnullaBtn.addEventListener("click", chiudiImpegno);
+  impegnoOverlay.addEventListener("click", (e) => {
+    if (e.target === impegnoOverlay) chiudiImpegno();
   });
 
   storicoBtn.addEventListener("click", apriStorico);

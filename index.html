@@ -991,7 +991,10 @@
     <div class="duplica-modal duplica-modal-calendario">
       <div class="agenda-intestazione">
         <h3>Agenda appuntamenti</h3>
-        <button type="button" id="agenda-nuovo-overlay-btn" class="secondary">+ Nuovo appuntamento</button>
+        <div class="agenda-intestazione-azioni">
+          <button type="button" id="agenda-nuovo-overlay-btn" class="secondary">+ Nuovo appuntamento</button>
+          <button type="button" id="agenda-nuovo-impegno-overlay-btn" class="secondary">+ Nuovo impegno</button>
+        </div>
       </div>
 
       <div class="agenda-controlli">
@@ -1098,6 +1101,52 @@
         <button id="appuntamento-salva-btn">Salva</button>
         <button id="appuntamento-elimina-btn" class="danger hidden">Elimina</button>
         <button id="appuntamento-annulla-btn" class="danger">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Impegno personale (nuovo o modifica) — evento del calendario non legato a un paziente -->
+  <div id="impegno-overlay" class="duplica-overlay hidden no-print">
+    <div class="duplica-modal">
+      <h3 id="impegno-titolo-h">Nuovo impegno</h3>
+
+      <label for="impegno-titolo-input">Titolo</label>
+      <input type="text" id="impegno-titolo-input" placeholder="Es. Riunione, formazione, ferie…" autocomplete="off">
+
+      <div class="griglia-2">
+        <div>
+          <label for="impegno-data-input">Data</label>
+          <input type="date" id="impegno-data-input">
+        </div>
+        <div>
+          <label for="impegno-ora-ore-select">Ora</label>
+          <div class="ora-select-riga">
+            <select id="impegno-ora-ore-select" aria-label="Ora">
+              <option value="">--</option>
+            </select>
+            <span class="ora-select-separatore">:</span>
+            <select id="impegno-ora-minuti-select" aria-label="Minuti">
+              <option value="00">00</option>
+              <option value="15">15</option>
+              <option value="30">30</option>
+              <option value="45">45</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <label for="impegno-durata-select">Durata</label>
+      <select id="impegno-durata-select"></select>
+      <p class="appuntamento-fine-riga">Fine prevista: <strong id="impegno-fine-display">—</strong></p>
+
+      <label for="impegno-note-input">Note (opzionale)</label>
+      <textarea id="impegno-note-input" rows="3"></textarea>
+
+      <p id="impegno-error" class="error hidden"></p>
+      <div class="duplica-azioni">
+        <button id="impegno-salva-btn">Salva</button>
+        <button id="impegno-elimina-btn" class="danger hidden">Elimina</button>
+        <button id="impegno-annulla-btn" class="danger">Annulla</button>
       </div>
     </div>
   </div>

@@ -3330,6 +3330,11 @@ a.sezioni-link,
   margin: 0;
   font-size: 1.1rem;
 }
+.agenda-intestazione-azioni {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 .agenda-controlli {
   display: flex;
@@ -3572,6 +3577,11 @@ a.sezioni-link,
   background: #dcebf2;
   border-left: 3px solid var(--secondary);
 }
+/* Impegni personali (non legati a un paziente): colore distinto dagli appuntamenti */
+.cal-evento-impegno {
+  background: #efe3f7;
+  border-left: 3px solid #9b59b6;
+}
 .cal-evento-passato {
   opacity: 0.55;
 }
@@ -3687,6 +3697,9 @@ a.sezioni-link,
 /* Tema notte: sfondo evento "da remoto" leggibile su superfici scure */
 :root.tema-notte .cal-evento-remoto {
   background: #23414e;
+}
+:root.tema-notte .cal-evento-impegno {
+  background: #3a2b47;
 }
 
 /* Dispositivi touch (iPad): pulsanti vista un po' più generosi da toccare.
