@@ -943,7 +943,7 @@ const appuntamentoDataInput = document.getElementById("appuntamento-data-input")
 // codice che legge/scrive l'orario dell'appuntamento.
 const appuntamentoOraOreSelect = document.getElementById("appuntamento-ora-ore-select");
 const appuntamentoOraMinutiSelect = document.getElementById("appuntamento-ora-minuti-select");
-for (let h = 0; h < 24; h++) {
+for (let h = 7; h < 24; h++) {
   const ora = String(h).padStart(2, "0");
   const opzione = document.createElement("option");
   opzione.value = ora;
