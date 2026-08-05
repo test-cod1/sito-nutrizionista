@@ -1113,19 +1113,33 @@
       <label for="impegno-titolo-input">Titolo</label>
       <input type="text" id="impegno-titolo-input" placeholder="Es. Riunione, formazione, ferie…" autocomplete="off">
 
+      <label for="impegno-data-input">Data</label>
+      <input type="date" id="impegno-data-input">
+
       <div class="griglia-2">
         <div>
-          <label for="impegno-data-input">Data</label>
-          <input type="date" id="impegno-data-input">
-        </div>
-        <div>
-          <label for="impegno-ora-ore-select">Ora</label>
+          <label for="impegno-ora-ore-select">Ora inizio</label>
           <div class="ora-select-riga">
-            <select id="impegno-ora-ore-select" aria-label="Ora">
+            <select id="impegno-ora-ore-select" aria-label="Ora inizio">
               <option value="">--</option>
             </select>
             <span class="ora-select-separatore">:</span>
-            <select id="impegno-ora-minuti-select" aria-label="Minuti">
+            <select id="impegno-ora-minuti-select" aria-label="Minuti inizio">
+              <option value="00">00</option>
+              <option value="15">15</option>
+              <option value="30">30</option>
+              <option value="45">45</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="impegno-fine-ore-select">Ora fine</label>
+          <div class="ora-select-riga">
+            <select id="impegno-fine-ore-select" aria-label="Ora fine">
+              <option value="">--</option>
+            </select>
+            <span class="ora-select-separatore">:</span>
+            <select id="impegno-fine-minuti-select" aria-label="Minuti fine">
               <option value="00">00</option>
               <option value="15">15</option>
               <option value="30">30</option>
@@ -1134,10 +1148,7 @@
           </div>
         </div>
       </div>
-
-      <label for="impegno-durata-select">Durata</label>
-      <select id="impegno-durata-select"></select>
-      <p class="appuntamento-fine-riga">Fine prevista: <strong id="impegno-fine-display">—</strong></p>
+      <p class="appuntamento-fine-riga">Durata: <strong id="impegno-durata-display">—</strong></p>
 
       <label for="impegno-note-input">Note (opzionale)</label>
       <textarea id="impegno-note-input" rows="3"></textarea>

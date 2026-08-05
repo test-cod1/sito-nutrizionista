@@ -993,38 +993,47 @@ const impegnoTitoloInput = document.getElementById("impegno-titolo-input");
 const impegnoDataInput = document.getElementById("impegno-data-input");
 const impegnoOraOreSelect = document.getElementById("impegno-ora-ore-select");
 const impegnoOraMinutiSelect = document.getElementById("impegno-ora-minuti-select");
-const impegnoDurataSelect = document.getElementById("impegno-durata-select");
-const impegnoFineDisplay = document.getElementById("impegno-fine-display");
+const impegnoFineOreSelect = document.getElementById("impegno-fine-ore-select");
+const impegnoFineMinutiSelect = document.getElementById("impegno-fine-minuti-select");
+const impegnoDurataDisplay = document.getElementById("impegno-durata-display");
 const impegnoNoteInput = document.getElementById("impegno-note-input");
 const impegnoErrore = document.getElementById("impegno-error");
 const impegnoSalvaBtn = document.getElementById("impegno-salva-btn");
 const impegnoEliminaBtn = document.getElementById("impegno-elimina-btn");
 const impegnoAnnullaBtn = document.getElementById("impegno-annulla-btn");
-// Le ore selezionabili sono le stesse dell'appuntamento (07–23).
+// Le ore selezionabili (inizio e fine) sono le stesse dell'appuntamento (07–23).
 for (let h = 7; h < 24; h++) {
   const ora = String(h).padStart(2, "0");
-  const opzione = document.createElement("option");
-  opzione.value = ora;
-  opzione.textContent = ora;
-  impegnoOraOreSelect.appendChild(opzione);
+  [impegnoOraOreSelect, impegnoFineOreSelect].forEach(sel => {
+    const opzione = document.createElement("option");
+    opzione.value = ora;
+    opzione.textContent = ora;
+    sel.appendChild(opzione);
+  });
 }
-const impegnoOraInput = {
-  get value() {
-    if (!impegnoOraOreSelect.value) return "";
-    return `${impegnoOraOreSelect.value}:${impegnoOraMinutiSelect.value}`;
-  },
-  set value(orario) {
-    if (!orario) {
-      impegnoOraOreSelect.value = "";
-      impegnoOraMinutiSelect.value = "00";
-      return;
+// Fabbrica di "input orario" su coppia di select ore:minuti (riutilizzata da
+// inizio e fine dell'impegno).
+function creaOraInput(oreSelect, minutiSelect) {
+  return {
+    get value() {
+      if (!oreSelect.value) return "";
+      return `${oreSelect.value}:${minutiSelect.value}`;
+    },
+    set value(orario) {
+      if (!orario) {
+        oreSelect.value = "";
+        minutiSelect.value = "00";
+        return;
+      }
+      const [ore, minuti] = orario.split(":");
+      oreSelect.value = ore;
+      const minutiArrotondati = Math.round((parseInt(minuti, 10) || 0) / 15) * 15 % 60;
+      minutiSelect.value = String(minutiArrotondati).padStart(2, "0");
     }
-    const [ore, minuti] = orario.split(":");
-    impegnoOraOreSelect.value = ore;
-    const minutiArrotondati = Math.round((parseInt(minuti, 10) || 0) / 15) * 15 % 60;
-    impegnoOraMinutiSelect.value = String(minutiArrotondati).padStart(2, "0");
-  }
-};
+  };
+}
+const impegnoOraInput = creaOraInput(impegnoOraOreSelect, impegnoOraMinutiSelect);
+const impegnoOraFineInput = creaOraInput(impegnoFineOreSelect, impegnoFineMinutiSelect);
 let impegnoInModifica = null;
 
 // Prossimo appuntamento (paziente)
@@ -3688,7 +3697,6 @@ function popolaDurateAppuntamento() {
     return `<option value="${m}">${label}</option>`;
   }).join("");
   appuntamentoDurataSelect.innerHTML = opzioni;
-  impegnoDurataSelect.innerHTML = opzioni;
 }
 
 // Ricalcola e mostra l'orario di fine in base a data, ora e durata scelte.
@@ -3837,15 +3845,30 @@ async function eliminaAppuntamentoCorrente() {
 }
 
 // ---------- Impegni personali (eventi del calendario senza paziente) ----------
-function aggiornaFineImpegno() {
-  const data = impegnoDataInput.value;
-  const ora = impegnoOraInput.value;
-  const durata = parseInt(impegnoDurataSelect.value, 10);
-  if (!ora || !durata) { impegnoFineDisplay.textContent = "—"; return; }
-  const base = data ? new Date(`${data}T${ora}:00`) : new Date(`2000-01-01T${ora}:00`);
-  if (isNaN(base.getTime())) { impegnoFineDisplay.textContent = "—"; return; }
-  const fine = new Date(base.getTime() + durata * 60000);
-  impegnoFineDisplay.textContent = oraHM(fine);
+function formattaDurataMinuti(m) {
+  const ore = Math.floor(m / 60);
+  const min = m % 60;
+  if (ore === 0) return `${min} min`;
+  if (min === 0) return `${ore} h`;
+  return `${ore} h ${min} min`;
+}
+
+// Durata dell'impegno in minuti, calcolata dall'orario di inizio e di fine
+// (stesso giorno). Restituisce null se manca uno dei due orari.
+function durataImpegnoMinuti() {
+  const inizio = impegnoOraInput.value;
+  const fine = impegnoOraFineInput.value;
+  if (!inizio || !fine) return null;
+  const [hi, mi] = inizio.split(":").map(Number);
+  const [hf, mf] = fine.split(":").map(Number);
+  return (hf * 60 + mf) - (hi * 60 + mi);
+}
+
+function aggiornaDurataImpegno() {
+  const m = durataImpegnoMinuti();
+  if (m === null) { impegnoDurataDisplay.textContent = "—"; return; }
+  if (m <= 0) { impegnoDurataDisplay.textContent = "l'ora di fine deve essere dopo l'inizio"; return; }
+  impegnoDurataDisplay.textContent = formattaDurataMinuti(m);
 }
 
 function apriNuovoImpegno(prefill) {
@@ -3854,8 +3877,16 @@ function apriNuovoImpegno(prefill) {
   impegnoTitoloInput.value = "";
   impegnoDataInput.value = (prefill && prefill.data) || "";
   impegnoOraInput.value = (prefill && prefill.ora) || "";
-  impegnoDurataSelect.value = "60";
-  aggiornaFineImpegno();
+  // Ora di fine predefinita: un'ora dopo l'inizio (se l'inizio è noto), senza
+  // superare le 23:45.
+  if (prefill && prefill.ora) {
+    const [h, m] = prefill.ora.split(":").map(Number);
+    const fineMin = Math.min(23 * 60 + 45, h * 60 + m + 60);
+    impegnoOraFineInput.value = `${String(Math.floor(fineMin / 60)).padStart(2, "0")}:${String(fineMin % 60).padStart(2, "0")}`;
+  } else {
+    impegnoOraFineInput.value = "";
+  }
+  aggiornaDurataImpegno();
   impegnoNoteInput.value = "";
   impegnoErrore.classList.add("hidden");
   impegnoEliminaBtn.classList.add("hidden");
@@ -3872,8 +3903,9 @@ function apriModificaImpegno(id) {
   const dataOra = new Date(i.data_ora);
   impegnoDataInput.value = isoDataLocale(dataOra);
   impegnoOraInput.value = dataOra.toTimeString().slice(0, 5);
-  impegnoDurataSelect.value = String(i.durata_minuti && i.durata_minuti > 0 ? i.durata_minuti : 60);
-  aggiornaFineImpegno();
+  const durata = i.durata_minuti && i.durata_minuti > 0 ? i.durata_minuti : 60;
+  impegnoOraFineInput.value = new Date(dataOra.getTime() + durata * 60000).toTimeString().slice(0, 5);
+  aggiornaDurataImpegno();
   impegnoNoteInput.value = i.note || "";
   impegnoErrore.classList.add("hidden");
   impegnoEliminaBtn.classList.remove("hidden");
@@ -3888,10 +3920,18 @@ async function salvaImpegno() {
   const titolo = impegnoTitoloInput.value.trim();
   const data = impegnoDataInput.value;
   const ora = impegnoOraInput.value;
+  const oraFine = impegnoOraFineInput.value;
   impegnoErrore.classList.add("hidden");
 
-  if (!titolo || !data || !ora) {
-    impegnoErrore.textContent = "Inserisci un titolo, una data e un'ora.";
+  if (!titolo || !data || !ora || !oraFine) {
+    impegnoErrore.textContent = "Inserisci titolo, data, ora di inizio e ora di fine.";
+    impegnoErrore.classList.remove("hidden");
+    return;
+  }
+
+  const durata = durataImpegnoMinuti();
+  if (durata === null || durata <= 0) {
+    impegnoErrore.textContent = "L'ora di fine deve essere successiva all'ora di inizio.";
     impegnoErrore.classList.remove("hidden");
     return;
   }
@@ -3902,8 +3942,6 @@ async function salvaImpegno() {
     impegnoErrore.classList.remove("hidden");
     return;
   }
-
-  const durata = parseInt(impegnoDurataSelect.value, 10) || 60;
 
   const corpo = {
     titolo,
@@ -6856,10 +6894,10 @@ function inizializza() {
 
   // Impegni personali
   agendaNuovoImpegnoOverlayBtn.addEventListener("click", () => apriNuovoImpegno());
-  impegnoDurataSelect.addEventListener("change", aggiornaFineImpegno);
-  impegnoDataInput.addEventListener("change", aggiornaFineImpegno);
-  impegnoOraOreSelect.addEventListener("change", aggiornaFineImpegno);
-  impegnoOraMinutiSelect.addEventListener("change", aggiornaFineImpegno);
+  impegnoOraOreSelect.addEventListener("change", aggiornaDurataImpegno);
+  impegnoOraMinutiSelect.addEventListener("change", aggiornaDurataImpegno);
+  impegnoFineOreSelect.addEventListener("change", aggiornaDurataImpegno);
+  impegnoFineMinutiSelect.addEventListener("change", aggiornaDurataImpegno);
   impegnoSalvaBtn.addEventListener("click", salvaImpegno);
   impegnoEliminaBtn.addEventListener("click", eliminaImpegnoCorrente);
   impegnoAnnullaBtn.addEventListener("click", chiudiImpegno);
