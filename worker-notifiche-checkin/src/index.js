@@ -30,8 +30,10 @@ const SUPABASE_URL = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(inviaPromemoriaCheckin(env));
-    ctx.waitUntil(inviaPromemoriaAppuntamenti(env));
+    // I .catch evitano rejection non gestite silenziose: se manca un secret o
+    // Supabase è irraggiungibile, l'errore finisce almeno nei log del Worker.
+    ctx.waitUntil(inviaPromemoriaCheckin(env).catch((e) => console.error("inviaPromemoriaCheckin fallita:", e)));
+    ctx.waitUntil(inviaPromemoriaAppuntamenti(env).catch((e) => console.error("inviaPromemoriaAppuntamenti fallita:", e)));
   },
 
   // Trigger manuale (utile per testare senza aspettare il cron), protetto da un
@@ -83,7 +85,7 @@ async function inviaPromemoriaCheckin(env) {
 
   const privateJWK = JSON.parse(env.VAPID_PRIVATE_KEY);
 
-  const pazienti = await chiamataRest(env, "GET", "/rest/v1/pazienti?frequenza_checkin=not.is.null&select=id,frequenza_checkin,ultimo_promemoria_checkin");
+  const pazienti = await chiamataRest(env, "GET", "/rest/v1/pazienti?frequenza_checkin=not.is.null&select=id,frequenza_checkin,ultimo_promemoria_checkin,created_at");
 
   let notificheInviate = 0;
   let subscriptionRimosse = 0;
@@ -94,7 +96,11 @@ async function inviaPromemoriaCheckin(env) {
 
   for (const paziente of pazienti) {
     const ultimoCheckin = await recuperaUltimoCheckin(env, paziente.id);
-    const prossima = calcolaProssimoCheckin(ultimoCheckin?.data_rilevazione, paziente.frequenza_checkin);
+    // Se il paziente non ha ancora fatto alcun check-in, usiamo la data di
+    // creazione del profilo come base: cosi' anche i pazienti nuovi ricevono il
+    // primo promemoria una volta trascorso il periodo impostato.
+    const dataBase = ultimoCheckin?.data_rilevazione || paziente.created_at;
+    const prossima = calcolaProssimoCheckin(dataBase, paziente.frequenza_checkin);
     if (!prossima) continue;
 
     const prossimaGiorno = prossima.toISOString().slice(0, 10);
@@ -195,14 +201,24 @@ async function inviaPromemoriaAppuntamenti(env) {
     }
 
     try {
-      await inviaEmailBrevo(env, {
-        destinatarioEmail: email,
-        destinatarioNome: (app.pazienti && app.pazienti.nome) || "",
-        oggetto: "Promemoria appuntamento",
-        testo: testoPromemoriaAppuntamento(app)
-      });
+      // Marchiamo PRIMA dell'invio. Se invece marcassimo dopo e il PATCH
+      // fallisse a invio riuscito, alla run seguente l'email verrebbe rispedita
+      // (spam). Marcando prima, il caso peggiore diventa un promemoria mancato
+      // (molto raro) invece di uno doppio. Se l'invio fallisce, riportiamo il
+      // flag a false cosi' il prossimo run puo' ritentare.
       await chiamataRest(env, "PATCH", `/rest/v1/appuntamenti?id=eq.${app.id}`, { promemoria_inviato: true });
-      inviati++;
+      try {
+        await inviaEmailBrevo(env, {
+          destinatarioEmail: email,
+          destinatarioNome: (app.pazienti && app.pazienti.nome) || "",
+          oggetto: "Promemoria appuntamento",
+          testo: testoPromemoriaAppuntamento(app)
+        });
+        inviati++;
+      } catch (erroreInvio) {
+        await chiamataRest(env, "PATCH", `/rest/v1/appuntamenti?id=eq.${app.id}`, { promemoria_inviato: false }).catch(() => {});
+        throw erroreInvio;
+      }
     } catch (e) {
       console.error("Errore invio promemoria appuntamento:", e);
       errori++;
@@ -252,8 +268,15 @@ function calcolaProssimoCheckin(ultimaData, frequenza) {
   const d = new Date(ultimaData);
   if (frequenza === "settimanale") d.setUTCDate(d.getUTCDate() + 7);
   else if (frequenza === "quindicinale") d.setUTCDate(d.getUTCDate() + 14);
-  else if (frequenza === "mensile") d.setUTCMonth(d.getUTCMonth() + 1);
-  else return null;
+  else if (frequenza === "mensile") {
+    // +1 mese con clamp all'ultimo giorno del mese di destinazione: evita
+    // l'overflow di setUTCMonth (es. 31 gennaio -> 3 marzo).
+    const giorno = d.getUTCDate();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    const ultimoGiorno = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    d.setUTCDate(Math.min(giorno, ultimoGiorno));
+  } else return null;
   return d;
 }
 

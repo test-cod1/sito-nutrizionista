@@ -23,14 +23,22 @@ const SUPABASE_ORIGIN = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
 // File statici dell'app (stessa origine): precaricati all'installazione così il
 // sito è consultabile offline anche su pagine non ancora aperte.
-const APP_SHELL = [
+// File essenziali per far girare l'app offline: devono esserci TUTTI (addAll
+// atomico). Se manca uno di questi il guscio offline sarebbe inservibile.
+const APP_SHELL_CRITICO = [
   "./",
   "index.html",
   "style.css",
   "script.js",
   "tema-init.js",
   "config.js",
-  "foods.json",
+  "foods.json"
+];
+
+// File utili ma non indispensabili all'avvio (giochi, icone, manifest, privacy):
+// best-effort. Se uno non è raggiungibile al momento dell'install NON deve far
+// fallire l'intera installazione della PWA (verrà ricachato al primo uso).
+const APP_SHELL_OPZIONALE = [
   "manifest.json",
   "privacy.html",
   "giochi.html",
@@ -54,12 +62,13 @@ const CDN_LIBS = [
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    // I file di base devono esserci tutti: se uno fallisce, meglio far fallire
-    // l'installazione che avere un guscio offline incompleto.
-    await cache.addAll(APP_SHELL);
-    // Le librerie CDN sono "best-effort": se una non è raggiungibile in questo
-    // momento non deve impedire l'installazione (verrà ricachata al primo uso).
-    await Promise.allSettled(CDN_LIBS.map((url) => cache.add(url)));
+    // Solo i file essenziali sono atomici: se uno di questi manca meglio far
+    // fallire l'installazione che avere un guscio offline inservibile.
+    await cache.addAll(APP_SHELL_CRITICO);
+    // File opzionali e librerie CDN: best-effort. Un file non critico mancante
+    // (es. un'icona rinominata in un deploy futuro) non deve più bloccare
+    // l'installazione dell'intera PWA.
+    await Promise.allSettled([...APP_SHELL_OPZIONALE, ...CDN_LIBS].map((url) => cache.add(url)));
     await self.skipWaiting();
   })());
 });

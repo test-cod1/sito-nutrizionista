@@ -95,6 +95,19 @@ function applicaDatiDieta(dati) {
 let salvataggioRemotoInCorso = null;
 let salvataggioRemotoDaRifare = false;
 
+// Debounce per gli input kcal/deficit: renderDieta ricostruisce l'intera griglia
+// settimanale, farlo a ogni battuta rende la digitazione a scatti e spara un
+// UPDATE al DB per ogni carattere. Aggiorniamo lo stato subito (nell'handler),
+// ma rimandiamo render + salvataggio finché l'utente smette di digitare.
+let timerSalvaERenderDieta = null;
+function pianificaSalvaERenderDieta() {
+  clearTimeout(timerSalvaERenderDieta);
+  timerSalvaERenderDieta = setTimeout(() => {
+    salvaStateRemoto();
+    renderDieta();
+  }, 300);
+}
+
 function salvaStateRemoto() {
   if (salvataggioRemotoInCorso) {
     salvataggioRemotoDaRifare = true;
@@ -130,7 +143,31 @@ async function eseguiSalvataggioRemoto() {
     .eq("id", dietaCorrenteId);
   if (error) {
     console.error("Errore nel salvataggio della dieta:", error);
+    segnalaErroreSalvataggio(true);
+  } else {
+    segnalaErroreSalvataggio(false);
   }
+}
+
+// Indicatore non invasivo di autosave fallito, condiviso da diete e modelli.
+// Un alert a ogni battuta sarebbe insopportabile; questo banner compare solo
+// quando l'ultimo salvataggio è fallito e sparisce al primo salvataggio riuscito.
+function segnalaErroreSalvataggio(mostra) {
+  let el = document.getElementById("avviso-salvataggio");
+  if (!mostra) { if (el) el.remove(); return; }
+  if (el) return;
+  el = document.createElement("div");
+  el.id = "avviso-salvataggio";
+  el.className = "no-print";
+  el.setAttribute("role", "alert");
+  el.textContent = "⚠ Salvataggio non riuscito: le ultime modifiche potrebbero non essere state salvate. Controlla la connessione.";
+  Object.assign(el.style, {
+    position: "fixed", top: "10px", left: "50%", transform: "translateX(-50%)",
+    zIndex: "9999", background: "#b91c1c", color: "#fff", padding: "8px 14px",
+    borderRadius: "8px", fontSize: "13px", boxShadow: "0 2px 10px rgba(0,0,0,.3)",
+    maxWidth: "92vw", textAlign: "center"
+  });
+  document.body.appendChild(el);
 }
 
 // ---------- Calcolo automatico del fabbisogno calorico ----------
@@ -1027,7 +1064,12 @@ function creaOraInput(oreSelect, minutiSelect) {
       }
       const [ore, minuti] = orario.split(":");
       oreSelect.value = ore;
-      const minutiArrotondati = Math.round((parseInt(minuti, 10) || 0) / 15) * 15 % 60;
+      // Arrotonda al quarto d'ora più vicino tra 00/15/30/45 (come l'input
+      // appuntamento). La vecchia formula `round(m/15)*15 % 60` mandava i minuti
+      // 53-59 a :00 della STESSA ora, perdendo quasi un'ora.
+      const min = parseInt(minuti, 10) || 0;
+      const minutiArrotondati = [0, 15, 30, 45].reduce((piuVicino, valore) =>
+        Math.abs(valore - min) < Math.abs(piuVicino - min) ? valore : piuVicino, 0);
       minutiSelect.value = String(minutiArrotondati).padStart(2, "0");
     }
   };
@@ -1566,23 +1608,28 @@ async function effettuaLogout() {
 }
 
 async function determinaRuolo() {
-  const { data: { user } } = await supabaseClient.auth.getUser();
+  const { data: { user }, error: erroreUser } = await supabaseClient.auth.getUser();
+  if (erroreUser) throw erroreUser;
   if (!user) return { ruolo: "nessuno" };
 
-  const { data: rigaAdmin } = await supabaseClient
+  // Distinguiamo un errore (rete/RLS) da "nessuna riga": un errore transitorio
+  // sulla query amministratori NON deve declassare un admin a "nessuno" e farlo
+  // buttare fuori. In caso di errore rilanciamo, così il chiamante può proporre
+  // di riprovare invece di prendere una decisione di ruolo sbagliata.
+  const { data: rigaAdmin, error: erroreAdmin } = await supabaseClient
     .from("amministratori")
     .select("user_id")
     .eq("user_id", user.id)
     .maybeSingle();
-
+  if (erroreAdmin) throw erroreAdmin;
   if (rigaAdmin) return { ruolo: "admin" };
 
-  const { data: rigaPaziente } = await supabaseClient
+  const { data: rigaPaziente, error: errorePaziente } = await supabaseClient
     .from("pazienti")
     .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
-
+  if (errorePaziente) throw errorePaziente;
   if (rigaPaziente) return { ruolo: "paziente", paziente: rigaPaziente };
 
   return { ruolo: "nessuno" };
@@ -1604,7 +1651,17 @@ async function avviaDopoLogin() {
     return;
   }
 
-  const ruoloInfo = await determinaRuolo();
+  let ruoloInfo;
+  try {
+    ruoloInfo = await determinaRuolo();
+  } catch (e) {
+    // Errore probabilmente transitorio: NON facciamo signOut (l'utente può
+    // riprovare/ricaricare senza riautenticarsi) e non lo declassiamo.
+    console.error("Errore nel determinare il ruolo:", e);
+    alert("Non è stato possibile caricare il tuo profilo, forse per un problema di connessione. Riprova o ricarica la pagina.");
+    mostraLogin();
+    return;
+  }
 
   if (ruoloInfo.ruolo === "admin") {
     await avviaAppAdmin();
@@ -1899,6 +1956,13 @@ function attaccaHoverPunti() {
   });
 
   // Un tap/click fuori dai punti chiude il tooltip aperto al tocco.
+  // attaccaHoverPunti viene richiamata a ogni re-render del grafico su un
+  // elemento PERSISTENTE: rimuoviamo l'handler precedente prima di aggiungerne
+  // uno nuovo, altrimenti si accumulerebbero (memory leak).
+  if (pesoGraficoEl._nascondiHandler) {
+    pesoGraficoEl.removeEventListener("click", pesoGraficoEl._nascondiHandler);
+  }
+  pesoGraficoEl._nascondiHandler = nascondi;
   pesoGraficoEl.addEventListener("click", nascondi);
 }
 
@@ -1926,7 +1990,11 @@ async function caricaDietaAttivaPaziente(pazienteId) {
     .order("created_at", { ascending: false })
     .limit(1);
 
-  if (error || !data || data.length === 0) return null;
+  // Un errore reale (rete/RLS) viene rilanciato: il chiamante deve poterlo
+  // distinguere da "nessun piano attivo", per non mostrare al paziente un piano
+  // vuoto facendogli credere che il nutrizionista glielo abbia tolto.
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
   return data[0];
 }
 
@@ -1945,11 +2013,21 @@ async function caricaProssimoAppuntamento(pazienteId) {
     .order("data_ora", { ascending: true })
     .limit(1);
 
-  prossimoAppuntamentoCorrente = (!error && data && data.length > 0) ? data[0] : null;
-  renderProssimoAppuntamento();
+  if (error) {
+    console.warn("Errore nel caricamento del prossimo appuntamento:", error);
+    prossimoAppuntamentoCorrente = null;
+    renderProssimoAppuntamento(true);
+    return;
+  }
+  prossimoAppuntamentoCorrente = (data && data.length > 0) ? data[0] : null;
+  renderProssimoAppuntamento(false);
 }
 
-function renderProssimoAppuntamento() {
+function renderProssimoAppuntamento(errore) {
+  if (errore) {
+    prossimoAppuntamentoContenuto.innerHTML = '<p class="vuoto">Impossibile caricare gli appuntamenti in questo momento. Riprova più tardi.</p>';
+    return;
+  }
   if (!prossimoAppuntamentoCorrente) {
     prossimoAppuntamentoContenuto.innerHTML = '<p class="vuoto">Nessun appuntamento programmato.</p>';
     return;
@@ -2026,7 +2104,14 @@ async function avviaVistaPaziente(pazienteRecord) {
   storicoPesoCompleto = await caricaStoricoPeso(pazienteRecord.id);
   aggiornaFiltroPeso(filtroPesoAttivo);
 
-  const rigaDieta = await caricaDietaAttivaPaziente(pazienteRecord.id);
+  let rigaDieta = null;
+  let erroreDieta = false;
+  try {
+    rigaDieta = await caricaDietaAttivaPaziente(pazienteRecord.id);
+  } catch (e) {
+    console.error("Errore nel caricamento del piano del paziente:", e);
+    erroreDieta = true;
+  }
   if (rigaDieta) {
     dietaCorrenteId = rigaDieta.id;
     applicaDatiDieta(rigaDieta.dati);
@@ -2035,16 +2120,20 @@ async function avviaVistaPaziente(pazienteRecord) {
     state = creaStatoVuoto();
   }
 
-  pazienteHaDieta = !!rigaDieta && !dietaVuota();
+  pazienteHaDieta = !erroreDieta && !!rigaDieta && !dietaVuota();
   aggiornaBottoniPdfPaziente();
-  pazienteDietaVista.innerHTML = costruisciContenutoPrintDieta();
+  // Se il caricamento è fallito mostriamo un messaggio d'errore esplicito invece
+  // di un piano vuoto (che sembrerebbe un piano rimosso dal nutrizionista).
+  pazienteDietaVista.innerHTML = erroreDieta
+    ? '<p class="vuoto">Non è stato possibile caricare il tuo piano in questo momento. Controlla la connessione e ricarica la pagina.</p>'
+    : costruisciContenutoPrintDieta();
   collapsedGiorniPaziente = new Set(GIORNI);
   applicaStatoCollassoPaziente();
 
   await ricaricaCheckinPaziente();
   if (dovrebbeChiedereNotifiche(pazienteRecord)) {
     mostraRichiestaNotifiche();
-  } else if (Notification.permission === "granted") {
+  } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
     verificaESincronizzaSubscription();
   }
 }
@@ -2800,6 +2889,11 @@ async function inviaInvito() {
   }
 
   const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) {
+    invitoError.textContent = "Sessione scaduta: effettua di nuovo l'accesso e riprova.";
+    invitoError.classList.remove("hidden");
+    return;
+  }
 
   invitoInviaBtn.disabled = true;
   let risposta;
@@ -3654,8 +3748,10 @@ function renderProssimoAppuntamentoAdmin() {
   }
 
   const ora = new Date();
+  // Confronta la FINE dell'appuntamento: uno già iniziato ma non ancora concluso
+  // resta "il prossimo", invece di sparire appena scoccata l'ora d'inizio.
   const prossimo = listaAppuntamenti
-    .filter(a => a.paziente_id === pazienteCorrente.id && new Date(a.data_ora) >= ora)
+    .filter(a => a.paziente_id === pazienteCorrente.id && fineAppuntamento(a) >= ora)
     .sort((a, b) => new Date(a.data_ora) - new Date(b.data_ora))[0];
 
   if (!prossimo) {
@@ -3794,6 +3890,18 @@ async function salvaAppuntamento() {
     const nome = conflitto.pazienti ? conflitto.pazienti.nome : "un altro paziente";
     const quando = `${oraHM(new Date(conflitto.data_ora))}–${oraHM(fineAppuntamento(conflitto))}`;
     if (!confirm(`Attenzione: si sovrappone all'appuntamento di ${nome} (${quando}). Salvare comunque?`)) return;
+  }
+
+  // Controllo anche verso gli impegni personali del calendario (stessa vista).
+  const conflittoImpegno = listaImpegni.find(i => {
+    const s = new Date(i.data_ora).getTime();
+    const e = s + (i.durata_minuti || 60) * 60000;
+    return inizioNuovo < e && fineNuovo > s;
+  });
+  if (conflittoImpegno) {
+    const fineI = new Date(new Date(conflittoImpegno.data_ora).getTime() + (conflittoImpegno.durata_minuti || 60) * 60000);
+    const quando = `${oraHM(new Date(conflittoImpegno.data_ora))}–${oraHM(fineI)}`;
+    if (!confirm(`Attenzione: si sovrappone all'impegno «${conflittoImpegno.titolo}» (${quando}). Salvare comunque?`)) return;
   }
 
   const corpo = {
@@ -3941,6 +4049,32 @@ async function salvaImpegno() {
     impegnoErrore.textContent = "Data o ora non valide.";
     impegnoErrore.classList.remove("hidden");
     return;
+  }
+
+  // Controllo sovrapposizioni: avviso non bloccante verso gli altri impegni
+  // (escluso quello in modifica) e verso gli appuntamenti dei pazienti.
+  const inizioNuovo = dataOraLocale.getTime();
+  const fineNuovo = inizioNuovo + durata * 60000;
+  const conflittoImpegno = listaImpegni.find(i => {
+    if (impegnoInModifica && i.id === impegnoInModifica.id) return false;
+    const s = new Date(i.data_ora).getTime();
+    const e = s + (i.durata_minuti || 60) * 60000;
+    return inizioNuovo < e && fineNuovo > s;
+  });
+  if (conflittoImpegno) {
+    const fineI = new Date(new Date(conflittoImpegno.data_ora).getTime() + (conflittoImpegno.durata_minuti || 60) * 60000);
+    const quando = `${oraHM(new Date(conflittoImpegno.data_ora))}–${oraHM(fineI)}`;
+    if (!confirm(`Attenzione: si sovrappone all'impegno «${conflittoImpegno.titolo}» (${quando}). Salvare comunque?`)) return;
+  }
+  const conflittoApp = listaAppuntamenti.find(a => {
+    const s = new Date(a.data_ora).getTime();
+    const e = fineAppuntamento(a).getTime();
+    return inizioNuovo < e && fineNuovo > s;
+  });
+  if (conflittoApp) {
+    const nome = conflittoApp.pazienti ? conflittoApp.pazienti.nome : "un paziente";
+    const quando = `${oraHM(new Date(conflittoApp.data_ora))}–${oraHM(fineAppuntamento(conflittoApp))}`;
+    if (!confirm(`Attenzione: si sovrappone all'appuntamento di ${nome} (${quando}). Salvare comunque?`)) return;
   }
 
   const corpo = {
@@ -4197,7 +4331,10 @@ function formatTempoTrascorso(dataIso) {
 }
 
 function formatScadenza(task) {
-  const dataFormattata = new Date(task.scadenza).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // Interpretiamo la data come locale (come taskScadenzaTimestamp): `new
+  // Date("YYYY-MM-DD")` la leggerebbe come UTC e con fusi negativi mostrerebbe
+  // il giorno precedente.
+  const dataFormattata = new Date(task.scadenza + "T00:00:00").toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
   const diffMs = taskScadenzaTimestamp(task) - Date.now();
   if (diffMs < 0) return `⚠️ Scaduta il ${dataFormattata}`;
   if (diffMs <= TASK_SCADENZA_SOGLIA_MS) {
@@ -4555,7 +4692,12 @@ async function salvaModelloRemoto() {
     .from("modelli_dieta")
     .update(aggiornamento)
     .eq("id", modelloContesto.id);
-  if (error) console.error("Errore nel salvataggio del modello:", error);
+  if (error) {
+    console.error("Errore nel salvataggio del modello:", error);
+    segnalaErroreSalvataggio(true);
+  } else {
+    segnalaErroreSalvataggio(false);
+  }
 }
 
 async function eliminaModello(id, nome) {
@@ -5413,12 +5555,14 @@ async function apriEStampaStorico(dietaId) {
 // ---------- Database alimenti (base + personalizzati) ----------
 
 function normalizzaValoriAlimento(a) {
+  // `|| 0` difensivo: un valore mancante/non numerico darebbe NaN con Math.max,
+  // e il NaN si propagherebbe in tutti i totali nutrizionali.
   return {
     nome: a.nome,
-    kcal: Math.max(0, a.kcal),
-    proteine: Math.max(0, a.proteine),
-    grassi: Math.max(0, a.grassi),
-    carboidrati: Math.max(0, a.carboidrati)
+    kcal: Math.max(0, Number(a.kcal) || 0),
+    proteine: Math.max(0, Number(a.proteine) || 0),
+    grassi: Math.max(0, Number(a.grassi) || 0),
+    carboidrati: Math.max(0, Number(a.carboidrati) || 0)
   };
 }
 
@@ -6590,12 +6734,28 @@ async function inviaEmailPiano() {
     return;
   }
 
-  const pdfPiano = generaPdfPianoBase64();
-  const pdfSpesa = generaPdfSpesaBase64();
+  // La generazione dei PDF può lanciare (es. libreria jsPDF non caricata):
+  // gestiamola esplicitamente, altrimenti il click sembrerebbe "non fare nulla".
+  let pdfPiano, pdfSpesa;
+  try {
+    pdfPiano = generaPdfPianoBase64();
+    pdfSpesa = generaPdfSpesaBase64();
+  } catch (e) {
+    console.error("Errore nella generazione dei PDF:", e);
+    inviaEmailError.textContent = "Impossibile generare i PDF da allegare. Ricarica la pagina e riprova.";
+    inviaEmailError.classList.remove("hidden");
+    return;
+  }
+
   const nomePaziente = pazienteCorrente.nome ? escapeHtml(pazienteCorrente.nome) : "";
   const html = `<p>Ciao${nomePaziente ? " " + nomePaziente : ""},</p><p>in allegato trovi il tuo piano alimentare aggiornato e la lista della spesa settimanale.</p><p>${escapeHtml(formattaValidita())}</p>`;
 
   const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) {
+    inviaEmailError.textContent = "Sessione scaduta: effettua di nuovo l'accesso e riprova.";
+    inviaEmailError.classList.remove("hidden");
+    return;
+  }
 
   inviaEmailBtn.disabled = true;
   let risposta;
@@ -7186,8 +7346,7 @@ function inizializza() {
 
   maxKcalInput.addEventListener("input", () => {
     state.maxKcal = maxKcalInput.value;
-    salvaStateRemoto();
-    renderDieta();
+    pianificaSalvaERenderDieta();
   });
 
   kcalModoBtns.forEach(btn => {
@@ -7203,8 +7362,7 @@ function inizializza() {
         if (!risultato.mancanti) renderDeficitNota(risultato.tdee);
         applicaFabbisognoAlloStato();
       }
-      salvaStateRemoto();
-      renderDieta();
+      pianificaSalvaERenderDieta();
     });
   }
   kcalAutoSpiegaBtn.addEventListener("click", apriSpiegazioneFabbisogno);
@@ -7327,11 +7485,49 @@ function inizializzaSidebarSezioni() {
 // ---------- PWA: registrazione service worker ----------
 
 if ("serviceWorker" in navigator) {
+  // Se al caricamento esiste già un controller, un successivo "controllerchange"
+  // indica che è stata attivata una nuova versione del service worker (nuovo
+  // deploy). La SPA in esecuzione sta però ancora usando il codice vecchio:
+  // proponiamo un ricaricamento non invasivo, senza forzarlo (l'admin potrebbe
+  // essere a metà di una modifica).
+  const ceraControllerAllAvvio = !!navigator.serviceWorker.controller;
+  let avvisoAggiornamentoMostrato = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (ceraControllerAllAvvio && !avvisoAggiornamentoMostrato) {
+      avvisoAggiornamentoMostrato = true;
+      mostraAvvisoAggiornamento();
+    }
+  });
+
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(err => {
       console.warn("Registrazione service worker fallita:", err);
     });
   });
+}
+
+function mostraAvvisoAggiornamento() {
+  if (document.getElementById("avviso-aggiornamento")) return;
+  const barra = document.createElement("div");
+  barra.id = "avviso-aggiornamento";
+  barra.className = "no-print";
+  barra.setAttribute("role", "status");
+  barra.innerHTML = `
+    <span>È disponibile una nuova versione.</span>
+    <button type="button" id="avviso-aggiornamento-ricarica" style="background:#22c55e;color:#04310f;border:none;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer">Ricarica</button>
+    <button type="button" id="avviso-aggiornamento-chiudi" aria-label="Chiudi" style="background:transparent;color:#fff;border:none;font-size:18px;line-height:1;cursor:pointer">×</button>
+  `;
+  // Stili inline sul contenitore: nessuna dipendenza dal CSS, così l'avviso
+  // funziona anche se lo style.css vecchio in cache non ha una classe dedicata.
+  Object.assign(barra.style, {
+    position: "fixed", left: "50%", bottom: "16px", transform: "translateX(-50%)",
+    zIndex: "9999", background: "#1f2937", color: "#fff", padding: "10px 14px",
+    borderRadius: "10px", boxShadow: "0 4px 16px rgba(0,0,0,.3)", display: "flex",
+    alignItems: "center", gap: "10px", fontSize: "14px", maxWidth: "92vw"
+  });
+  document.body.appendChild(barra);
+  document.getElementById("avviso-aggiornamento-ricarica").addEventListener("click", () => window.location.reload());
+  document.getElementById("avviso-aggiornamento-chiudi").addEventListener("click", () => barra.remove());
 }
 
 document.addEventListener("DOMContentLoaded", inizializza);
