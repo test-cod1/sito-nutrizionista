@@ -4059,6 +4059,12 @@ function renderListaRichieste() {
           ${r.messaggio_paziente ? `<span class="hint">Messaggio: ${escapeHtml(r.messaggio_paziente)}</span>` : ""}
           ${r.motivazione_rifiuto ? `<span class="hint">Motivo: ${escapeHtml(r.motivazione_rifiuto)}</span>` : ""}
         </div>
+        ${r.stato === "accettata" ? `
+          <div class="richiesta-riga-azioni">
+            <span class="hint">La cancellazione automatica non risulta completata.</span>
+            <button type="button" class="danger richiesta-riprova-btn" data-id="${r.id}">Riprova cancellazione</button>
+          </div>
+        ` : ""}
       </div>
     `;
   }).join("");
@@ -4098,6 +4104,23 @@ async function accettaRichiesta(id) {
     return;
   }
 
+  await chiamaEliminaPaziente(id, session);
+  await caricaRichieste();
+}
+
+// Chiama la funzione serverless di cancellazione per una richiesta già in stato
+// "accettata". Restituisce true se i dati sono stati eliminati. In caso di
+// errore la richiesta resta "accettata" (idempotente lato server) e potrà
+// essere ritentata dal pulsante "Riprova cancellazione".
+async function chiamaEliminaPaziente(id, sessione) {
+  let session = sessione;
+  if (!session) {
+    ({ data: { session } } = await supabaseClient.auth.getSession());
+    if (!session) {
+      alert("Sessione scaduta: effettua di nuovo l'accesso e riprova.");
+      return false;
+    }
+  }
   try {
     const res = await fetch("/api/elimina-paziente", {
       method: "POST",
@@ -4106,10 +4129,18 @@ async function accettaRichiesta(id) {
     });
     const dati = await res.json();
     if (!res.ok) throw new Error(dati.error || "Errore nella cancellazione.");
+    return true;
   } catch (e) {
-    alert("La richiesta è stata accettata ma la cancellazione automatica non è riuscita: " + e.message + "\nRiprova più tardi o contatta l'assistenza.");
+    alert("Cancellazione non riuscita: " + e.message + "\nLa richiesta resta in attesa di cancellazione: usa il pulsante \"Riprova cancellazione\" per ritentare.");
+    return false;
   }
+}
 
+async function riprovaCancellazione(id) {
+  const richiesta = listaRichieste.find(r => r.id === id);
+  if (!richiesta) return;
+  if (!confirm(`Riprovare la cancellazione DEFINITIVA di tutti i dati di ${richiesta.paziente_nome_snapshot}?`)) return;
+  await chiamaEliminaPaziente(id);
   await caricaRichieste();
 }
 
@@ -4791,6 +4822,48 @@ function inserisciItems(giorno, pasto, items, modo) {
   }
 }
 
+// Modale a tre scelte per l'applicazione di un modello quando la destinazione
+// contiene già alimenti. Sostituisce i vecchi confirm() a due pulsanti dalla
+// semantica ambigua (dove "Annulla" eseguiva comunque l'azione "Aggiungi",
+// senza un vero modo di annullare). Restituisce una Promise che risolve con
+// "sostituisci" | "aggiungi" | null (null = operazione annullata).
+function chiediSostituisciAggiungi(messaggio) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "duplica-overlay no-print";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="duplica-modal">
+        <h3>Applica modello</h3>
+        <p class="duplica-sottotitolo modello-scelta-testo"></p>
+        <div class="duplica-azioni">
+          <button type="button" data-scelta="sostituisci">Sostituisci tutto</button>
+          <button type="button" class="secondary" data-scelta="aggiungi">Aggiungi a ciò che c'è</button>
+          <button type="button" class="danger" data-scelta="annulla">Annulla</button>
+        </div>
+      </div>
+    `;
+    overlay.querySelector(".modello-scelta-testo").textContent = messaggio;
+    const chiudi = (valore) => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      resolve(valore);
+    };
+    const onKey = (e) => { if (e.key === "Escape") chiudi(null); };
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) { chiudi(null); return; }
+      const btn = e.target.closest("button[data-scelta]");
+      if (!btn) return;
+      chiudi(btn.dataset.scelta === "annulla" ? null : btn.dataset.scelta);
+    });
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(overlay);
+    const primo = overlay.querySelector("button[data-scelta='sostituisci']");
+    if (primo) primo.focus();
+  });
+}
+
 function avviaApplicazioneModello(modello) {
   if (modello.tipo === "dieta") {
     applicaModelloDieta(modello);
@@ -4799,14 +4872,14 @@ function avviaApplicazioneModello(modello) {
   }
 }
 
-function applicaModelloDieta(modello) {
+async function applicaModelloDieta(modello) {
   const dati = clona(modello.dati) || {};
   const dietaModello = dati.dieta || creaDietaVuota();
   const pianoVuoto = dietaVuota();
   let modo = "sostituisci";
   if (!pianoVuoto) {
-    // OK = Sostituisci, Annulla = Aggiungi.
-    modo = confirm("Il piano del paziente contiene già alimenti.\n\nOK = SOSTITUISCI tutto con il modello\nAnnulla = AGGIUNGI il modello a ciò che c'è") ? "sostituisci" : "aggiungi";
+    modo = await chiediSostituisciAggiungi("Il piano del paziente contiene già alimenti. Cosa vuoi fare con il modello?");
+    if (!modo) return;
   }
   if (modo === "sostituisci" && pianoVuoto) {
     // Piano vuoto: adotta integralmente il modello (alimenti + impostazioni).
@@ -4845,7 +4918,7 @@ function renderApplicaStep2(modello) {
   document.getElementById("modello-applica-conferma-btn").addEventListener("click", () => confermaApplicaStep2(modello));
 }
 
-function confermaApplicaStep2(modello) {
+async function confermaApplicaStep2(modello) {
   const giorni = [...document.querySelectorAll("#modello-applica-giorni input:checked")].map(cb => cb.value);
   if (giorni.length === 0) { alert("Seleziona almeno un giorno."); return; }
 
@@ -4860,7 +4933,8 @@ function confermaApplicaStep2(modello) {
   }
   let modo = "sostituisci";
   if (popolato) {
-    modo = confirm("Alcune destinazioni contengono già alimenti.\n\nOK = SOSTITUISCI\nAnnulla = AGGIUNGI") ? "sostituisci" : "aggiungi";
+    modo = await chiediSostituisciAggiungi("Alcune destinazioni contengono già alimenti. Cosa vuoi fare con il modello?");
+    if (!modo) return;
   }
 
   if (modello.tipo === "giornata") {
@@ -5082,6 +5156,35 @@ function chiudiArchivioTask() {
 
 // ---------- Profilo paziente ----------
 
+// Le note del nutrizionista sul paziente sono riservate e stanno nella tabella
+// note_paziente (RLS solo-admin), NON nella riga "pazienti" che il paziente può
+// leggere via API. Le due funzioni sono difensive: se la tabella non esiste
+// ancora (migrazione non applicata) non bloccano la scheda profilo.
+async function caricaNotaPaziente(pazienteId) {
+  const { data, error } = await supabaseClient
+    .from("note_paziente")
+    .select("note")
+    .eq("paziente_id", pazienteId)
+    .maybeSingle();
+  if (error) {
+    console.warn("Note riservate non disponibili:", error.message);
+    return "";
+  }
+  return (data && data.note) || "";
+}
+
+async function salvaNotaPaziente(pazienteId, testo) {
+  const valore = (testo || "").trim() || null;
+  const { error } = await supabaseClient
+    .from("note_paziente")
+    .upsert({ paziente_id: pazienteId, note: valore, aggiornata_il: new Date().toISOString() }, { onConflict: "paziente_id" });
+  if (error) {
+    alert("Attenzione: le note riservate non sono state salvate (" + error.message + ").");
+    return false;
+  }
+  return true;
+}
+
 async function apriProfiloPaziente() {
   if (!pazienteCorrente) return;
   profiloPazienteNomeEl.textContent = pazienteCorrente.nome;
@@ -5105,7 +5208,7 @@ async function apriProfiloPaziente() {
   profiloTelefonoInput.value = data.telefono || "";
   profiloEmailInput.value = data.email || "";
   impostaAllergeniProfilo(data.allergie);
-  profiloNoteInput.value = data.note || "";
+  profiloNoteInput.value = await caricaNotaPaziente(pazienteCorrente.id);
   profiloNonSeguitoCheck.checked = data.attivo === false;
   profiloPesoOriginale = data.peso_kg ?? null;
   profiloResetMsg.classList.add("hidden");
@@ -5132,7 +5235,6 @@ async function salvaProfiloPaziente() {
     telefono: profiloTelefonoInput.value.trim() || null,
     email: profiloEmailInput.value.trim() || null,
     allergie: leggiAllergeniProfilo(),
-    note: profiloNoteInput.value.trim() || null,
     attivo: !profiloNonSeguitoCheck.checked
   };
 
@@ -5141,6 +5243,11 @@ async function salvaProfiloPaziente() {
     alert("Errore nel salvataggio del profilo: " + error.message);
     return;
   }
+
+  // Le note del nutrizionista sono riservate: vivono in una tabella separata
+  // (note_paziente) non leggibile dal paziente, non più nella riga "pazienti"
+  // che il paziente può leggere/aggiornare.
+  await salvaNotaPaziente(pazienteCorrente.id, profiloNoteInput.value);
 
   if (aggiornamento.peso_kg !== null && aggiornamento.peso_kg !== profiloPesoOriginale) {
     const { error: erroreStorico } = await supabaseClient
@@ -5281,18 +5388,23 @@ async function apriEStampaStorico(dietaId) {
     return;
   }
 
+  // Costruiamo il contenuto di stampa da una copia temporanea dello stato e
+  // ripristiniamo SUBITO, in modo sincrono, la dieta attiva prima di stampare.
+  // Non dipendiamo più dall'evento "afterprint" (inaffidabile su mobile e mai
+  // emesso se l'utente annulla): così un salvataggio successivo non può più
+  // sovrascrivere la dieta attiva del paziente con quella storica.
   const backupState = JSON.parse(JSON.stringify(state));
-  applicaDatiDieta(data.dati);
+  let htmlStampa;
+  try {
+    applicaDatiDieta(data.dati);
+    htmlStampa = costruisciContenutoPrintDieta();
+  } finally {
+    Object.assign(state, backupState);
+  }
 
   impostaModalitaStampa("stampa-nutrizionista");
   renderIntestazioneStampa(`Piano alimentare — versione del ${new Date(data.created_at).toLocaleDateString("it-IT")}`);
-  printContent.innerHTML = costruisciContenutoPrintDieta();
-
-  const ripristina = () => {
-    Object.assign(state, backupState);
-    window.removeEventListener("afterprint", ripristina);
-  };
-  window.addEventListener("afterprint", ripristina);
+  printContent.innerHTML = htmlStampa;
 
   chiudiStorico();
   window.print();
@@ -6814,6 +6926,11 @@ function inizializza() {
     const accettaBtn = e.target.closest(".richiesta-accetta-btn");
     if (accettaBtn) {
       accettaRichiesta(accettaBtn.dataset.id);
+      return;
+    }
+    const riprovaBtn = e.target.closest(".richiesta-riprova-btn");
+    if (riprovaBtn) {
+      riprovaCancellazione(riprovaBtn.dataset.id);
       return;
     }
     const rifiutaBtn = e.target.closest(".richiesta-rifiuta-btn");

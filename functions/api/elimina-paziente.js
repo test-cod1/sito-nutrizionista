@@ -129,7 +129,7 @@ async function leggiRiga(secretKey, tabella, id, campi) {
 // stessa, così non restano dati orfani in nessuna delle tabelle che lo
 // referenziano tramite paziente_id.
 async function eliminaRigheCollegate(secretKey, pazienteId) {
-  const tabelle = ["push_subscriptions", "checkin", "storico_peso", "diete", "appuntamenti", "log_accessi_admin"];
+  const tabelle = ["push_subscriptions", "checkin", "storico_peso", "diete", "appuntamenti", "log_accessi_admin", "note_paziente"];
   for (const tabella of tabelle) {
     await chiamataRest(secretKey, "DELETE", `/rest/v1/${tabella}?paziente_id=eq.${encodeURIComponent(pazienteId)}`);
   }

@@ -83,20 +83,32 @@ async function inviaPromemoriaCheckin(env) {
 
   const privateJWK = JSON.parse(env.VAPID_PRIVATE_KEY);
 
-  const pazienti = await chiamataRest(env, "GET", "/rest/v1/pazienti?frequenza_checkin=not.is.null&select=id,frequenza_checkin");
+  const pazienti = await chiamataRest(env, "GET", "/rest/v1/pazienti?frequenza_checkin=not.is.null&select=id,frequenza_checkin,ultimo_promemoria_checkin");
 
   let notificheInviate = 0;
   let subscriptionRimosse = 0;
   let errori = 0;
   const dettagliErrori = [];
 
+  const oggiGiorno = new Date().toISOString().slice(0, 10);
+
   for (const paziente of pazienti) {
     const ultimoCheckin = await recuperaUltimoCheckin(env, paziente.id);
     const prossima = calcolaProssimoCheckin(ultimoCheckin?.data_rilevazione, paziente.frequenza_checkin);
-    if (!prossima || !ScadeOggi(prossima)) continue;
+    if (!prossima) continue;
+
+    const prossimaGiorno = prossima.toISOString().slice(0, 10);
+    // Finestra di recupero: invia se il check-in è dovuto oggi OPPURE è già
+    // scaduto (così un giorno saltato dal cron non fa perdere il promemoria).
+    if (prossimaGiorno > oggiGiorno) continue;
+    // Idempotenza: "ultimo_promemoria_checkin" ricorda l'ultima scadenza già
+    // sollecitata, così non si nota lo stesso paziente più volte per la stessa
+    // scadenza finché non registra un nuovo check-in.
+    if (paziente.ultimo_promemoria_checkin && paziente.ultimo_promemoria_checkin >= prossimaGiorno) continue;
 
     const subscriptions = await chiamataRest(env, "GET", `/rest/v1/push_subscriptions?paziente_id=eq.${paziente.id}&select=endpoint,p256dh,auth`);
 
+    let inviataAlmenoUna = false;
     for (const sub of subscriptions) {
       try {
         const { endpoint, headers, body } = await buildPushHTTPRequest({
@@ -115,6 +127,7 @@ async function inviaPromemoriaCheckin(env) {
 
         if (risposta.ok) {
           notificheInviate++;
+          inviataAlmenoUna = true;
         } else if (risposta.status === 404 || risposta.status === 410) {
           await rimuoviSubscription(env, sub.endpoint);
           subscriptionRimosse++;
@@ -128,6 +141,16 @@ async function inviaPromemoriaCheckin(env) {
         console.error("Errore invio notifica push:", e);
         errori++;
         dettagliErrori.push({ statusCode: null, messaggio: e.message || String(e), corpo: null });
+      }
+    }
+
+    // Segna la scadenza come sollecitata solo se almeno una notifica è partita,
+    // così un fallimento totale verrà ritentato al prossimo run.
+    if (inviataAlmenoUna) {
+      try {
+        await chiamataRest(env, "PATCH", `/rest/v1/pazienti?id=eq.${paziente.id}`, { ultimo_promemoria_checkin: prossimaGiorno });
+      } catch (e) {
+        console.error("Impossibile aggiornare ultimo_promemoria_checkin per il paziente", paziente.id, e);
       }
     }
   }
@@ -232,11 +255,6 @@ function calcolaProssimoCheckin(ultimaData, frequenza) {
   else if (frequenza === "mensile") d.setUTCMonth(d.getUTCMonth() + 1);
   else return null;
   return d;
-}
-
-function ScadeOggi(prossimaData) {
-  const oggi = new Date();
-  return prossimaData.toISOString().slice(0, 10) === oggi.toISOString().slice(0, 10);
 }
 
 async function recuperaUltimoCheckin(env, pazienteId) {
