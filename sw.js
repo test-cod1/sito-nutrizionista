@@ -16,10 +16,17 @@
 //     invio check-in, salvataggio piano, invio email...) passano sempre in rete.
 //
 // Poiché la shell è network-first, NON serve cambiare CACHE_VERSION a ogni
-// deploy: la freschezza è garantita dalla rete. CACHE_VERSION serve solo a dare
-// un nome alle cache e a ripulire quelle vecchie se se ne cambia la struttura.
+// deploy: la freschezza è garantita dalla rete. CACHE_VERSION serve a dare un
+// nome alle cache e a ripulire quelle vecchie se se ne cambia la struttura, MA
+// è anche la leva per PROPAGARE un aggiornamento alle sessioni già aperte:
+// cambiando questa stringa il browser rileva un nuovo service worker, lo attiva
+// (skipWaiting + clients.claim) e la pagina riceve "controllerchange" →
+// - paziente: overlay bloccante "Ricarica" (mostraAggiornamentoBloccante)
+// - admin: barra non invasiva "Ricarica" (mostraAvvisoAggiornamento)
+// Quindi: per le modifiche importanti che devono arrivare SUBITO a tutti,
+// incrementa CACHE_VERSION nello stesso commit.
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const SHELL_CACHE = `nutriplan-shell-${CACHE_VERSION}`;
 // v2: nome nuovo per far ELIMINARE (all'activate) la vecchia cache-dati v1 che
 // conteneva TUTTE le tabelle /rest/. Da ora questa cache contiene solo /diete.

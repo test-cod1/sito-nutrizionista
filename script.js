@@ -7690,8 +7690,18 @@ if ("serviceWorker" in navigator) {
   const ceraControllerAllAvvio = !!navigator.serviceWorker.controller;
   let avvisoAggiornamentoMostrato = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (ceraControllerAllAvvio && !avvisoAggiornamentoMostrato) {
-      avvisoAggiornamentoMostrato = true;
+    if (!ceraControllerAllAvvio || avvisoAggiornamentoMostrato) return;
+    avvisoAggiornamentoMostrato = true;
+    // Vista PAZIENTE reale (non anteprima admin): l'aggiornamento è bloccante.
+    // Il paziente è in sola lettura, non ha nulla di non salvato e deve stare
+    // sempre sull'ultima versione → overlay che non lascia proseguire finché
+    // non ricarica. ADMIN (o anteprima admin): barra non invasiva, perché
+    // potrebbe avere input non ancora salvati in un form/modale aperto (la
+    // dieta è in autosave, ma non i form ad hoc come nuovo paziente/appuntamento).
+    const inVistaPaziente = !vistaPaziente.classList.contains("hidden") && !inAnteprima;
+    if (inVistaPaziente) {
+      mostraAggiornamentoBloccante();
+    } else {
       mostraAvvisoAggiornamento();
     }
   });
@@ -7725,6 +7735,49 @@ function mostraAvvisoAggiornamento() {
   document.body.appendChild(barra);
   document.getElementById("avviso-aggiornamento-ricarica").addEventListener("click", () => window.location.reload());
   document.getElementById("avviso-aggiornamento-chiudi").addEventListener("click", () => barra.remove());
+}
+
+// Aggiornamento BLOCCANTE per la vista paziente: overlay a tutto schermo, senza
+// pulsante di chiusura, che impedisce di proseguire finché non si ricarica. Usato
+// solo per i pazienti (sola lettura, niente dati non salvati). Tutti gli stili
+// sono inline: non dipendono dallo style.css, che potrebbe essere una versione
+// vecchia ancora in cache mentre è già attivo il nuovo service worker.
+function mostraAggiornamentoBloccante() {
+  if (document.getElementById("aggiornamento-bloccante")) return;
+  const overlay = document.createElement("div");
+  overlay.id = "aggiornamento-bloccante";
+  overlay.className = "no-print";
+  overlay.setAttribute("role", "alertdialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "aggiornamento-bloccante-titolo");
+  overlay.innerHTML = `
+    <div class="aggiornamento-bloccante-box">
+      <h2 id="aggiornamento-bloccante-titolo" style="margin:0 0 8px;font-size:1.2rem;color:#2f6d4f">Aggiornamento disponibile</h2>
+      <p style="margin:0;color:#223229;line-height:1.5">È disponibile una nuova versione dell'app. Ricarica per continuare a usarla.</p>
+      <button type="button" id="aggiornamento-bloccante-ricarica">Ricarica ora</button>
+    </div>`;
+  Object.assign(overlay.style, {
+    position: "fixed", inset: "0", zIndex: "100000",
+    background: "rgba(15,23,20,.72)", display: "flex",
+    alignItems: "center", justifyContent: "center", padding: "24px"
+  });
+  const box = overlay.querySelector(".aggiornamento-bloccante-box");
+  Object.assign(box.style, {
+    background: "#fff", borderRadius: "14px", padding: "24px 22px",
+    maxWidth: "360px", width: "100%", textAlign: "center",
+    boxShadow: "0 10px 40px rgba(0,0,0,.35)"
+  });
+  const btn = overlay.querySelector("#aggiornamento-bloccante-ricarica");
+  Object.assign(btn.style, {
+    marginTop: "18px", background: "#2f6d4f", color: "#fff", border: "none",
+    borderRadius: "10px", padding: "12px 20px", fontSize: "1rem", fontWeight: "700",
+    cursor: "pointer", minHeight: "44px", width: "100%"
+  });
+  // Blocca lo scroll della pagina sottostante finché l'overlay è aperto.
+  document.body.style.overflow = "hidden";
+  document.body.appendChild(overlay);
+  btn.addEventListener("click", () => window.location.reload());
+  btn.focus();
 }
 
 document.addEventListener("DOMContentLoaded", inizializza);
