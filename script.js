@@ -1285,7 +1285,8 @@ async function inviaResetPasswordPazienteProprio() {
   pazienteSicurezzaInviaBtn.disabled = false;
 
   if (error) {
-    pazienteSicurezzaMsg.textContent = "Errore nell'invio dell'email: " + error.message;
+    console.error("Errore invio email reset password (paziente):", error);
+    pazienteSicurezzaMsg.textContent = "Non è stato possibile inviare l'email in questo momento. Controlla la connessione e riprova.";
     pazienteSicurezzaMsg.classList.remove("hidden");
     return;
   }
@@ -1326,7 +1327,8 @@ async function esportaDatiPersonali() {
 
     const errore = erroreProfilo || erroreDiete || erroreApp || erroreCheckin || erroreStorico;
     if (errore) {
-      alert("Errore nell'esportazione dei dati: " + errore.message + "\n\nPer non consegnarti un file incompleto, l'esportazione è stata annullata. Riprova; se il problema persiste, contatta lo studio.");
+      console.error("Errore nell'esportazione dei dati personali:", errore);
+      alert("Non è stato possibile esportare i tuoi dati in questo momento. Per non consegnarti un file incompleto l'operazione è stata annullata: controlla la connessione e riprova. Se il problema persiste, contatta lo studio.");
       return;
     }
 
@@ -1375,7 +1377,8 @@ async function apriPazienteStorico() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    pazienteStoricoLista.innerHTML = `<p class="error">Errore nel caricamento: ${escapeHtml(error.message)}</p>`;
+    console.error("Errore nel caricamento delle diete precedenti:", error);
+    pazienteStoricoLista.innerHTML = '<p class="error">Non è stato possibile caricare le versioni precedenti. Controlla la connessione e riprova.</p>';
     return;
   }
   if (!data || data.length === 0) {
@@ -1399,7 +1402,8 @@ async function apriPazienteStorico() {
 async function mostraDietaStorica(dietaId) {
   const { data, error } = await supabaseClient.from("diete").select("dati, created_at").eq("id", dietaId).single();
   if (error) {
-    alert("Errore nel caricamento della dieta: " + error.message);
+    console.error("Errore nel caricamento della dieta storica:", error);
+    alert("Non è stato possibile aprire questa versione del piano. Controlla la connessione e riprova.");
     return;
   }
 
@@ -1489,7 +1493,8 @@ async function inviaRichiestaCancellazione() {
   });
 
   if (error) {
-    cancellazioneError.textContent = "Errore nell'invio della richiesta: " + error.message;
+    console.error("Errore invio richiesta cancellazione:", error);
+    cancellazioneError.textContent = "Non è stato possibile inviare la richiesta in questo momento. Controlla la connessione e riprova.";
     cancellazioneError.classList.remove("hidden");
     return;
   }
@@ -1719,7 +1724,8 @@ async function confermaConsensoPrivacy() {
   consensoPrivacyAccettaBtn.disabled = false;
 
   if (error) {
-    consensoPrivacyErrore.textContent = "Errore: " + error.message;
+    console.error("Errore nel salvataggio del consenso privacy:", error);
+    consensoPrivacyErrore.textContent = "Non è stato possibile registrare il consenso in questo momento. Controlla la connessione e riprova.";
     consensoPrivacyErrore.classList.remove("hidden");
     return;
   }
@@ -2245,7 +2251,9 @@ async function verificaESincronizzaSubscription() {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) return;
-    await attivaNotifiche();
+    // Risincronizzazione silenziosa: nessun feedback UI (il permesso è già
+    // stato concesso in passato).
+    await eseguiSubscribePush();
   } catch (e) {
     console.warn("Errore nella verifica della subscription push:", e);
   }
@@ -2479,7 +2487,8 @@ async function inviaCheckin() {
   checkinInviaBtn.disabled = false;
 
   if (error) {
-    checkinError.textContent = "Errore nel salvataggio: " + error.message;
+    console.error("Errore nel salvataggio del check-in:", error);
+    checkinError.textContent = "Non è stato possibile salvare il check-in in questo momento. Controlla la connessione e riprova.";
     checkinError.classList.remove("hidden");
     return;
   }
@@ -2859,12 +2868,18 @@ function chiudiRichiestaNotifiche() {
   notificheOverlay.classList.add("hidden");
 }
 
-function mostraSuggerimentoAndroidPWA() {
-  notificheTesto.textContent = 'Promemoria attivati. Se in futuro non dovessi ricevere i promemoria: apri Impostazioni del telefono → App → cerca "NutriPlan" → Notifiche, e controlla che siano attive per questa app (è un permesso separato da quello del browser, capita che resti disattivato di default).';
+// Mostra un esito (successo/errore/permesso negato) nell'overlay notifiche, con
+// il solo pulsante OK.
+function mostraEsitoNotifiche(messaggio) {
+  notificheTesto.textContent = messaggio;
   notificheAttivaBtn.classList.add("hidden");
   notificheRifiutaBtn.classList.add("hidden");
   notificheOkBtn.classList.remove("hidden");
   notificheOverlay.classList.remove("hidden");
+}
+
+function mostraSuggerimentoAndroidPWA() {
+  mostraEsitoNotifiche('Promemoria attivati. Se in futuro non dovessi riceverli: apri Impostazioni del telefono → App → cerca "NutriPlan" → Notifiche, e controlla che siano attive per questa app (è un permesso separato da quello del browser, capita che resti disattivato di default).');
 }
 
 async function segnaNotificheRichieste() {
@@ -2886,13 +2901,17 @@ function base64UrlToUint8Array(base64Url) {
   return array;
 }
 
-async function attivaNotifiche() {
-  if (bloccaSeAnteprima()) return;
-  chiudiRichiestaNotifiche();
-  await segnaNotificheRichieste();
-
-  const permesso = await Notification.requestPermission();
-  if (permesso !== "granted") return;
+// Esegue la sottoscrizione push SENZA mostrare alcuna UI: usata sia dal pulsante
+// (attivaNotifiche, che aggiunge il feedback) sia dalla risincronizzazione
+// silenziosa (verificaESincronizzaSubscription). Restituisce l'esito.
+async function eseguiSubscribePush() {
+  let permesso;
+  try {
+    permesso = await Notification.requestPermission();
+  } catch (e) {
+    return { esito: "negato" };
+  }
+  if (permesso !== "granted") return { esito: "negato" };
 
   try {
     const registration = await navigator.serviceWorker.ready;
@@ -2912,11 +2931,38 @@ async function attivaNotifiche() {
       auth: json.keys.auth
     }, { onConflict: "endpoint" });
 
-    if (error) console.warn("Errore nel salvataggio della subscription:", error);
-    else if (rilevaAndroidStandalone()) mostraSuggerimentoAndroidPWA();
+    if (error) {
+      console.warn("Errore nel salvataggio della subscription:", error);
+      return { esito: "errore" };
+    }
+    return { esito: "ok", android: rilevaAndroidStandalone() };
   } catch (e) {
     console.warn("Errore nell'attivazione delle notifiche:", e);
+    return { esito: "errore" };
   }
+}
+
+// Attivazione notifiche dal pulsante: come sopra, ma con feedback esplicito
+// all'utente (successo/errore/permesso negato) e bottone disabilitato durante
+// l'operazione per evitare doppi clic.
+async function attivaNotifiche() {
+  if (bloccaSeAnteprima()) return;
+  notificheAttivaBtn.disabled = true;
+  await segnaNotificheRichieste();
+
+  const r = await eseguiSubscribePush();
+  notificheAttivaBtn.disabled = false;
+
+  if (r.esito === "negato") {
+    mostraEsitoNotifiche("Non hai concesso il permesso per le notifiche. Puoi attivarle più tardi dalle impostazioni del browser.");
+    return;
+  }
+  if (r.esito === "errore") {
+    mostraEsitoNotifiche("Non è stato possibile attivare i promemoria in questo momento. Riprova più tardi.");
+    return;
+  }
+  if (r.android) mostraSuggerimentoAndroidPWA();
+  else mostraEsitoNotifiche("Promemoria attivati! Riceverai un avviso quando sarà ora del tuo check-in periodico.");
 }
 
 // ---------- Vista paziente: giorni collassabili (vista più compatta) ----------
@@ -3400,7 +3446,7 @@ async function registraAccessoAdmin(pazienteId) {
   }
 }
 
-async function selezionaPaziente(pazienteId) {
+async function selezionaPaziente(pazienteId, opzioni = {}) {
   if (!pazienteId) {
     pazienteCorrente = null;
     dietaCorrenteId = null;
@@ -3425,7 +3471,10 @@ async function selezionaPaziente(pazienteId) {
     // Allergie dichiarate, usate per l'alert allergeni sugli alimenti del piano.
     allergie: p.allergie
   };
-  await registraAccessoAdmin(pazienteId);
+  // Il log di accesso rappresenta una reale consultazione della scheda: NON va
+  // registrato quando è solo un ripristino tecnico (es. rientro dai Modelli),
+  // altrimenti il registro privacy si riempie di accessi fittizi.
+  if (!opzioni.saltaLog) await registraAccessoAdmin(pazienteId);
 
   const { data: dieteAttive, error } = await supabaseClient
     .from("diete")
@@ -4850,7 +4899,8 @@ function chiudiModelli() {
   // Ripristina il paziente su cui si stava lavorando (il suo piano era in memoria
   // ma è stato eventualmente sovrascritto entrando in un editor di modello).
   if (pazientePrimaDeiModelli) {
-    selezionaPaziente(pazientePrimaDeiModelli);
+    // saltaLog: è un ripristino tecnico, non una nuova consultazione della scheda.
+    selezionaPaziente(pazientePrimaDeiModelli, { saltaLog: true });
   }
 }
 
