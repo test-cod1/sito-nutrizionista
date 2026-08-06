@@ -1,23 +1,25 @@
 // Service worker: rende il sito installabile come PWA, riceve le notifiche
 // push e fornisce un funzionamento offline SENZA mai mostrare dati vecchi.
 //
-// Strategia di caching (tutta network-first, la cache è solo una riserva):
-//   - Dati Supabase (/rest/...) e app shell (HTML/CSS/JS/icone/foods.json/CDN):
-//     si prova SEMPRE la rete per prima. Online → si vede sempre la versione
-//     aggiornata (piano modificato, codice appena deployato); la copia in cache
-//     viene usata solo quando la rete non è disponibile (offline).
+// Strategia di caching:
+//   - App shell (HTML/CSS/JS/icone/foods.json/CDN): network-first. Online → si
+//     vede sempre la versione aggiornata; la copia in cache serve solo offline.
+//   - Dati Supabase (/rest/...): rete diretta, MAI in cache. Sono dati sanitari
+//     (peso, allergie, piani, check-in e — per l'admin — l'elenco pazienti) e
+//     non devono restare in chiaro nella Cache Storage del dispositivo. Di
+//     conseguenza offline i dati non sono disponibili (l'app mostra un messaggio
+//     di errore di caricamento), ma l'app-shell resta comunque consultabile.
 //   - Auth Supabase (/auth/...) e Pages Functions (/api/...): mai dalla cache
 //     (servire una sessione o una risposta d'azione "vecchia" sarebbe sbagliato).
 //   - Solo le richieste GET vengono gestite: le mutazioni (POST/PATCH/DELETE:
 //     invio check-in, salvataggio piano, invio email...) passano sempre in rete.
 //
-// Poiché tutto è network-first, NON serve cambiare CACHE_VERSION a ogni deploy:
-// la freschezza è garantita dalla rete. CACHE_VERSION serve solo a dare un nome
-// alle cache e a ripulire quelle vecchie se in futuro se ne cambia la struttura.
+// Poiché la shell è network-first, NON serve cambiare CACHE_VERSION a ogni
+// deploy: la freschezza è garantita dalla rete. CACHE_VERSION serve solo a dare
+// un nome alle cache e a ripulire quelle vecchie se se ne cambia la struttura.
 
 const CACHE_VERSION = "v1";
 const SHELL_CACHE = `nutriplan-shell-${CACHE_VERSION}`;
-const DATA_CACHE = `nutriplan-data-${CACHE_VERSION}`;
 
 const SUPABASE_ORIGIN = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
@@ -75,11 +77,13 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
-    // Rimuove eventuali cache di versioni precedenti.
+    // Tiene solo la cache-shell corrente ed elimina tutto il resto, incluse le
+    // vecchie cache-dati "nutriplan-data-*": così, aggiornando a questa versione,
+    // i dati sanitari eventualmente cachati in precedenza vengono purgati.
     const nomi = await caches.keys();
     await Promise.all(
       nomi
-        .filter((n) => n !== SHELL_CACHE && n !== DATA_CACHE)
+        .filter((n) => n !== SHELL_CACHE)
         .map((n) => caches.delete(n))
     );
     await self.clients.claim();
@@ -123,13 +127,11 @@ self.addEventListener("fetch", (event) => {
   const isApi = url.origin === self.location.origin && url.pathname.startsWith("/api/");
   if (isAuth || isApi) return; // non intercettata: la gestisce il browser
 
-  // Dati dinamici Supabase (piano, profilo, check-in...): network-first sulla
-  // cache-dati, così online si vede sempre la versione aggiornata.
+  // Dati Supabase (/rest/): rete diretta, MAI in cache. Sono dati sanitari e non
+  // vanno lasciati in chiaro nella Cache Storage del dispositivo. Offline non
+  // sono disponibili: l'app mostra un messaggio di errore di caricamento.
   const isDatiSupabase = url.origin === SUPABASE_ORIGIN && url.pathname.startsWith("/rest/");
-  if (isDatiSupabase) {
-    event.respondWith(networkFirst(req, DATA_CACHE));
-    return;
-  }
+  if (isDatiSupabase) return; // non intercettata: la gestisce il browser (nessuna cache)
 
   // Risorse esterne dinamiche (es. immagini prodotto Open Food Facts): rete
   // diretta, NON in cache-shell. Altrimenti si accumulerebbero risposte che non

@@ -2,7 +2,12 @@
 // viene salvato, i punteggi esistono solo per la sessione corrente del browser.
 
 function escapeHtml(testo) {
-  return String(testo).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(testo)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function mescolaArray(originale) {

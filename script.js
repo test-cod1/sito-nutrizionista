@@ -1270,6 +1270,7 @@ function chiudiPazienteSicurezza() {
 }
 
 async function inviaResetPasswordPazienteProprio() {
+  if (bloccaSeAnteprima()) return;
   pazienteSicurezzaMsg.classList.add("hidden");
 
   const { data: { user }, error: erroreUser } = await supabaseClient.auth.getUser();
@@ -1303,6 +1304,7 @@ async function inviaResetPasswordPazienteProprio() {
 // ma ha delle sezioni mancanti in silenzio (importante per la portabilità).
 
 async function esportaDatiPersonali() {
+  if (bloccaSeAnteprima()) return;
   if (!pazienteCorrente) return;
   impostazioniEsportaBtn.disabled = true;
   try {
@@ -1436,6 +1438,7 @@ function mostraStepCancellazione(step) {
 }
 
 function apriCancellazione() {
+  if (bloccaSeAnteprima()) return;
   cancellazioneMessaggioInput.value = "";
   cancellazionePasswordInput.value = "";
   cancellazioneError.classList.add("hidden");
@@ -2091,6 +2094,7 @@ function scaricaIcsAppuntamento() {
 }
 
 async function avviaVistaPaziente(pazienteRecord) {
+  inAnteprima = false; // percorso paziente reale, non anteprima admin
   appShell.classList.add("hidden");
   vistaPaziente.classList.remove("hidden");
   anteprimaBanner.classList.add("hidden");
@@ -2162,6 +2166,23 @@ async function verificaESincronizzaSubscription() {
 // di profilo/peso dal database. Un banner permette di tornare indietro senza
 // effettuare il logout.
 
+// Vero quando l'admin sta visualizzando la vista-paziente in ANTEPRIMA. In
+// anteprima i controlli mutativi (check-in, notifiche, reset password, richiesta
+// cancellazione, export) vanno bloccati: l'admin è autenticato come admin, non
+// come il paziente, quindi un'azione lì scriverebbe dati spuri o agirebbe sul
+// profilo sbagliato.
+let inAnteprima = false;
+
+// Ritorna true (e avvisa) se siamo in anteprima: da usare a inizio delle azioni
+// mutative della vista-paziente per bloccarle.
+function bloccaSeAnteprima() {
+  if (inAnteprima) {
+    alert("Sei in modalità anteprima: le azioni del paziente sono disattivate.");
+    return true;
+  }
+  return false;
+}
+
 async function apriAnteprimaPaziente() {
   if (!pazienteCorrente) return;
 
@@ -2175,6 +2196,8 @@ async function apriAnteprimaPaziente() {
     alert("Errore nel caricamento dell'anteprima: " + error.message);
     return;
   }
+
+  inAnteprima = true;
 
   vistaPazienteNomeEl.textContent = data.nome;
   renderProfiloPazienteVista(data);
@@ -2199,6 +2222,7 @@ async function apriAnteprimaPaziente() {
 }
 
 function chiudiAnteprimaPaziente() {
+  inAnteprima = false;
   anteprimaBanner.classList.add("hidden");
   pazienteLogoutBtn.classList.remove("hidden");
   vistaPaziente.classList.add("hidden");
@@ -2343,6 +2367,7 @@ function validaCheckinInput() {
 }
 
 async function inviaCheckin() {
+  if (bloccaSeAnteprima()) return;
   checkinError.classList.add("hidden");
   checkinSuccesso.classList.add("hidden");
 
@@ -2771,6 +2796,7 @@ function base64UrlToUint8Array(base64Url) {
 }
 
 async function attivaNotifiche() {
+  if (bloccaSeAnteprima()) return;
   chiudiRichiestaNotifiche();
   await segnaNotificheRichieste();
 
@@ -6747,8 +6773,9 @@ async function inviaEmailPiano() {
     return;
   }
 
-  const nomePaziente = pazienteCorrente.nome ? escapeHtml(pazienteCorrente.nome) : "";
-  const html = `<p>Ciao${nomePaziente ? " " + nomePaziente : ""},</p><p>in allegato trovi il tuo piano alimentare aggiornato e la lista della spesa settimanale.</p><p>${escapeHtml(formattaValidita())}</p>`;
+  // Il corpo HTML dell'email viene ora costruito lato server (con escaping):
+  // qui inviamo solo il testo di validità in chiaro, non più HTML arbitrario.
+  const validita = formattaValidita();
 
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session) {
@@ -6768,7 +6795,7 @@ async function inviaEmailPiano() {
       },
       body: JSON.stringify({
         pazienteId: pazienteCorrente.id,
-        html,
+        validita,
         allegati: [
           { nome: "piano-alimentare.pdf", contenuto: pdfPiano },
           { nome: "lista-della-spesa.pdf", contenuto: pdfSpesa }

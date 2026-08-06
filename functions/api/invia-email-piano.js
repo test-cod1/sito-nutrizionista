@@ -47,11 +47,18 @@ export async function onRequestPost(context) {
   }
 
   const pazienteId = body.pazienteId;
-  const html = (body.html || "").trim();
+  // Il client NON invia più HTML arbitrario: passa solo un breve testo di
+  // validità (in chiaro). Il corpo dell'email lo costruiamo qui lato server con
+  // escaping, così una sessione admin compromessa non può far spedire HTML
+  // arbitrario dal mittente dello studio.
+  const validita = (body.validita || "").trim();
   const allegati = Array.isArray(body.allegati) ? body.allegati : [];
 
-  if (!pazienteId || !html) {
-    return risposta(400, { error: "pazienteId e html sono obbligatori." });
+  if (!pazienteId) {
+    return risposta(400, { error: "pazienteId è obbligatorio." });
+  }
+  if (validita.length > 500) {
+    return risposta(400, { error: "Testo di validità troppo lungo." });
   }
   if (allegati.some(a => !a || !a.nome || !a.contenuto)) {
     return risposta(400, { error: "Ogni allegato richiede nome e contenuto." });
@@ -59,12 +66,8 @@ export async function onRequestPost(context) {
 
   // Limiti di dimensione: evitano payload enormi verso Brevo (contenuti in
   // base64). Sono ampi ma finiti; oltre, la richiesta viene respinta.
-  const MAX_HTML = 2_000_000;            // ~2 MB di HTML
   const MAX_ALLEGATI = 5;                // numero massimo di allegati
   const MAX_ALLEGATI_TOTALE = 15_000_000; // ~15 MB totali (base64)
-  if (html.length > MAX_HTML) {
-    return risposta(413, { error: "Il contenuto dell'email è troppo grande." });
-  }
   if (allegati.length > MAX_ALLEGATI) {
     return risposta(413, { error: `Troppi allegati (massimo ${MAX_ALLEGATI}).` });
   }
@@ -83,6 +86,12 @@ export async function onRequestPost(context) {
   if (paziente.email.split("@")[1]?.trim().toLowerCase() === "gmail.com") {
     return risposta(400, { error: "Non è possibile inviare a un indirizzo Gmail: Google scarta in modo silenzioso le email da un mittente non autenticato per il dominio gmail.com." });
   }
+
+  // Corpo email costruito lato server, con escaping di nome e testo di validità.
+  const html =
+    `<p>Ciao${paziente.nome ? " " + escapeHtml(paziente.nome) : ""},</p>` +
+    `<p>in allegato trovi il tuo piano alimentare aggiornato e la lista della spesa settimanale.</p>` +
+    (validita ? `<p>${escapeHtml(validita)}</p>` : "");
 
   try {
     await inviaEmailBrevo(brevoKey, mittenteEmail, {
@@ -161,6 +170,15 @@ async function inviaEmailBrevo(brevoKey, mittenteEmail, { destinatarioEmail, des
     console.error("Errore invio email Brevo:", res.status, dettaglio);
     throw new Error(`Invio email non riuscito (${res.status}).`);
   }
+}
+
+function escapeHtml(testo) {
+  return String(testo)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function risposta(statusCode, corpo) {
