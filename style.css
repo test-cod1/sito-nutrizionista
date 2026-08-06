@@ -121,8 +121,19 @@ body {
     padding-top: calc(120px + env(safe-area-inset-top, 0px));
   }
 
+  /* Le 6 icone-azione sono 44px l'una su touch (area di tocco Apple HIG):
+     6×44 + i vecchi 68px di offset e 8px di gap sforavano il bordo destro,
+     tagliando la campanella 🔔 e il suo badge (bug visibile in PWA su telefoni
+     ~360px). Avviciniamo il gruppo al ☰ e stringiamo il gap così stanno su una
+     sola riga fino a ~360px, senza scendere sotto i 44px di area di tocco. Il
+     flex-wrap è una rete di sicurezza: su schermi ancora più stretti le icone
+     vanno a capo invece di essere tagliate. */
   #app-shell .gestione-utenti-fisso {
-    left: 68px;
+    left: 64px;
+    right: 8px;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   #app-shell .header-azioni-destra {
@@ -2728,6 +2739,26 @@ textarea:focus {
     border-top: 1px solid var(--border);
     padding-top: 16px;
   }
+}
+
+/* Vista paziente OFFLINE: senza rete si possono consultare solo i dati serviti
+   dalla cache (profilo minimo + piano alimentare). Nascondiamo le sezioni che
+   richiederebbero una connessione per aggiornarsi (prossimo appuntamento,
+   progressi, check-in, scanner prodotti, giochi): mostrarle vuote con
+   "Non disponibile offline" è solo rumore. Nascondendo le sezioni intermedie
+   il piano alimentare risale automaticamente subito sotto il profilo. */
+#vista-paziente.paziente-offline #paziente-sezione-progressi,
+#vista-paziente.paziente-offline #paziente-sezione-checkin,
+#vista-paziente.paziente-offline #paziente-sezione-scanner,
+#vista-paziente.paziente-offline .giochi-cta-card,
+#vista-paziente.paziente-offline .appuntamento-colonna {
+  display: none;
+}
+
+/* Offline la colonna profilo resta sola nella card: niente bordo/spaziatura
+   pensati per affiancarla alla colonna appuntamento. */
+#vista-paziente.paziente-offline .profilo-appuntamento-card {
+  gap: 0;
 }
 
 .profilo-accordion-toggle {

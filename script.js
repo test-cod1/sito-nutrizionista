@@ -2144,10 +2144,22 @@ function mostraBannerOffline() {
   b.textContent = "Sei offline: puoi consultare solo il piano alimentare.";
   Object.assign(b.style, {
     position: "fixed", top: "0", left: "0", right: "0", zIndex: "9999",
-    background: "#92400e", color: "#fff", padding: "8px 14px", fontSize: "13px",
-    textAlign: "center"
+    background: "#92400e", color: "#fff",
+    // Rispetta la notch/status bar in alto così il testo non ci finisce sotto.
+    padding: "calc(8px + env(safe-area-inset-top, 0px)) 14px 8px",
+    fontSize: "13px", textAlign: "center"
   });
   document.body.appendChild(b);
+
+  // Il banner è fixed in cima: senza compensazione coprirebbe i pulsanti
+  // dell'header (Esci, impostazioni, tema). Spingiamo giù tutto il contenuto
+  // dell'altezza reale del banner (misurata, così regge anche il testo a capo
+  // sugli schermi stretti) e riallineiamo a ogni resize/rotazione.
+  const compensaBanner = () => {
+    document.body.style.paddingTop = b.offsetHeight + "px";
+  };
+  compensaBanner();
+  window.addEventListener("resize", compensaBanner);
 }
 
 // Vista paziente in modalità OFFLINE: mostra solo il piano (servito dalla cache
@@ -2156,6 +2168,7 @@ async function avviaVistaPazienteOffline(info) {
   inAnteprima = false;
   appShell.classList.add("hidden");
   vistaPaziente.classList.remove("hidden");
+  vistaPaziente.classList.add("paziente-offline");
   anteprimaBanner.classList.add("hidden");
   pazienteLogoutBtn.classList.remove("hidden");
   vistaPazienteNomeEl.textContent = info.nome || "";
@@ -2194,6 +2207,7 @@ async function avviaVistaPaziente(pazienteRecord) {
   salvaPazienteOffline(pazienteRecord);
   appShell.classList.add("hidden");
   vistaPaziente.classList.remove("hidden");
+  vistaPaziente.classList.remove("paziente-offline");
   anteprimaBanner.classList.add("hidden");
   pazienteLogoutBtn.classList.remove("hidden");
   vistaPazienteNomeEl.textContent = pazienteRecord.nome;
