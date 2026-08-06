@@ -1592,9 +1592,12 @@ async function effettuaLogin() {
 
 async function effettuaLogout() {
   await supabaseClient.auth.signOut();
-  // Svuota la copia offline dei dati (piano, profilo, check-in) salvata dal
-  // service worker, così su un dispositivo condiviso non resta consultabile
-  // dopo l'uscita. Best-effort: non deve mai impedire il logout.
+  // Dimentica il paziente memorizzato per l'offline (id + nome): su un
+  // dispositivo condiviso non deve restare traccia dopo l'uscita.
+  dimenticaPazienteOffline();
+  // Svuota la copia offline del piano salvata dal service worker, così su un
+  // dispositivo condiviso non resta consultabile dopo l'uscita. Best-effort:
+  // non deve mai impedire il logout.
   try {
     if ("caches" in window) {
       const nomi = await caches.keys();
@@ -1661,6 +1664,13 @@ async function avviaDopoLogin() {
     // Errore probabilmente transitorio: NON facciamo signOut (l'utente può
     // riprovare/ricaricare senza riautenticarsi) e non lo declassiamo.
     console.error("Errore nel determinare il ruolo:", e);
+    // Se siamo offline e c'è un paziente memorizzato, mostriamo la vista offline
+    // (solo piano alimentare, dalla cache) invece di bloccare tutto.
+    const offlineInfo = leggiPazienteOffline();
+    if (!navigator.onLine && offlineInfo) {
+      await avviaVistaPazienteOffline(offlineInfo);
+      return;
+    }
     alert("Non è stato possibile caricare il tuo profilo, forse per un problema di connessione. Riprova o ricarica la pagina.");
     mostraLogin();
     return;
@@ -2093,8 +2103,89 @@ function scaricaIcsAppuntamento() {
   URL.revokeObjectURL(url);
 }
 
+// --- Consultazione offline del SOLO piano alimentare ---
+// Al login del paziente memorizziamo in locale SOLO id e nome (nessun dato
+// sanitario): servono, se l'app viene riaperta offline, a mostrare il piano (che
+// il service worker tiene in cache) senza dover interrogare la rete per il
+// routing. Tutti gli altri dati (peso, check-in, appuntamenti, profilo) restano
+// non disponibili offline.
+const CHIAVE_PAZIENTE_OFFLINE = "nutriplan_offline_paziente";
+
+function salvaPazienteOffline(info) {
+  try {
+    localStorage.setItem(CHIAVE_PAZIENTE_OFFLINE, JSON.stringify({ id: info.id, nome: info.nome }));
+  } catch (e) { /* storage non disponibile: semplicemente niente offline */ }
+}
+
+function leggiPazienteOffline() {
+  try {
+    const s = localStorage.getItem(CHIAVE_PAZIENTE_OFFLINE);
+    const info = s ? JSON.parse(s) : null;
+    return info && info.id ? info : null;
+  } catch (e) { return null; }
+}
+
+function dimenticaPazienteOffline() {
+  try { localStorage.removeItem(CHIAVE_PAZIENTE_OFFLINE); } catch (e) {}
+}
+
+function mostraBannerOffline() {
+  if (document.getElementById("banner-offline")) return;
+  const b = document.createElement("div");
+  b.id = "banner-offline";
+  b.className = "no-print";
+  b.setAttribute("role", "status");
+  b.textContent = "Sei offline: puoi consultare solo il piano alimentare.";
+  Object.assign(b.style, {
+    position: "fixed", top: "0", left: "0", right: "0", zIndex: "9999",
+    background: "#92400e", color: "#fff", padding: "8px 14px", fontSize: "13px",
+    textAlign: "center"
+  });
+  document.body.appendChild(b);
+}
+
+// Vista paziente in modalità OFFLINE: mostra solo il piano (servito dalla cache
+// del service worker). Gli altri dati non sono disponibili senza rete.
+async function avviaVistaPazienteOffline(info) {
+  inAnteprima = false;
+  appShell.classList.add("hidden");
+  vistaPaziente.classList.remove("hidden");
+  anteprimaBanner.classList.add("hidden");
+  pazienteLogoutBtn.classList.remove("hidden");
+  vistaPazienteNomeEl.textContent = info.nome || "";
+  pazienteCorrente = { id: info.id, nome: info.nome };
+
+  mostraBannerOffline();
+  profiloFisiciContenuto.innerHTML = '<p class="vuoto">Non disponibile offline.</p>';
+  profiloContattiContenuto.innerHTML = '<p class="vuoto">Non disponibile offline.</p>';
+  prossimoAppuntamentoContenuto.innerHTML = '<p class="vuoto">Non disponibile offline.</p>';
+
+  let rigaDieta = null;
+  try {
+    rigaDieta = await caricaDietaAttivaPaziente(info.id); // servita dalla cache del service worker
+  } catch (e) {
+    rigaDieta = null;
+  }
+  if (rigaDieta) {
+    dietaCorrenteId = rigaDieta.id;
+    applicaDatiDieta(rigaDieta.dati);
+  } else {
+    dietaCorrenteId = null;
+    state = creaStatoVuoto();
+  }
+  pazienteHaDieta = !!rigaDieta && !dietaVuota();
+  aggiornaBottoniPdfPaziente();
+  pazienteDietaVista.innerHTML = rigaDieta
+    ? costruisciContenutoPrintDieta()
+    : '<p class="vuoto">Il piano non è ancora disponibile offline. Apri l\'app almeno una volta online per poterlo consultare senza connessione.</p>';
+  collapsedGiorniPaziente = new Set(GIORNI);
+  applicaStatoCollassoPaziente();
+  window.scrollTo(0, 0);
+}
+
 async function avviaVistaPaziente(pazienteRecord) {
   inAnteprima = false; // percorso paziente reale, non anteprima admin
+  salvaPazienteOffline(pazienteRecord);
   appShell.classList.add("hidden");
   vistaPaziente.classList.remove("hidden");
   anteprimaBanner.classList.add("hidden");

@@ -4,11 +4,12 @@
 // Strategia di caching:
 //   - App shell (HTML/CSS/JS/icone/foods.json/CDN): network-first. Online → si
 //     vede sempre la versione aggiornata; la copia in cache serve solo offline.
-//   - Dati Supabase (/rest/...): rete diretta, MAI in cache. Sono dati sanitari
-//     (peso, allergie, piani, check-in e — per l'admin — l'elenco pazienti) e
-//     non devono restare in chiaro nella Cache Storage del dispositivo. Di
-//     conseguenza offline i dati non sono disponibili (l'app mostra un messaggio
-//     di errore di caricamento), ma l'app-shell resta comunque consultabile.
+//   - Piano alimentare (/rest/v1/diete): network-first sulla cache-dati, così il
+//     paziente può consultare il proprio piano anche offline.
+//   - TUTTI gli altri dati Supabase (/rest/...): rete diretta, MAI in cache.
+//     Sono dati sanitari (peso, allergie, check-in e — per l'admin — l'elenco
+//     pazienti) che non devono restare in chiaro nella Cache Storage. Offline
+//     non sono disponibili (l'app mostra un messaggio di errore di caricamento).
 //   - Auth Supabase (/auth/...) e Pages Functions (/api/...): mai dalla cache
 //     (servire una sessione o una risposta d'azione "vecchia" sarebbe sbagliato).
 //   - Solo le richieste GET vengono gestite: le mutazioni (POST/PATCH/DELETE:
@@ -20,6 +21,9 @@
 
 const CACHE_VERSION = "v1";
 const SHELL_CACHE = `nutriplan-shell-${CACHE_VERSION}`;
+// v2: nome nuovo per far ELIMINARE (all'activate) la vecchia cache-dati v1 che
+// conteneva TUTTE le tabelle /rest/. Da ora questa cache contiene solo /diete.
+const DATA_CACHE = "nutriplan-data-v2";
 
 const SUPABASE_ORIGIN = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
@@ -77,13 +81,14 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
-    // Tiene solo la cache-shell corrente ed elimina tutto il resto, incluse le
-    // vecchie cache-dati "nutriplan-data-*": così, aggiornando a questa versione,
-    // i dati sanitari eventualmente cachati in precedenza vengono purgati.
+    // Tiene solo la shell corrente e la cache-dati corrente (DATA_CACHE = v2,
+    // solo /diete); elimina tutto il resto, inclusa la vecchia "nutriplan-data-v1"
+    // che conteneva TUTTE le tabelle /rest/ → i dati sanitari cachati in
+    // precedenza vengono così purgati.
     const nomi = await caches.keys();
     await Promise.all(
       nomi
-        .filter((n) => n !== SHELL_CACHE)
+        .filter((n) => n !== SHELL_CACHE && n !== DATA_CACHE)
         .map((n) => caches.delete(n))
     );
     await self.clients.claim();
@@ -127,11 +132,20 @@ self.addEventListener("fetch", (event) => {
   const isApi = url.origin === self.location.origin && url.pathname.startsWith("/api/");
   if (isAuth || isApi) return; // non intercettata: la gestisce il browser
 
-  // Dati Supabase (/rest/): rete diretta, MAI in cache. Sono dati sanitari e non
-  // vanno lasciati in chiaro nella Cache Storage del dispositivo. Offline non
-  // sono disponibili: l'app mostra un messaggio di errore di caricamento.
-  const isDatiSupabase = url.origin === SUPABASE_ORIGIN && url.pathname.startsWith("/rest/");
-  if (isDatiSupabase) return; // non intercettata: la gestisce il browser (nessuna cache)
+  // Piano alimentare (/rest/v1/diete): network-first sulla cache-dati, così il
+  // paziente può consultarlo offline. È l'UNICA tabella /rest/ che cachiamo.
+  const isPiano = url.origin === SUPABASE_ORIGIN && url.pathname.startsWith("/rest/v1/diete");
+  if (isPiano) {
+    event.respondWith(networkFirst(req, DATA_CACHE));
+    return;
+  }
+
+  // Ogni ALTRO dato Supabase (/rest/): rete diretta, MAI in cache. Sono dati
+  // sanitari (peso, allergie, check-in, elenco pazienti) che non vanno lasciati
+  // in chiaro nella Cache Storage. Offline non sono disponibili: l'app mostra un
+  // messaggio di errore di caricamento.
+  const isAltriDatiSupabase = url.origin === SUPABASE_ORIGIN && url.pathname.startsWith("/rest/");
+  if (isAltriDatiSupabase) return; // non intercettata: la gestisce il browser (nessuna cache)
 
   // Risorse esterne dinamiche (es. immagini prodotto Open Food Facts): rete
   // diretta, NON in cache-shell. Altrimenti si accumulerebbero risposte che non
