@@ -4086,13 +4086,18 @@ function durataImpegnoMinuti() {
   if (!inizio || !fine) return null;
   const [hi, mi] = inizio.split(":").map(Number);
   const [hf, mf] = fine.split(":").map(Number);
-  return (hf * 60 + mf) - (hi * 60 + mi);
+  const diff = (hf * 60 + mf) - (hi * 60 + mi);
+  // Se l'ora di fine è precedente all'inizio, l'impegno attraversa la mezzanotte:
+  // interpretiamo la fine come il giorno successivo (+24h). Stessa ora = 0 (non valida).
+  if (diff > 0) return diff;
+  if (diff < 0) return diff + 24 * 60;
+  return 0;
 }
 
 function aggiornaDurataImpegno() {
   const m = durataImpegnoMinuti();
   if (m === null) { impegnoDurataDisplay.textContent = "—"; return; }
-  if (m <= 0) { impegnoDurataDisplay.textContent = "l'ora di fine deve essere dopo l'inizio"; return; }
+  if (m <= 0) { impegnoDurataDisplay.textContent = "l'ora di inizio e di fine non possono coincidere"; return; }
   impegnoDurataDisplay.textContent = formattaDurataMinuti(m);
 }
 
@@ -4156,7 +4161,7 @@ async function salvaImpegno() {
 
   const durata = durataImpegnoMinuti();
   if (durata === null || durata <= 0) {
-    impegnoErrore.textContent = "L'ora di fine deve essere successiva all'ora di inizio.";
+    impegnoErrore.textContent = "L'ora di inizio e di fine non possono coincidere. (Se l'impegno finisce dopo la mezzanotte, imposta comunque l'ora di fine: verrà considerata il giorno successivo.)";
     impegnoErrore.classList.remove("hidden");
     return;
   }
@@ -5750,7 +5755,16 @@ async function salvaNuovoAlimento() {
   }
   nuovoAlimentoError.classList.add("hidden");
 
-  if (foodMap.has(nome) && !confirm(`"${nome}" esiste già nel database. Vuoi sovrascrivere i suoi valori nutrizionali?`)) {
+  // Distinguiamo i due casi: un alimento GIÀ personalizzato viene davvero
+  // aggiornato; un alimento di BASE (CREA) non viene toccato — si crea una
+  // versione personalizzata che lo "sostituisce" nell'elenco. Messaggi diversi
+  // per non far credere di modificare il database di base.
+  const esisteCustom = customFoodsRemoti.some(a => a.nome === nome);
+  const esisteBase = foodMap.has(nome) && !esisteCustom;
+  if (esisteCustom && !confirm(`"${nome}" è già tra i tuoi alimenti personalizzati. Vuoi aggiornarne i valori nutrizionali?`)) {
+    return;
+  }
+  if (esisteBase && !confirm(`"${nome}" esiste già tra gli alimenti di base. Salvando creerai una versione personalizzata che lo sostituirà (con i valori che hai inserito) senza modificare l'alimento di base. Continuare?`)) {
     return;
   }
 
@@ -6845,8 +6859,9 @@ async function inviaEmailPiano() {
     return;
   }
 
-  if (dominioEmail(pazienteCorrente.email) === "gmail.com") {
-    inviaEmailError.textContent = "Non è possibile inviare a un indirizzo Gmail: Google applica una policy molto rigida (DMARC) che scarta in modo silenzioso le email inviate da un mittente non autenticato per il dominio gmail.com. Poiché gmail.com non è un dominio nostro, non possiamo autenticarci come tale. Usa un altro indirizzo email per questo paziente (aggiornalo nel profilo) oppure contattalo con altri mezzi.";
+  const dominio = dominioEmail(pazienteCorrente.email);
+  if (dominio === "gmail.com" || dominio === "googlemail.com") {
+    inviaEmailError.textContent = "Gmail/Googlemail scartano in modo silenzioso queste email (policy DMARC). Usa un altro indirizzo per questo paziente (aggiornalo nel profilo).";
     inviaEmailError.classList.remove("hidden");
     return;
   }

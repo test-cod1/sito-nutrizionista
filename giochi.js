@@ -10,6 +10,27 @@ function escapeHtml(testo) {
     .replace(/'/g, "&#39;");
 }
 
+// Miglior punteggio per gioco, salvato in localStorage (solo numeri, nessun
+// dato personale). Aggiorna il record se il nuovo punteggio è migliore e
+// restituisce il record aggiornato.
+function aggiornaRecordGioco(chiave, punteggio) {
+  try {
+    const k = "nutriplan_giochi_record_" + chiave;
+    const prec = parseInt(localStorage.getItem(k) || "0", 10) || 0;
+    const nuovo = Math.max(prec, punteggio);
+    localStorage.setItem(k, String(nuovo));
+    return nuovo;
+  } catch (e) {
+    return punteggio;
+  }
+}
+
+// Riga "record" da mostrare nella schermata di fine gioco.
+function rigaRecordGioco(chiave, punteggio, totale) {
+  const record = aggiornaRecordGioco(chiave, punteggio);
+  return `<p class="hint">🏅 Record personale: ${record} / ${totale}</p>`;
+}
+
 function mescolaArray(originale) {
   const copia = [...originale];
   for (let i = copia.length - 1; i > 0; i--) {
@@ -25,10 +46,25 @@ const giochiHub = document.getElementById("giochi-hub");
 const giochiPanello = document.getElementById("giochi-panello");
 const giochiIndietroBtn = document.getElementById("giochi-indietro-btn");
 
+// I giochi vengono disegnati solo alla PRIMA apertura (render on-demand),
+// invece di renderizzarli tutti all'avvio: si evita lavoro inutile al caricamento.
+const giochiRenderizzati = new Set();
+const RENDER_GIOCO = {
+  quiz: () => renderGiochiQuiz(),
+  abbina: () => renderGiochiAbbina(),
+  pasto: () => renderGiochiPasto(),
+  fakenews: () => renderGiochiFakenews(),
+  etichette: () => renderGiochiEtichette()
+};
+
 function apriGioco(nome) {
   giochiHub.classList.add("hidden");
   giochiPanello.classList.remove("hidden");
   document.querySelectorAll(".giochi-tab").forEach(tab => tab.classList.toggle("hidden", tab.id !== `giochi-${nome}-tab`));
+  if (!giochiRenderizzati.has(nome) && RENDER_GIOCO[nome]) {
+    RENDER_GIOCO[nome]();
+    giochiRenderizzati.add(nome);
+  }
 }
 
 function tornaHub() {
@@ -68,6 +104,7 @@ function renderGiochiQuiz() {
   if (giochiQuizIndice >= giochiQuizOrdine.length) {
     giochiQuizContenuto.innerHTML = `
       <p class="giochi-risultato">🏁 Hai risposto a tutte le domande!<br>Punteggio: <strong>${giochiQuizPunteggio} / ${giochiQuizOrdine.length}</strong></p>
+      ${rigaRecordGioco("quiz", giochiQuizPunteggio, giochiQuizOrdine.length)}
       <button type="button" class="giochi-rigioca-btn" data-azione="quiz-ricomincia">Rigioca</button>
     `;
     return;
@@ -176,7 +213,8 @@ function renderGiochiAbbina() {
   let punteggioHtml = "";
   if (giochiAbbinaVerificato) {
     const corretti = GIOCHI_ABBINA_ALIMENTI.filter(a => giochiAbbinaAssegnazioni[a.nome] === a.categoria).length;
-    punteggioHtml = `<p class="giochi-risultato">Punteggio: <strong>${corretti} / ${GIOCHI_ABBINA_ALIMENTI.length}</strong></p>`;
+    punteggioHtml = `<p class="giochi-risultato">Punteggio: <strong>${corretti} / ${GIOCHI_ABBINA_ALIMENTI.length}</strong></p>`
+      + rigaRecordGioco("abbina", corretti, GIOCHI_ABBINA_ALIMENTI.length);
   }
 
   giochiAbbinaContenuto.innerHTML = `
@@ -343,6 +381,7 @@ function renderGiochiFakenews() {
   if (giochiFakenewsIndice >= giochiFakenewsOrdine.length) {
     giochiFakenewsContenuto.innerHTML = `
       <p class="giochi-risultato">🏁 Hai scorso tutti i post!<br>Punteggio: <strong>${giochiFakenewsPunteggio} / ${giochiFakenewsOrdine.length}</strong></p>
+      ${rigaRecordGioco("fakenews", giochiFakenewsPunteggio, giochiFakenewsOrdine.length)}
       <button type="button" class="giochi-rigioca-btn" data-azione="fakenews-ricomincia">Rigioca</button>
     `;
     return;
@@ -515,6 +554,7 @@ function renderGiochiEtichette() {
     const totaleClaim = GIOCHI_ETICHETTE_PRODOTTI.reduce((s, p) => s + p.claim.length, 0);
     giochiEtichetteContenuto.innerHTML = `
       <p class="giochi-risultato">🏁 Hai analizzato tutte le etichette!<br>Claim riconosciuti correttamente: <strong>${giochiEtichettePunteggioTotale} / ${totaleClaim}</strong></p>
+      ${rigaRecordGioco("etichette", giochiEtichettePunteggioTotale, totaleClaim)}
       <button type="button" class="giochi-rigioca-btn" data-azione="etichette-ricomincia">Rigioca</button>
     `;
     return;
@@ -589,13 +629,19 @@ giochiEtichetteContenuto.addEventListener("click", (e) => {
 
 // ---------- Avvio ----------
 
+// Prepara gli ordini (mescolamento) ma NON renderizza: ogni gioco viene disegnato
+// alla prima apertura (vedi apriGioco / render on-demand).
 giochiQuizOrdine = mescolaArray(GIOCHI_QUIZ_DOMANDE.map((_, i) => i));
-renderGiochiQuiz();
-renderGiochiAbbina();
-renderGiochiPasto();
-
 giochiFakenewsOrdine = mescolaArray(GIOCHI_FAKENEWS_NOTIZIE.map((_, i) => i));
-renderGiochiFakenews();
-
 giochiEtichetteOrdine = mescolaArray(GIOCHI_ETICHETTE_PRODOTTI.map((_, i) => i));
-renderGiochiEtichette();
+
+// Registra il service worker anche se si arriva direttamente su giochi.html
+// (di norma è già registrato da index.html, ma qui garantiamo il contesto PWA
+// e il funzionamento offline anche partendo da questa pagina).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((err) => {
+      console.warn("Registrazione service worker fallita:", err);
+    });
+  });
+}

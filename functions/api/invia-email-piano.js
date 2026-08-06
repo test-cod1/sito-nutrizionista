@@ -83,8 +83,9 @@ export async function onRequestPost(context) {
   if (!paziente.email) {
     return risposta(400, { error: "Il paziente non ha un'email registrata nel profilo." });
   }
-  if (paziente.email.split("@")[1]?.trim().toLowerCase() === "gmail.com") {
-    return risposta(400, { error: "Non è possibile inviare a un indirizzo Gmail: Google scarta in modo silenzioso le email da un mittente non autenticato per il dominio gmail.com." });
+  const dominioDest = paziente.email.split("@")[1]?.trim().toLowerCase();
+  if (dominioDest === "gmail.com" || dominioDest === "googlemail.com") {
+    return risposta(400, { error: "Gmail/Googlemail scartano in modo silenzioso queste email (policy DMARC). Usa un altro indirizzo per questo paziente." });
   }
 
   // Corpo email costruito lato server, con escaping di nome e testo di validità.
