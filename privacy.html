@@ -5,17 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Informativa privacy — NutriPlan</title>
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <script>
-    (function () {
-      try {
-        var t = localStorage.getItem("dieta-nutrizionista-tema");
-        if (t !== "chiaro" && t !== "notte") {
-          t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "notte" : "chiaro";
-        }
-        if (t === "notte") document.documentElement.classList.add("tema-notte");
-      } catch (e) {}
-    })();
-  </script>
+  <!-- Anti-flash del tema: esternalizzato (come in index.html) perché la CSP
+       non consente script inline. -->
+  <script src="tema-init.js"></script>
   <link rel="stylesheet" href="style.css">
   <style>
     .informativa-pagina {

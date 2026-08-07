@@ -2,31 +2,18 @@
 // Chiama le API REST di Supabase con fetch nativo del runtime Workers,
 // nessuna dipendenza da installare. Raggiungibile su /api/crea-utente.
 
+import { autorizzaAdmin, risposta } from "./_auth.js";
+
 const SUPABASE_URL = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  const secretKey = env.SUPABASE_SECRET_KEY;
-  if (!secretKey) {
-    return risposta(500, { error: "Configurazione mancante sul server (SUPABASE_SECRET_KEY)." });
-  }
-
-  const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (!token) {
-    return risposta(401, { error: "Sessione mancante." });
-  }
-
-  const chiamante = await recuperaUtenteDaToken(secretKey, token);
-  if (!chiamante) {
-    return risposta(401, { error: "Sessione non valida." });
-  }
-
-  const eAdmin = await verificaAmministratore(secretKey, chiamante.id);
-  if (!eAdmin) {
-    return risposta(403, { error: "Solo un amministratore può creare nuovi account." });
-  }
+  const auth = await autorizzaAdmin(env, request, {
+    messaggioNonAdmin: "Solo un amministratore può creare nuovi account."
+  });
+  if (auth.errore) return auth.errore;
+  const { secretKey } = auth;
 
   let body;
   try {
@@ -50,6 +37,9 @@ export async function onRequestPost(context) {
   try {
     nuovoUserId = await invitaUtente(secretKey, email);
   } catch (e) {
+    // L'invito è admin-only e il messaggio ("email già registrata"…) serve
+    // davvero a chi invita: lo restituiamo, ma logghiamo anche server-side.
+    console.error("Errore invito utente:", e && e.message);
     return risposta(400, { error: e.message });
   }
 
@@ -62,34 +52,14 @@ export async function onRequestPost(context) {
       await chiamataRest(secretKey, "POST", "/rest/v1/pazienti", { nome: body.nomeNuovoPaziente.trim(), user_id: nuovoUserId });
     }
   } catch (e) {
-    return risposta(400, { error: e.message });
+    // Errore lato DB: logghiamo il dettaglio e restituiamo un messaggio generico
+    // (coerente con elimina-paziente/invia-email-piano), per non esporre lo
+    // schema/PostgREST al client.
+    console.error("Errore associazione ruolo dopo invito:", e && e.message);
+    return risposta(500, { error: "Utente invitato ma errore nel completamento. Riprova." });
   }
 
   return risposta(200, { ok: true });
-}
-
-async function recuperaUtenteDaToken(secretKey, token) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      apikey: secretKey,
-      Authorization: `Bearer ${token}`
-    }
-  });
-  if (!res.ok) return null;
-  const dati = await res.json();
-  return dati && dati.id ? dati : null;
-}
-
-async function verificaAmministratore(secretKey, userId) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/amministratori?user_id=eq.${encodeURIComponent(userId)}&select=user_id`, {
-    headers: {
-      apikey: secretKey,
-      Authorization: `Bearer ${secretKey}`
-    }
-  });
-  if (!res.ok) return false;
-  const righe = await res.json();
-  return Array.isArray(righe) && righe.length > 0;
 }
 
 async function invitaUtente(secretKey, email) {
@@ -124,11 +94,4 @@ async function chiamataRest(secretKey, metodo, percorso, corpo) {
     const dati = await res.json().catch(() => ({}));
     throw new Error(dati.message || dati.error_description || `Errore database (${res.status}).`);
   }
-}
-
-function risposta(statusCode, corpo) {
-  return new Response(JSON.stringify(corpo), {
-    status: statusCode,
-    headers: { "Content-Type": "application/json" }
-  });
 }

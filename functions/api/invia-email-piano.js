@@ -7,36 +7,23 @@
 // Cloudflare Pages (sono un prodotto separato dal Worker, non condividono i
 // secret automaticamente).
 
+import { autorizzaAdmin, risposta } from "./_auth.js";
+
 const SUPABASE_URL = "https://scckmrmgbpvqqcungrsj.supabase.co";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  const secretKey = env.SUPABASE_SECRET_KEY;
-  if (!secretKey) {
-    return risposta(500, { error: "Configurazione mancante sul server (SUPABASE_SECRET_KEY)." });
-  }
+  const auth = await autorizzaAdmin(env, request, {
+    messaggioNonAdmin: "Solo un amministratore può inviare email ai pazienti."
+  });
+  if (auth.errore) return auth.errore;
+  const { secretKey } = auth;
 
   const brevoKey = env.BREVO_API_KEY;
   const mittenteEmail = env.VAPID_CONTACT_EMAIL;
   if (!brevoKey || !mittenteEmail) {
     return risposta(500, { error: "Invio email non configurato sul server (BREVO_API_KEY o VAPID_CONTACT_EMAIL mancanti)." });
-  }
-
-  const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (!token) {
-    return risposta(401, { error: "Sessione mancante." });
-  }
-
-  const chiamante = await recuperaUtenteDaToken(secretKey, token);
-  if (!chiamante) {
-    return risposta(401, { error: "Sessione non valida." });
-  }
-
-  const eAdmin = await verificaAmministratore(secretKey, chiamante.id);
-  if (!eAdmin) {
-    return risposta(403, { error: "Solo un amministratore può inviare email ai pazienti." });
   }
 
   let body;
@@ -109,30 +96,6 @@ export async function onRequestPost(context) {
   return risposta(200, { ok: true });
 }
 
-async function recuperaUtenteDaToken(secretKey, token) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      apikey: secretKey,
-      Authorization: `Bearer ${token}`
-    }
-  });
-  if (!res.ok) return null;
-  const dati = await res.json();
-  return dati && dati.id ? dati : null;
-}
-
-async function verificaAmministratore(secretKey, userId) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/amministratori?user_id=eq.${encodeURIComponent(userId)}&select=user_id`, {
-    headers: {
-      apikey: secretKey,
-      Authorization: `Bearer ${secretKey}`
-    }
-  });
-  if (!res.ok) return false;
-  const righe = await res.json();
-  return Array.isArray(righe) && righe.length > 0;
-}
-
 async function recuperaPaziente(secretKey, pazienteId) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/pazienti?id=eq.${encodeURIComponent(pazienteId)}&select=nome,email`, {
     headers: {
@@ -180,11 +143,4 @@ function escapeHtml(testo) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function risposta(statusCode, corpo) {
-  return new Response(JSON.stringify(corpo), {
-    status: statusCode,
-    headers: { "Content-Type": "application/json" }
-  });
 }

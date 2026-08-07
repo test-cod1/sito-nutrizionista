@@ -8,4 +8,11 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=()
+  # Isola il contesto di navigazione: nessuna finestra apribile da terzi puo'
+  # mantenere un riferimento a questa (mitiga tabnabbing/attacchi cross-origin).
+  Cross-Origin-Opener-Policy: same-origin
+  # HSTS: forza HTTPS per un anno. "includeSubDomains" e "preload" non sono
+  # attivati di proposito — vanno aggiunti solo dopo essersi accertati che TUTTI
+  # i sottodomini del dominio siano serviti in HTTPS (altrimenti li si rende
+  # irraggiungibili per un anno, effetto difficile da annullare lato browser).
   Strict-Transport-Security: max-age=31536000

@@ -7781,3 +7781,144 @@ function mostraAggiornamentoBloccante() {
 }
 
 document.addEventListener("DOMContentLoaded", inizializza);
+
+// ===========================================================================
+// Accessibilità delle finestre modali (dialog) e annunci per screen reader.
+// Aggiunto in modo NON invasivo: non modifica le funzioni apri*/chiudi*
+// esistenti, ma osserva quando un ".duplica-overlay" diventa visibile/nascosto
+// (toggle della classe .hidden) e applica: semantica role="dialog", focus
+// trap con Tab, ripristino del focus alla chiusura e chiusura con Esc (solo
+// per le finestre non "obbligatorie"). Aggiunge inoltre aria-live ai messaggi
+// di errore/successo, che prima non venivano annunciati.
+// ===========================================================================
+(function accessibilitaModali() {
+  // Finestre che l'utente NON deve poter chiudere con Esc (gate di sicurezza
+  // o flussi obbligatori): resta possibile solo l'azione prevista nel modale.
+  const OVERLAY_NON_CHIUDIBILI_ESC = new Set([
+    "login-overlay",
+    "consenso-privacy-overlay",
+    "imposta-password-overlay"
+  ]);
+
+  let contatoreTitoli = 0;
+  let overlayAttivo = null;
+  let elementoDaRiattivare = null;
+
+  function elementiFocalizzabili(contenitore) {
+    const selettore = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    return Array.from(contenitore.querySelectorAll(selettore))
+      .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0);
+  }
+
+  function overlayVisibile(overlay) {
+    // NB: niente offsetParent, che è sempre null per position:fixed (gli overlay
+    // lo sono). La visibilità qui è guidata dalla classe .hidden (display:none).
+    if (overlay.classList.contains("hidden")) return false;
+    const stile = window.getComputedStyle(overlay);
+    return stile.display !== "none" && stile.visibility !== "hidden";
+  }
+
+  function marcaDialogo(overlay) {
+    const box = overlay.querySelector(".duplica-modal") || overlay;
+    if (!box.getAttribute("role")) box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    const titolo = box.querySelector("h1, h2, h3");
+    if (titolo) {
+      if (!titolo.id) titolo.id = "dlg-titolo-" + (++contatoreTitoli);
+      box.setAttribute("aria-labelledby", titolo.id);
+    }
+  }
+
+  function apriDialogo(overlay) {
+    // Ricorda dove riportare il focus alla chiusura.
+    if (!overlay.contains(document.activeElement)) {
+      elementoDaRiattivare = document.activeElement;
+    }
+    overlayAttivo = overlay;
+    // Non rubare il focus se il codice dell'app l'ha già messo nel modale
+    // (es. il campo del codice 2FA): spostiamo il focus solo se è fuori.
+    if (!overlay.contains(document.activeElement)) {
+      const focalizzabili = elementiFocalizzabili(overlay);
+      const preferito = focalizzabili.find(el => /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) || focalizzabili[0];
+      if (preferito) preferito.focus();
+    }
+  }
+
+  function chiudiDialogo() {
+    overlayAttivo = null;
+    // Riporta il focus al controllo che aveva aperto la finestra, se è ancora
+    // presente e visibile (altrimenti lo lasciamo al browser).
+    if (elementoDaRiattivare && document.contains(elementoDaRiattivare) &&
+        (elementoDaRiattivare.offsetWidth > 0 || elementoDaRiattivare.getClientRects().length > 0)) {
+      try { elementoDaRiattivare.focus(); } catch (e) {}
+    }
+    elementoDaRiattivare = null;
+  }
+
+  function aggiornaStato(overlay) {
+    if (overlayVisibile(overlay)) {
+      if (overlayAttivo !== overlay) apriDialogo(overlay);
+    } else if (overlayAttivo === overlay) {
+      chiudiDialogo();
+      // Se un'altra finestra è rimasta aperta sotto, riattivala.
+      const altra = Array.from(document.querySelectorAll(".duplica-overlay")).find(overlayVisibile);
+      if (altra) apriDialogo(altra);
+    }
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (!overlayAttivo) return;
+    if (e.key === "Tab") {
+      const focalizzabili = elementiFocalizzabili(overlayAttivo);
+      if (!focalizzabili.length) { e.preventDefault(); return; }
+      const primo = focalizzabili[0];
+      const ultimo = focalizzabili[focalizzabili.length - 1];
+      if (!overlayAttivo.contains(document.activeElement)) {
+        e.preventDefault();
+        primo.focus();
+      } else if (e.shiftKey && document.activeElement === primo) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && document.activeElement === ultimo) {
+        e.preventDefault();
+        primo.focus();
+      }
+    } else if (e.key === "Escape") {
+      if (OVERLAY_NON_CHIUDIBILI_ESC.has(overlayAttivo.id)) return;
+      const bottoneChiudi = overlayAttivo.querySelector('[id*="chiudi"], [id*="annulla"]');
+      if (bottoneChiudi) {
+        e.preventDefault();
+        bottoneChiudi.click();
+      }
+    }
+  }, true);
+
+  function avvia() {
+    const overlays = Array.from(document.querySelectorAll(".duplica-overlay"));
+    overlays.forEach(marcaDialogo);
+
+    // Annuncia i messaggi di errore/successo, prima muti per gli screen reader.
+    document.querySelectorAll(".error").forEach(el => {
+      if (!el.getAttribute("role")) el.setAttribute("role", "alert");
+    });
+    document.querySelectorAll('[id$="successo"], [id$="-msg"]').forEach(el => {
+      if (!el.getAttribute("role")) el.setAttribute("role", "status");
+      if (!el.getAttribute("aria-live")) el.setAttribute("aria-live", "polite");
+    });
+
+    const observer = new MutationObserver(mutazioni => {
+      mutazioni.forEach(m => aggiornaStato(m.target));
+    });
+    overlays.forEach(overlay => {
+      observer.observe(overlay, { attributes: true, attributeFilter: ["class"] });
+      // Alcune finestre (es. login) sono già visibili all'avvio.
+      if (overlayVisibile(overlay)) aggiornaStato(overlay);
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", avvia);
+  } else {
+    avvia();
+  }
+})();
