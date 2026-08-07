@@ -149,6 +149,25 @@ async function eseguiSalvataggioRemoto() {
   }
 }
 
+// Forza SUBITO il salvataggio in sospeso e attende che sia concluso. Va
+// chiamata (con await) PRIMA di cambiare contesto (paziente o modello) mentre
+// state/dietaCorrenteId/modelloContesto puntano ancora al contesto vecchio:
+// altrimenti l'ultima modifica a kcal/deficit — che pianificaSalvaERenderDieta
+// rimanda di 300ms — verrebbe scartata quando applicaDatiDieta sovrascrive lo
+// state, con perdita dati silenziosa.
+async function flushSalvataggioDieta() {
+  if (timerSalvaERenderDieta) {
+    clearTimeout(timerSalvaERenderDieta);
+    timerSalvaERenderDieta = null;
+    salvaStateRemoto();
+  }
+  // Attende il salvataggio in corso e l'eventuale "da rifare" accodato, così il
+  // contesto vecchio è davvero persistito prima di sovrascriverlo.
+  while (salvataggioRemotoInCorso) {
+    await salvataggioRemotoInCorso;
+  }
+}
+
 // Indicatore non invasivo di autosave fallito, condiviso da diete e modelli.
 // Un alert a ogni battuta sarebbe insopportabile; questo banner compare solo
 // quando l'ultimo salvataggio è fallito e sparisce al primo salvataggio riuscito.
@@ -3461,6 +3480,8 @@ async function registraAccessoAdmin(pazienteId) {
 }
 
 async function selezionaPaziente(pazienteId, opzioni = {}) {
+  // Persisti le modifiche in sospeso del contesto attuale prima di cambiarlo.
+  await flushSalvataggioDieta();
   if (!pazienteId) {
     pazienteCorrente = null;
     dietaCorrenteId = null;
@@ -5035,7 +5056,9 @@ function applicaModelloAState(modello) {
   }
 }
 
-function apriEditorModello(modello) {
+async function apriEditorModello(modello) {
+  // Salva il piano del paziente in sospeso prima di entrare nel contesto modello.
+  await flushSalvataggioDieta();
   modelloContesto = {
     id: modello.id, tipo: modello.tipo, nome: modello.nome,
     categoria: modello.categoria, pasto_suggerito: modello.pasto_suggerito
@@ -5068,7 +5091,10 @@ function apriEditorModello(modello) {
   renderDieta();
 }
 
-function chiudiEditorModello() {
+async function chiudiEditorModello() {
+  // Salva il modello in sospeso PRIMA di azzerare modelloContesto (altrimenti il
+  // salvataggio finirebbe sul contesto sbagliato o verrebbe scartato).
+  await flushSalvataggioDieta();
   modelloContesto = null;
   pastoSelect.disabled = false;
   modelloBar.classList.add("hidden");
