@@ -95,6 +95,11 @@ function applicaDatiDieta(dati) {
 let salvataggioRemotoInCorso = null;
 let salvataggioRemotoDaRifare = false;
 
+// Copia in cache dell'access token di sessione, aggiornata da onAuthStateChange.
+// Serve per il salvataggio best-effort in chiusura di scheda (vedi
+// salvaInSospesoBestEffort), dove getSession() — asincrono — non è utilizzabile.
+let accessTokenCorrente = null;
+
 // Debounce per gli input kcal/deficit: renderDieta ricostruisce l'intera griglia
 // settimanale, farlo a ogni battuta rende la digitazione a scatti e spara un
 // UPDATE al DB per ogni carattere. Aggiorniamo lo stato subito (nell'handler),
@@ -123,11 +128,10 @@ function salvaStateRemoto() {
   return salvataggioRemotoInCorso;
 }
 
-async function eseguiSalvataggioRemoto() {
-  // In modalità modello il salvataggio va sulla tabella dei modelli, non su diete.
-  if (modelloContesto) { await salvaModelloRemoto(); return; }
-  if (!dietaCorrenteId) return;
-  const dati = {
+// Payload persistito per una dieta, condiviso tra il salvataggio normale e
+// quello best-effort in chiusura scheda (così non divergono).
+function datiDietaDaState() {
+  return {
     maxKcal: state.maxKcal,
     kcalModo: state.kcalModo,
     kcalDeficit: state.kcalDeficit,
@@ -137,6 +141,13 @@ async function eseguiSalvataggioRemoto() {
     validoDal: state.validoDal,
     validoAl: state.validoAl
   };
+}
+
+async function eseguiSalvataggioRemoto() {
+  // In modalità modello il salvataggio va sulla tabella dei modelli, non su diete.
+  if (modelloContesto) { await salvaModelloRemoto(); return; }
+  if (!dietaCorrenteId) return;
+  const dati = datiDietaDaState();
   const { error } = await supabaseClient
     .from("diete")
     .update({ dati, updated_at: new Date().toISOString() })
@@ -167,6 +178,50 @@ async function flushSalvataggioDieta() {
     await salvataggioRemotoInCorso;
   }
 }
+
+// Salvataggio "best-effort" quando la scheda viene nascosta/chiusa: se c'è una
+// modifica in sospeso nel debounce (fino a 300ms), verrebbe persa. Non possiamo
+// await-are in fase di unload, quindi per la dieta del paziente usiamo una fetch
+// con keepalive:true (sopravvive alla chiusura della scheda, dove una fetch
+// normale — e quindi il client Supabase — verrebbe interrotta). Resta best-effort:
+// senza token in cache, oltre il limite keepalive (~64KB) o in contesto modello
+// ripieghiamo sul salvataggio normale, che potrebbe non completarsi.
+function salvaInSospesoBestEffort() {
+  if (!timerSalvaERenderDieta) return; // niente in sospeso
+  clearTimeout(timerSalvaERenderDieta);
+  timerSalvaERenderDieta = null;
+
+  if (dietaCorrenteId && !modelloContesto && accessTokenCorrente) {
+    try {
+      const corpo = JSON.stringify({ dati: datiDietaDaState(), updated_at: new Date().toISOString() });
+      // Il keepalive ha un tetto ~64KB: sopra, ripiega sul salvataggio normale.
+      if (corpo.length < 60000) {
+        fetch(`${SUPABASE_URL}/rest/v1/diete?id=eq.${encodeURIComponent(dietaCorrenteId)}`, {
+          method: "PATCH",
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${accessTokenCorrente}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal"
+          },
+          body: corpo,
+          keepalive: true
+        }).catch(() => {});
+        return;
+      }
+    } catch (e) { /* ripiega sotto */ }
+  }
+  // Contesto modello o payload troppo grande: salvataggio normale best-effort.
+  salvaStateRemoto();
+}
+
+// visibilitychange→hidden è il segnale più affidabile (copre cambio scheda/app e
+// chiusura, anche su mobile); pagehide copre la chiusura/bfcache. beforeunload è
+// meno affidabile e può innescare prompt, quindi non lo usiamo.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") salvaInSospesoBestEffort();
+});
+window.addEventListener("pagehide", salvaInSospesoBestEffort);
 
 // Indicatore non invasivo di autosave fallito, condiviso da diete e modelli.
 // Un alert a ogni battuta sarebbe insopportabile; questo banner compare solo
@@ -1203,7 +1258,9 @@ let pazienteInAttesaConsensoPrivacy = null;
 
 function inizializzaSupabase() {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  supabaseClient.auth.onAuthStateChange((event) => {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    // Tieni aggiornato il token in cache per il salvataggio best-effort in unload.
+    accessTokenCorrente = session ? session.access_token : null;
     if (event === "PASSWORD_RECOVERY") {
       passwordRecoveryEventRicevuto = true;
     }
