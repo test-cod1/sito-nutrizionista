@@ -232,9 +232,16 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
   display: flex;
   gap: 10px;
   align-items: flex-end;
+  flex-wrap: wrap;
 }
-.campo-obiettivo { flex: 1; }
+.campo-obiettivo { flex: 1 1 140px; }
 .obiettivo-riga button { flex: none; white-space: nowrap; }
+
+@media (max-width: 480px) {
+  /* Su telefono i due obiettivi restano affiancati (sono corti) e il pulsante
+     di calcolo va a capo a tutta larghezza. */
+  .obiettivo-riga button { width: 100%; }
+}
 
 .fabbisogno-box {
   margin-top: 16px;
@@ -259,6 +266,7 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
 }
 .fabbisogno-esito .passaggio { color: var(--text-muted); font-size: 0.82rem; }
 .fabbisogno-esito .risultato { font-size: 1.35rem; font-weight: 700; color: var(--accent); margin: 4px 0 8px; }
+.fabbisogno-esito .risultato-quota { font-size: 0.82rem; font-weight: 400; color: var(--text-muted); }
 .fabbisogno-esito button { padding: 8px 14px; font-size: 0.9rem; }
 
 /* ---------- Selettori a segmenti ---------- */
@@ -532,6 +540,18 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
 }
 .barra-obiettivo span { display: block; height: 100%; background: var(--accent); }
 .barra-obiettivo span.sforato { background: var(--danger); }
+.barra-proteine span { background: var(--prot); }
+
+.totali-riga-obiettivo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 0.88rem;
+}
+.obiettivo-raggiunto { color: var(--accent); font-weight: 600; }
 
 .macro-barra {
   display: flex;
@@ -586,7 +606,11 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
 .barra-totale .bt-kcal { font-weight: 700; font-size: 1.05rem; color: var(--accent); white-space: nowrap; }
 .barra-totale .bt-macro { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .barra-totale .bt-residuo { margin-left: auto; font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+/* Se ci sono entrambi i residui, solo il primo si stacca a destra. */
+.barra-totale .bt-residuo ~ .bt-residuo { margin-left: 0; }
 .barra-totale .bt-residuo.sforato { color: var(--danger-text); }
+.barra-totale .bt-residuo-prot { color: var(--prot); }
+.barra-totale .bt-residuo-prot.obiettivo-raggiunto { color: var(--accent); }
 
 @media (max-width: 480px) {
   .barra-totale { gap: 8px; padding: 9px 14px; }

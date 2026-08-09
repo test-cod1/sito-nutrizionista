@@ -30,14 +30,18 @@
   <section class="card no-print">
     <div class="obiettivo-riga">
       <div class="campo campo-obiettivo">
-        <label for="obiettivo-input">Obiettivo calorico del giorno <span class="facolt">(facoltativo)</span></label>
+        <label for="obiettivo-input">Obiettivo calorie <span class="facolt">(facoltativo)</span></label>
         <input type="number" id="obiettivo-input" min="0" step="10" placeholder="es. 1800" inputmode="numeric">
       </div>
-      <button type="button" id="fabbisogno-toggle" class="secondary">🧮 Calcolalo</button>
+      <div class="campo campo-obiettivo">
+        <label for="obiettivo-prot-input">Obiettivo proteine <span class="facolt">(g, facoltativo)</span></label>
+        <input type="number" id="obiettivo-prot-input" min="0" step="1" placeholder="es. 95" inputmode="numeric">
+      </div>
+      <button type="button" id="fabbisogno-toggle" class="secondary">🧮 Calcolali</button>
     </div>
 
     <div id="fabbisogno-box" class="fabbisogno-box hidden">
-      <p class="hint">Stima del fabbisogno con la formula di Mifflin-St Jeor, la stessa usata dal gestionale.</p>
+      <p class="hint">Calorie stimate con la formula di Mifflin-St Jeor, la stessa usata dal gestionale; proteine in grammi per chilo di peso corporeo.</p>
       <div class="fabbisogno-griglia">
         <div class="campo">
           <label>Sesso</label>
@@ -71,6 +75,11 @@
         <div class="campo campo-largo">
           <label for="deficit-input">Correzione calorica <span class="facolt">(negativa per dimagrire)</span></label>
           <input type="number" id="deficit-input" step="50" placeholder="es. -500" inputmode="numeric">
+        </div>
+        <div class="campo campo-largo">
+          <label for="gkg-input">Proteine per kg di peso <span class="facolt">(g/kg)</span></label>
+          <input type="number" id="gkg-input" min="0" max="4" step="0.1" placeholder="1,4" inputmode="decimal">
+          <p class="hint" id="gkg-nota"></p>
         </div>
       </div>
       <div id="fabbisogno-esito" class="fabbisogno-esito"></div>

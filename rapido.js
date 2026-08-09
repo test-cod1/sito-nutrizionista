@@ -27,6 +27,19 @@ const FATTORI_ATTIVITA = {
   "Molto intenso": 1.9
 };
 
+// Proteine suggerite in grammi per kg di peso corporeo, in base al livello di
+// attività: sono valori di partenza dentro gli intervalli di uso comune
+// (0,8–1 g/kg per l'adulto sedentario secondo i LARN, fino a ~2 g/kg negli
+// sportivi). Restano una proposta modificabile: il valore digitato a mano ha
+// sempre la precedenza.
+const G_PER_KG_SUGGERITO = {
+  "Sedentario": 1,
+  "Leggero": 1.2,
+  "Moderato": 1.4,
+  "Intenso": 1.6,
+  "Molto intenso": 1.8
+};
+
 // ---------- Stato ----------
 
 function creaGiornataVuota() {
@@ -38,8 +51,9 @@ function creaGiornataVuota() {
 function creaStatoVuoto() {
   return {
     obiettivo: null,          // kcal obiettivo del giorno (null = nessuno)
+    obiettivoProteine: null,  // grammi di proteine obiettivo (null = nessuno)
     giornata: creaGiornataVuota(),
-    profilo: { sesso: "", eta: "", peso: "", altezza: "", attivita: "Moderato", correzione: "" }
+    profilo: { sesso: "", eta: "", peso: "", altezza: "", attivita: "Moderato", correzione: "", gPerKg: "" }
   };
 }
 
@@ -63,6 +77,7 @@ const temaChiaroBtn = el("tema-chiaro-btn");
 const temaNotteBtn = el("tema-notte-btn");
 
 const obiettivoInput = el("obiettivo-input");
+const obiettivoProtInput = el("obiettivo-prot-input");
 const fabbisognoToggle = el("fabbisogno-toggle");
 const fabbisognoBox = el("fabbisogno-box");
 const sessoGruppo = el("sesso-gruppo");
@@ -71,6 +86,8 @@ const pesoInput = el("peso-input");
 const altezzaInput = el("altezza-input");
 const attivitaSelect = el("attivita-select");
 const correzioneInput = el("deficit-input");
+const gkgInput = el("gkg-input");
+const gkgNota = el("gkg-nota");
 const fabbisognoEsito = el("fabbisogno-esito");
 
 const foodInput = el("food-input");
@@ -201,6 +218,7 @@ function caricaStato() {
 
   const nuovo = creaStatoVuoto();
   nuovo.obiettivo = Number(salvato.obiettivo) > 0 ? Number(salvato.obiettivo) : null;
+  nuovo.obiettivoProteine = Number(salvato.obiettivoProteine) > 0 ? Number(salvato.obiettivoProteine) : null;
   if (salvato.profilo && typeof salvato.profilo === "object") {
     Object.assign(nuovo.profilo, salvato.profilo);
   }
@@ -601,6 +619,24 @@ function totaliHtml(t) {
     barraObiettivo = `<div class="barra-obiettivo"><span class="${sforato ? "sforato" : ""}" style="width:${percentuale}%"></span></div>`;
   }
 
+  // Obiettivo proteine: qui "oltre" non è un allarme come per le calorie (è
+  // normale superarlo di poco), quindi la barra piena resta del colore delle
+  // proteine e cambia solo il testo.
+  let bloccoProteine = "";
+  if (state.obiettivoProteine > 0) {
+    const meta = state.obiettivoProteine;
+    const percentuale = Math.min(100, Math.round((t.proteine / meta) * 100));
+    const scarto = round1(Math.abs(meta - t.proteine));
+    const raggiunto = t.proteine >= meta;
+    bloccoProteine = `
+      <div class="totali-riga-obiettivo">
+        <span>Proteine <strong>${round1(t.proteine)}</strong> / ${round1(meta)} g</span>
+        <span class="${raggiunto ? "obiettivo-raggiunto" : ""}">${raggiunto ? `obiettivo raggiunto (+${scarto} g)` : `mancano ${scarto} g`}</span>
+      </div>
+      <div class="barra-obiettivo barra-proteine"><span style="width:${percentuale}%"></span></div>
+    `;
+  }
+
   return `
     <div class="totali">
       <div class="totali-testata">
@@ -608,6 +644,7 @@ function totaliHtml(t) {
         ${residuo}
       </div>
       ${barraObiettivo}
+      ${bloccoProteine}
       <div class="macro-barra">
         <i class="m-prot" style="width:${macro.prot}%"></i><i class="m-fat" style="width:${macro.fat}%"></i><i class="m-carb" style="width:${macro.carb}%"></i>
       </div>
@@ -632,10 +669,18 @@ function renderBarraTotale(t) {
       ? `<span class="bt-residuo">restano ${scarto} kcal</span>`
       : `<span class="bt-residuo sforato">+${Math.abs(scarto)} kcal</span>`;
   }
+  let residuoProt = "";
+  if (state.obiettivoProteine > 0) {
+    const scarto = round1(state.obiettivoProteine - t.proteine);
+    residuoProt = scarto > 0
+      ? `<span class="bt-residuo bt-residuo-prot">${scarto} g prot.</span>`
+      : `<span class="bt-residuo bt-residuo-prot obiettivo-raggiunto">prot. ✓</span>`;
+  }
   barraTotale.innerHTML = `
     <span class="bt-kcal">${arrotonda(t.kcal)} kcal</span>
     <span class="bt-macro">${round1(t.proteine)} P · ${round1(t.grassi)} G · ${round1(t.carboidrati)} C</span>
     ${residuo}
+    ${residuoProt}
   `;
   barraTotale.classList.remove("hidden");
 }
@@ -733,9 +778,15 @@ function testoGiornata() {
   const t = totaliGiornata();
   const macro = ripartizioneMacro(t);
   const obiettivo = state.obiettivo > 0 ? ` (obiettivo ${arrotonda(state.obiettivo)} kcal)` : "";
+  // Con l'obiettivo proteine attivo si scrive "93,3/109 g": la percentuale tra
+  // parentesi resta quella della ripartizione energetica, come per gli altri
+  // due macronutrienti.
+  const proteineTxt = state.obiettivoProteine > 0
+    ? `${round1(t.proteine)}/${round1(state.obiettivoProteine)} g`
+    : `${round1(t.proteine)} g`;
   return blocchi.join("\n\n") +
     `\n\nTOTALE GIORNATA: ${arrotonda(t.kcal)} kcal${obiettivo}` +
-    `\nProteine ${round1(t.proteine)} g (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)`;
+    `\nProteine ${proteineTxt} (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)`;
 }
 
 async function copiaTesto(testo, messaggio) {
@@ -796,7 +847,11 @@ function preparaStampa() {
       </div>`;
   }).join("");
 
-  const obiettivo = state.obiettivo > 0 ? ` · Obiettivo: ${arrotonda(state.obiettivo)} kcal` : "";
+  const obiettivi = [
+    state.obiettivo > 0 ? `${arrotonda(state.obiettivo)} kcal` : "",
+    state.obiettivoProteine > 0 ? `${round1(state.obiettivoProteine)} g di proteine` : ""
+  ].filter(Boolean).join(" e ");
+  const obiettivo = obiettivi ? ` · Obiettivo: ${obiettivi}` : "";
   areaStampa.innerHTML = `
     <h1 class="stampa-titolo">Giornata alimentare</h1>
     <p class="stampa-meta">Calcolo rapido del ${new Date().toLocaleDateString("it-IT")}${obiettivo}</p>
@@ -817,6 +872,15 @@ function leggiProfiloDaiCampi() {
   state.profilo.altezza = altezzaInput.value;
   state.profilo.attivita = attivitaSelect.value;
   state.profilo.correzione = correzioneInput.value;
+  state.profilo.gPerKg = gkgInput.value;
+}
+
+// Grammi di proteine per kg usati nel calcolo: quelli digitati, altrimenti il
+// valore suggerito per il livello di attività scelto.
+function gPerKgEffettivo(p) {
+  const digitato = parseFloat(String(p.gPerKg).replace(",", "."));
+  if (digitato > 0) return digitato;
+  return G_PER_KG_SUGGERITO[p.attivita] || 1.4;
 }
 
 function calcolaFabbisogno(p) {
@@ -837,31 +901,62 @@ function calcolaFabbisogno(p) {
   const tdee = Math.round(bmr * fattore);
   const correzione = Math.round(Number(p.correzione) || 0);
   const obiettivo = Math.max(0, tdee + correzione);
-  return { bmr, fattore, tdee, correzione, obiettivo };
+
+  // Proteine: grammi per kg di peso corporeo. Ne riportiamo anche la quota
+  // sull'obiettivo calorico (4 kcal per grammo), utile per capire subito se la
+  // ripartizione richiesta è sostenibile.
+  const gPerKg = gPerKgEffettivo(p);
+  const proteine = Math.round(peso * gPerKg);
+  const quotaProteine = obiettivo > 0 ? Math.round(((proteine * 4) / obiettivo) * 100) : 0;
+
+  return { bmr, fattore, tdee, correzione, obiettivo, peso, gPerKg, proteine, quotaProteine };
+}
+
+// Nota sotto il campo g/kg: chiarisce quale valore si sta usando quando il
+// campo è lasciato vuoto, e ricorda gli intervalli di riferimento.
+function renderNotaGkg() {
+  const suggerito = G_PER_KG_SUGGERITO[state.profilo.attivita] || 1.4;
+  gkgInput.placeholder = String(suggerito).replace(".", ",");
+  const digitato = parseFloat(String(state.profilo.gPerKg).replace(",", "."));
+  const testoBase = "Riferimenti: 0,8–1 g/kg adulto sedentario · 1,2–1,6 attivo · 1,6–2,2 sportivo.";
+  gkgNota.textContent = digitato > 0
+    ? testoBase
+    : `Vuoto: usiamo ${String(suggerito).replace(".", ",")} g/kg, il valore tipico per il livello di attività scelto. ${testoBase}`;
 }
 
 function renderFabbisogno() {
+  renderNotaGkg();
   const r = calcolaFabbisogno(state.profilo);
   if (r.mancanti) {
     fabbisognoEsito.innerHTML = `<span class="passaggio">Per la stima servono ancora: ${r.mancanti.join(", ")}.</span>`;
     return;
   }
   const fattoreTxt = String(r.fattore).replace(".", ",");
+  const gkgTxt = String(round1(r.gPerKg)).replace(".", ",");
   const correzioneTxt = r.correzione
     ? ` ${r.correzione > 0 ? "+" : "−"} ${Math.abs(r.correzione)} kcal di correzione`
     : "";
   fabbisognoEsito.innerHTML = `
     <div class="passaggio">Metabolismo basale ${r.bmr.toLocaleString("it-IT")} kcal × ${fattoreTxt} (attività)${correzioneTxt}</div>
     <div class="risultato">${r.obiettivo.toLocaleString("it-IT")} kcal al giorno</div>
-    <button type="button" id="usa-fabbisogno-btn">Usa come obiettivo</button>
+    <div class="passaggio">Proteine: ${fmtPeso(r.peso)} kg × ${gkgTxt} g/kg</div>
+    <div class="risultato">${r.proteine.toLocaleString("it-IT")} g di proteine al giorno <span class="risultato-quota">(${r.quotaProteine}% delle calorie)</span></div>
+    <button type="button" id="usa-fabbisogno-btn">Usa questi obiettivi</button>
   `;
   el("usa-fabbisogno-btn").addEventListener("click", () => {
     state.obiettivo = r.obiettivo;
+    state.obiettivoProteine = r.proteine;
     obiettivoInput.value = r.obiettivo;
+    obiettivoProtInput.value = r.proteine;
     salvaStato();
     renderGiornata();
-    mostraToast("Obiettivo impostato");
+    mostraToast("Obiettivi impostati");
   });
+}
+
+// Peso all'italiana, senza decimali inutili: 68 kg, non "68,0 kg".
+function fmtPeso(n) {
+  return round1(n).toLocaleString("it-IT");
 }
 
 // ---------- Avvio ----------
@@ -871,6 +966,13 @@ function collegaEventi() {
   obiettivoInput.addEventListener("input", () => {
     const v = parseFloat(obiettivoInput.value);
     state.obiettivo = v > 0 ? v : null;
+    salvaStato();
+    renderGiornata();
+  });
+
+  obiettivoProtInput.addEventListener("input", () => {
+    const v = parseFloat(obiettivoProtInput.value);
+    state.obiettivoProteine = v > 0 ? v : null;
     salvaStato();
     renderGiornata();
   });
@@ -891,7 +993,7 @@ function collegaEventi() {
     });
   });
 
-  [etaInput, pesoInput, altezzaInput, attivitaSelect, correzioneInput].forEach(campo => {
+  [etaInput, pesoInput, altezzaInput, attivitaSelect, correzioneInput, gkgInput].forEach(campo => {
     campo.addEventListener("input", () => {
       leggiProfiloDaiCampi();
       salvaStato();
@@ -1014,8 +1116,10 @@ function ripristinaCampiProfilo() {
   altezzaInput.value = p.altezza || "";
   attivitaSelect.value = p.attivita || "Moderato";
   correzioneInput.value = p.correzione || "";
+  gkgInput.value = p.gPerKg || "";
   Array.from(sessoGruppo.children).forEach(b => b.classList.toggle("attivo", b.dataset.sesso === p.sesso));
   obiettivoInput.value = state.obiettivo || "";
+  obiettivoProtInput.value = state.obiettivoProteine || "";
 }
 
 async function inizializza() {
