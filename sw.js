@@ -26,7 +26,7 @@
 // Quindi: per le modifiche importanti che devono arrivare SUBITO a tutti,
 // incrementa CACHE_VERSION nello stesso commit.
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const SHELL_CACHE = `nutriplan-shell-${CACHE_VERSION}`;
 // v2: nome nuovo per far ELIMINARE (all'activate) la vecchia cache-dati v1 che
 // conteneva TUTTE le tabelle /rest/. Da ora questa cache contiene solo /diete.
@@ -54,6 +54,9 @@ const APP_SHELL_CRITICO = [
 const APP_SHELL_OPZIONALE = [
   "manifest.json",
   "privacy.html",
+  "rapido.html",
+  "rapido.css",
+  "rapido.js",
   "giochi.html",
   "giochi.css",
   "giochi.js",

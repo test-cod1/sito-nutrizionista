@@ -1,0 +1,1033 @@
+// ---------------------------------------------------------------------------
+// Modalità "Calcolo rapido" — versione semplificata e INDIPENDENTE del sito.
+//
+// Obiettivo: fare in fretta i conti mentre la dieta viene scritta altrove
+// (Word, carta, altro gestionale). Qui non ci sono pazienti, login, database:
+// si sceglie un alimento, si dice quanto, e si vede subito il risultato.
+//
+// Nessuna riga di questo file parla con Supabase o con script.js: l'unica cosa
+// condivisa col gestionale è il file di dati degli alimenti (foods.json), che è
+// in sola lettura, e il tema chiaro/scuro. Tutto il resto (giornata in corso,
+// alimenti personalizzati, dati per il fabbisogno) vive nel localStorage di
+// questo browser.
+// ---------------------------------------------------------------------------
+
+const PASTI = ["Colazione", "Spuntino mattina", "Pranzo", "Merenda", "Cena"];
+const TEMA_KEY = "dieta-nutrizionista-tema";
+const CHIAVE_STATO = "rapido-stato-v1";
+const CHIAVE_ALIMENTI = "rapido-alimenti-v1";
+
+// Fattori di attività (PAL) per passare dal metabolismo basale al fabbisogno:
+// stessi valori usati dal gestionale, così le due modalità non si contraddicono.
+const FATTORI_ATTIVITA = {
+  "Sedentario": 1.2,
+  "Leggero": 1.375,
+  "Moderato": 1.55,
+  "Intenso": 1.725,
+  "Molto intenso": 1.9
+};
+
+// ---------- Stato ----------
+
+function creaGiornataVuota() {
+  const g = {};
+  PASTI.forEach(p => { g[p] = []; });
+  return g;
+}
+
+function creaStatoVuoto() {
+  return {
+    obiettivo: null,          // kcal obiettivo del giorno (null = nessuno)
+    giornata: creaGiornataVuota(),
+    profilo: { sesso: "", eta: "", peso: "", altezza: "", attivita: "Moderato", correzione: "" }
+  };
+}
+
+let state = creaStatoVuoto();
+let alimentiCustom = [];        // alimenti creati qui, solo in locale
+let foodMap = new Map();        // chiave (nome originale) -> valori per 100 g
+let foodNames = [];             // chiavi ordinate per nome visualizzato
+let displayToKey = new Map();   // nome visualizzato normalizzato -> chiave
+let alimentoSelezionato = null; // { chiave, nome, per100 }
+let modoCalcolo = "grammi";     // grammi | kcal | proteine
+let calcoloCorrente = null;     // risultato mostrato nell'anteprima
+let indiceSuggerimento = -1;
+let timerToast = null;
+let erroreCaricamentoAlimenti = false;
+
+// ---------- Elementi ----------
+
+const el = (id) => document.getElementById(id);
+
+const temaChiaroBtn = el("tema-chiaro-btn");
+const temaNotteBtn = el("tema-notte-btn");
+
+const obiettivoInput = el("obiettivo-input");
+const fabbisognoToggle = el("fabbisogno-toggle");
+const fabbisognoBox = el("fabbisogno-box");
+const sessoGruppo = el("sesso-gruppo");
+const etaInput = el("eta-input");
+const pesoInput = el("peso-input");
+const altezzaInput = el("altezza-input");
+const attivitaSelect = el("attivita-select");
+const correzioneInput = el("deficit-input");
+const fabbisognoEsito = el("fabbisogno-esito");
+
+const foodInput = el("food-input");
+const suggestions = el("suggestions");
+const foodError = el("food-error");
+const nuovoAlimentoBtn = el("nuovo-alimento-btn");
+const nuovoAlimentoForm = el("nuovo-alimento-form");
+const nuovoNome = el("nuovo-nome");
+const nuovoKcal = el("nuovo-kcal");
+const nuovoProt = el("nuovo-prot");
+const nuovoFat = el("nuovo-fat");
+const nuovoCarb = el("nuovo-carb");
+const nuovoAlimentoError = el("nuovo-alimento-error");
+const salvaAlimentoBtn = el("salva-alimento-btn");
+const annullaAlimentoBtn = el("annulla-alimento-btn");
+
+const alimentoScelto = el("alimento-scelto");
+const alimentoSceltoNome = el("alimento-scelto-nome");
+const alimentoSceltoPer100 = el("alimento-scelto-per100");
+const alimentoEliminaBtn = el("alimento-elimina-btn");
+
+const modoGruppo = el("modo-gruppo");
+const quantitaInput = el("quantita-input");
+const quantitaUnita = el("quantita-unita");
+const modoNota = el("modo-nota");
+
+const preview = el("preview");
+const previewKcal = el("preview-kcal");
+const previewGrammi = el("preview-grammi");
+const previewProt = el("preview-prot");
+const previewFat = el("preview-fat");
+const previewCarb = el("preview-carb");
+
+const notaInput = el("nota-input");
+const pastoSelect = el("pasto-select");
+const aggiungiBtn = el("aggiungi-btn");
+
+const giornataContenuto = el("giornata-contenuto");
+const totaliGiorno = el("totali-giorno");
+const barraTotale = el("barra-totale");
+const copiaBtn = el("copia-btn");
+const stampaBtn = el("stampa-btn");
+const svuotaBtn = el("svuota-btn");
+const areaStampa = el("area-stampa");
+const toast = el("toast");
+
+// ---------- Utilità ----------
+
+function round1(n) { return Math.round(n * 10) / 10; }
+function arrotonda(n) { return Math.round(n); }
+
+function escapeHtml(testo) {
+  return String(testo)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Minuscolo e senza accenti: serve per confrontare quello che si digita con i
+// nomi del database (dove "però" e "pero" devono corrispondere entrambi).
+function normalizzaTesto(s) {
+  return (s == null ? "" : String(s)).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+const NOMI_PROPRI = new Set(["bruxelles", "witloof", "iceberg", "cheddar", "grana", "parmigiano", "gouda", "brie", "emmental", "camembert", "philadelphia", "gorgonzola"]);
+
+function sentenceCase(str) {
+  return str.trim().split(/\s+/).map((p, i) => {
+    const w = p.toLowerCase();
+    if (NOMI_PROPRI.has(w) || i === 0) return w.charAt(0).toUpperCase() + w.slice(1);
+    return w;
+  }).join(" ");
+}
+
+// I nomi del database CREA sono in MAIUSCOLO con la coda invertita
+// ("AGLIO, fresco"): qui diventano leggibili ("Aglio (fresco)").
+function formattaNome(nome) {
+  if (!nome) return nome;
+  const i = nome.indexOf(",");
+  const main = i >= 0 ? nome.slice(0, i) : nome;
+  const qual = i >= 0 ? nome.slice(i + 1).trim() : "";
+  const mainFmt = sentenceCase(main);
+  return qual ? `${mainFmt} (${qual.toLowerCase()})` : mainFmt;
+}
+
+function mostraToast(messaggio) {
+  toast.textContent = messaggio;
+  toast.classList.remove("hidden");
+  clearTimeout(timerToast);
+  timerToast = setTimeout(() => toast.classList.add("hidden"), 2200);
+}
+
+// ---------- Tema ----------
+
+function applicaTema(tema) {
+  document.documentElement.classList.toggle("tema-notte", tema === "notte");
+  temaChiaroBtn.classList.toggle("attivo", tema !== "notte");
+  temaNotteBtn.classList.toggle("attivo", tema === "notte");
+}
+
+function inizializzaTema() {
+  let tema = null;
+  try { tema = localStorage.getItem(TEMA_KEY); } catch (e) { /* storage non disponibile */ }
+  if (tema !== "chiaro" && tema !== "notte") {
+    tema = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "notte" : "chiaro";
+  }
+  applicaTema(tema);
+  const imposta = (t) => {
+    applicaTema(t);
+    try { localStorage.setItem(TEMA_KEY, t); } catch (e) { /* ignora */ }
+  };
+  temaChiaroBtn.addEventListener("click", () => imposta("chiaro"));
+  temaNotteBtn.addEventListener("click", () => imposta("notte"));
+}
+
+// ---------- Persistenza locale ----------
+
+function salvaStato() {
+  try { localStorage.setItem(CHIAVE_STATO, JSON.stringify(state)); } catch (e) { /* quota/privato */ }
+}
+
+function caricaStato() {
+  let salvato = null;
+  try { salvato = JSON.parse(localStorage.getItem(CHIAVE_STATO) || "null"); } catch (e) { salvato = null; }
+  if (!salvato || typeof salvato !== "object") return;
+
+  const nuovo = creaStatoVuoto();
+  nuovo.obiettivo = Number(salvato.obiettivo) > 0 ? Number(salvato.obiettivo) : null;
+  if (salvato.profilo && typeof salvato.profilo === "object") {
+    Object.assign(nuovo.profilo, salvato.profilo);
+  }
+  // Rileggiamo voce per voce: una struttura salvata da una versione diversa
+  // (o manomessa) non deve poter rompere il rendering.
+  PASTI.forEach(pasto => {
+    const voci = salvato.giornata && Array.isArray(salvato.giornata[pasto]) ? salvato.giornata[pasto] : [];
+    nuovo.giornata[pasto] = voci.filter(v => v && v.per100).map(v => ({
+      nome: String(v.nome || "Alimento"),
+      grammi: Math.max(0, Number(v.grammi) || 0),
+      nota: String(v.nota || ""),
+      per100: normalizzaPer100(v.per100)
+    }));
+  });
+  state = nuovo;
+}
+
+function salvaAlimentiCustom() {
+  try { localStorage.setItem(CHIAVE_ALIMENTI, JSON.stringify(alimentiCustom)); } catch (e) { /* ignora */ }
+}
+
+function caricaAlimentiCustom() {
+  try {
+    const dati = JSON.parse(localStorage.getItem(CHIAVE_ALIMENTI) || "[]");
+    alimentiCustom = Array.isArray(dati) ? dati.filter(a => a && a.nome) : [];
+  } catch (e) {
+    alimentiCustom = [];
+  }
+}
+
+// ---------- Database alimenti ----------
+
+// `|| 0` difensivo: un valore mancante darebbe NaN e il NaN si propagherebbe in
+// tutti i totali della giornata.
+function normalizzaPer100(a) {
+  return {
+    kcal: Math.max(0, Number(a.kcal) || 0),
+    proteine: Math.max(0, Number(a.proteine) || 0),
+    grassi: Math.max(0, Number(a.grassi) || 0),
+    carboidrati: Math.max(0, Number(a.carboidrati) || 0)
+  };
+}
+
+function ricostruisciElenco() {
+  foodNames = Array.from(foodMap.keys()).sort((a, b) => formattaNome(a).localeCompare(formattaNome(b), "it"));
+  displayToKey = new Map();
+  foodNames.forEach(k => displayToKey.set(normalizzaTesto(formattaNome(k)), k));
+}
+
+async function caricaAlimenti() {
+  let base = [];
+  try {
+    const risposta = await fetch("foods.json");
+    base = await risposta.json();
+  } catch (e) {
+    erroreCaricamentoAlimenti = true;
+    foodError.textContent = "Non è stato possibile caricare l'elenco degli alimenti. Controlla la connessione e ricarica la pagina.";
+    foodError.classList.remove("hidden");
+  }
+  foodMap = new Map();
+  base.forEach(a => foodMap.set(a.nome, normalizzaPer100(a)));
+  // Gli alimenti personalizzati hanno la precedenza sull'omonimo di base.
+  alimentiCustom.forEach(a => foodMap.set(a.nome, normalizzaPer100(a)));
+  ricostruisciElenco();
+}
+
+function ePersonalizzato(chiave) {
+  return alimentiCustom.some(a => a.nome === chiave);
+}
+
+// ---------- Autocompletamento ----------
+
+function mostraSuggerimenti(chiavi) {
+  indiceSuggerimento = -1;
+  if (!chiavi.length) {
+    nascondiSuggerimenti();
+    return;
+  }
+  suggestions.innerHTML = chiavi.map((k, i) => {
+    const tag = ePersonalizzato(k) ? ' <span class="tag-custom">mio</span>' : "";
+    return `<div class="suggestion-item" data-index="${i}">${escapeHtml(formattaNome(k))}${tag}</div>`;
+  }).join("");
+  suggestions.dataset.items = JSON.stringify(chiavi);
+  suggestions.classList.remove("hidden");
+}
+
+function nascondiSuggerimenti() {
+  suggestions.innerHTML = "";
+  suggestions.dataset.items = "[]";
+  suggestions.classList.add("hidden");
+  indiceSuggerimento = -1;
+}
+
+function aggiornaSuggerimenti() {
+  const q = normalizzaTesto(foodInput.value.trim());
+  if (!q) {
+    nascondiSuggerimenti();
+    return;
+  }
+  const trovati = foodNames.filter(k =>
+    normalizzaTesto(k).includes(q) || normalizzaTesto(formattaNome(k)).includes(q)
+  ).slice(0, 50);
+  mostraSuggerimenti(trovati);
+}
+
+function evidenziaSuggerimento() {
+  const items = suggestions.querySelectorAll(".suggestion-item");
+  items.forEach((item, i) => item.classList.toggle("active", i === indiceSuggerimento));
+  if (indiceSuggerimento >= 0 && items[indiceSuggerimento]) {
+    items[indiceSuggerimento].scrollIntoView({ block: "nearest" });
+  }
+}
+
+function scegliSuggerimento(indice) {
+  const chiavi = JSON.parse(suggestions.dataset.items || "[]");
+  const chiave = chiavi[indice];
+  if (!chiave) return;
+  foodInput.value = formattaNome(chiave);
+  nascondiSuggerimenti();
+  selezionaAlimento(chiave);
+  quantitaInput.focus();
+  quantitaInput.select();
+}
+
+// Dal testo digitato risale alla chiave originale del database.
+function risolviChiave(testo) {
+  const raw = (testo || "").trim();
+  if (!raw) return null;
+  if (foodMap.has(raw)) return raw;
+  return displayToKey.get(normalizzaTesto(raw)) || null;
+}
+
+// ---------- Selezione alimento e calcolo ----------
+
+function selezionaAlimento(chiave) {
+  if (!chiave || !foodMap.has(chiave)) {
+    alimentoSelezionato = null;
+    alimentoScelto.classList.add("hidden");
+  } else {
+    const per100 = foodMap.get(chiave);
+    alimentoSelezionato = { chiave, nome: formattaNome(chiave), per100 };
+    alimentoSceltoNome.textContent = alimentoSelezionato.nome;
+    alimentoSceltoPer100.textContent =
+      `per 100 g: ${round1(per100.kcal)} kcal · ${round1(per100.proteine)} P · ${round1(per100.grassi)} G · ${round1(per100.carboidrati)} C`;
+    alimentoEliminaBtn.classList.toggle("hidden", !ePersonalizzato(chiave));
+    alimentoScelto.classList.remove("hidden");
+  }
+  aggiornaAnteprima();
+}
+
+function testoNotaModo() {
+  if (modoCalcolo === "grammi") return "Scrivi i grammi: calcoliamo calorie e macronutrienti.";
+  if (modoCalcolo === "kcal") return "Scrivi le calorie che vuoi ottenere: calcoliamo i grammi da mettere nella dieta.";
+  return "Scrivi i grammi di proteine da raggiungere: calcoliamo i grammi di alimento.";
+}
+
+function impostaModo(modo) {
+  modoCalcolo = modo;
+  Array.from(modoGruppo.children).forEach(b => b.classList.toggle("attivo", b.dataset.modo === modo));
+  if (modo === "grammi") quantitaUnita.textContent = "g";
+  else if (modo === "kcal") quantitaUnita.textContent = "kcal";
+  else quantitaUnita.textContent = "g prot.";
+  aggiornaAnteprima();
+}
+
+// Traduce il valore digitato in grammi di alimento, secondo la modalità scelta.
+// Restituisce null se il calcolo non è possibile (es. grammi di proteine
+// richiesti da un alimento che non ne contiene).
+function grammiDaValore(per100, valore) {
+  if (modoCalcolo === "grammi") return valore;
+  const per1g = (modoCalcolo === "kcal" ? per100.kcal : per100.proteine) / 100;
+  if (per1g <= 0) return null;
+  return valore / per1g;
+}
+
+// I grammi si arrotondano PRIMA di calcolare i macronutrienti: così l'anteprima
+// e la riga poi inserita nella giornata mostrano esattamente gli stessi numeri.
+function calcolaVoce(per100, grammi) {
+  const arrotondati = Math.round(grammi);
+  const f = arrotondati / 100;
+  return {
+    grammi: arrotondati,
+    kcal: round1(per100.kcal * f),
+    proteine: round1(per100.proteine * f),
+    grassi: round1(per100.grassi * f),
+    carboidrati: round1(per100.carboidrati * f)
+  };
+}
+
+function aggiornaAnteprima() {
+  const testo = foodInput.value.trim();
+  // L'avviso "non trovato" compare solo se si sta scrivendo qualcosa. Se invece
+  // è fallito il caricamento del database resta sempre a video: senza alimenti
+  // la pagina non può funzionare.
+  if (!erroreCaricamentoAlimenti) {
+    foodError.classList.toggle("hidden", !testo || !!alimentoSelezionato);
+  }
+  modoNota.textContent = testoNotaModo();
+
+  const valore = parseFloat(quantitaInput.value);
+  if (!alimentoSelezionato || !valore || valore <= 0) {
+    preview.classList.add("hidden");
+    aggiungiBtn.disabled = true;
+    calcoloCorrente = null;
+    return;
+  }
+
+  const grammi = grammiDaValore(alimentoSelezionato.per100, valore);
+  if (grammi === null || !isFinite(grammi) || grammi <= 0) {
+    preview.classList.add("hidden");
+    aggiungiBtn.disabled = true;
+    calcoloCorrente = null;
+    modoNota.textContent = modoCalcolo === "kcal"
+      ? "Questo alimento non apporta calorie: non si può partire da un valore calorico."
+      : "Questo alimento non contiene proteine: non si può partire dalle proteine.";
+    return;
+  }
+
+  const v = calcolaVoce(alimentoSelezionato.per100, grammi);
+  calcoloCorrente = { nome: alimentoSelezionato.nome, grammi: v.grammi, per100: alimentoSelezionato.per100 };
+
+  previewKcal.textContent = v.kcal;
+  previewGrammi.textContent = modoCalcolo === "grammi" ? "" : `≈ ${v.grammi} g`;
+  previewProt.textContent = v.proteine;
+  previewFat.textContent = v.grassi;
+  previewCarb.textContent = v.carboidrati;
+  preview.classList.remove("hidden");
+  aggiungiBtn.disabled = false;
+}
+
+// ---------- Alimenti personalizzati (solo locali) ----------
+
+function apriFormNuovoAlimento() {
+  nuovoAlimentoForm.classList.remove("hidden");
+  nuovoNome.value = foodInput.value.trim();
+  nascondiSuggerimenti();
+  nuovoNome.focus();
+}
+
+function chiudiFormNuovoAlimento() {
+  nuovoAlimentoForm.classList.add("hidden");
+  nuovoAlimentoError.classList.add("hidden");
+  [nuovoNome, nuovoKcal, nuovoProt, nuovoFat, nuovoCarb].forEach(i => { i.value = ""; });
+}
+
+function salvaNuovoAlimento() {
+  const nome = nuovoNome.value.trim();
+  const valori = [nuovoKcal, nuovoProt, nuovoFat, nuovoCarb].map(i => parseFloat(i.value));
+  if (!nome || valori.some(v => isNaN(v) || v < 0)) {
+    nuovoAlimentoError.classList.remove("hidden");
+    return;
+  }
+  const alimento = {
+    nome,
+    kcal: round1(valori[0]),
+    proteine: round1(valori[1]),
+    grassi: round1(valori[2]),
+    carboidrati: round1(valori[3])
+  };
+  alimentiCustom = alimentiCustom.filter(a => a.nome !== nome);
+  alimentiCustom.push(alimento);
+  salvaAlimentiCustom();
+
+  foodMap.set(nome, normalizzaPer100(alimento));
+  ricostruisciElenco();
+  chiudiFormNuovoAlimento();
+
+  foodInput.value = formattaNome(nome);
+  selezionaAlimento(nome);
+  mostraToast("Alimento salvato su questo dispositivo");
+  quantitaInput.focus();
+}
+
+function eliminaAlimentoPersonalizzato() {
+  if (!alimentoSelezionato || !ePersonalizzato(alimentoSelezionato.chiave)) return;
+  const chiave = alimentoSelezionato.chiave;
+  if (!confirm(`Eliminare l'alimento personalizzato "${formattaNome(chiave)}"? Le voci già inserite nella giornata restano invariate.`)) return;
+
+  alimentiCustom = alimentiCustom.filter(a => a.nome !== chiave);
+  salvaAlimentiCustom();
+  foodMap.delete(chiave);
+  ricostruisciElenco();
+
+  foodInput.value = "";
+  selezionaAlimento(null);
+  mostraToast("Alimento eliminato");
+}
+
+// ---------- Giornata ----------
+
+function totaliVoci(voci) {
+  return voci.reduce((acc, voce) => {
+    const v = calcolaVoce(voce.per100, voce.grammi);
+    acc.kcal += v.kcal;
+    acc.proteine += v.proteine;
+    acc.grassi += v.grassi;
+    acc.carboidrati += v.carboidrati;
+    return acc;
+  }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
+}
+
+function totaliGiornata() {
+  return totaliVoci(PASTI.flatMap(p => state.giornata[p]));
+}
+
+function giornataVuota() {
+  return PASTI.every(p => state.giornata[p].length === 0);
+}
+
+function aggiungiAlPasto() {
+  if (!calcoloCorrente) return;
+  const pasto = pastoSelect.value;
+  state.giornata[pasto].push({
+    nome: calcoloCorrente.nome,
+    grammi: calcoloCorrente.grammi,
+    nota: notaInput.value.trim(),
+    per100: calcoloCorrente.per100
+  });
+  salvaStato();
+  renderGiornata();
+
+  // Campo alimento pronto per la voce successiva; il pasto resta quello scelto.
+  foodInput.value = "";
+  quantitaInput.value = "";
+  notaInput.value = "";
+  nascondiSuggerimenti();
+  selezionaAlimento(null);
+  mostraToast(`Aggiunto a ${pasto}`);
+  foodInput.focus();
+}
+
+// Percentuali di energia dai tre macronutrienti (4/9/4 kcal per grammo).
+function ripartizioneMacro(t) {
+  const kcalProt = t.proteine * 4;
+  const kcalFat = t.grassi * 9;
+  const kcalCarb = t.carboidrati * 4;
+  const somma = kcalProt + kcalFat + kcalCarb;
+  if (somma <= 0) return { prot: 0, fat: 0, carb: 0 };
+  return {
+    prot: Math.round((kcalProt / somma) * 100),
+    fat: Math.round((kcalFat / somma) * 100),
+    carb: Math.round((kcalCarb / somma) * 100)
+  };
+}
+
+function rigaAlimentoHtml(voce, pasto, indice) {
+  const v = calcolaVoce(voce.per100, voce.grammi);
+  const nota = voce.nota ? ` · ${escapeHtml(voce.nota)}` : "";
+  return `
+    <div class="riga-alimento" data-pasto="${escapeHtml(pasto)}" data-indice="${indice}">
+      <div class="riga-testo">
+        <div class="riga-nome">${escapeHtml(voce.nome)}</div>
+        <div class="riga-dettaglio">${v.proteine} P · ${v.grassi} G · ${v.carboidrati} C${nota}</div>
+      </div>
+      <input type="number" class="riga-grammi" value="${v.grammi}" min="0" step="1" inputmode="numeric"
+             data-pasto="${escapeHtml(pasto)}" data-indice="${indice}" aria-label="Grammi di ${escapeHtml(voce.nome)}">
+      <span class="riga-unita">g</span>
+      <span class="riga-kcal">${v.kcal} kcal</span>
+      <button type="button" class="riga-elimina" data-pasto="${escapeHtml(pasto)}" data-indice="${indice}"
+              title="Togli dalla giornata" aria-label="Togli ${escapeHtml(voce.nome)} dalla giornata">✕</button>
+    </div>
+  `;
+}
+
+function pastoHtml(pasto, kcalGiorno) {
+  const voci = state.giornata[pasto];
+  const t = totaliVoci(voci);
+  const quota = kcalGiorno > 0 ? Math.round((t.kcal / kcalGiorno) * 100) : 0;
+  return `
+    <div class="pasto" data-pasto="${escapeHtml(pasto)}">
+      <div class="pasto-testata">
+        <span class="pasto-nome">${pasto}</span>
+        <span class="pasto-kcal">${arrotonda(t.kcal)} kcal <span class="pasto-quota">(${quota}%)</span></span>
+        <div class="pasto-azioni no-print">
+          <button type="button" data-copia-pasto="${escapeHtml(pasto)}" title="Copia questo pasto" aria-label="Copia ${pasto}">📋</button>
+          <button type="button" data-svuota-pasto="${escapeHtml(pasto)}" title="Svuota questo pasto" aria-label="Svuota ${pasto}">🗑</button>
+        </div>
+      </div>
+      <div class="pasto-macro">${round1(t.proteine)} g proteine · ${round1(t.grassi)} g grassi · ${round1(t.carboidrati)} g carboidrati</div>
+      ${voci.map((voce, i) => rigaAlimentoHtml(voce, pasto, i)).join("")}
+    </div>
+  `;
+}
+
+function totaliHtml(t) {
+  const macro = ripartizioneMacro(t);
+  const obiettivo = state.obiettivo;
+  let barraObiettivo = "";
+  let residuo = "";
+
+  if (obiettivo > 0) {
+    const percentuale = Math.min(100, Math.round((t.kcal / obiettivo) * 100));
+    const sforato = t.kcal > obiettivo;
+    const scarto = Math.abs(arrotonda(obiettivo - t.kcal));
+    residuo = sforato
+      ? `<span class="totali-residuo sforato">${scarto} kcal oltre l'obiettivo (${arrotonda(obiettivo)})</span>`
+      : `<span class="totali-residuo">restano ${scarto} kcal su ${arrotonda(obiettivo)}</span>`;
+    barraObiettivo = `<div class="barra-obiettivo"><span class="${sforato ? "sforato" : ""}" style="width:${percentuale}%"></span></div>`;
+  }
+
+  return `
+    <div class="totali">
+      <div class="totali-testata">
+        <span class="totali-kcal">${arrotonda(t.kcal)} kcal</span>
+        ${residuo}
+      </div>
+      ${barraObiettivo}
+      <div class="macro-barra">
+        <i class="m-prot" style="width:${macro.prot}%"></i><i class="m-fat" style="width:${macro.fat}%"></i><i class="m-carb" style="width:${macro.carb}%"></i>
+      </div>
+      <div class="macro-legenda">
+        <span><i class="punto p-prot"></i>Proteine <b>${round1(t.proteine)} g</b> (${macro.prot}%)</span>
+        <span><i class="punto p-fat"></i>Grassi <b>${round1(t.grassi)} g</b> (${macro.fat}%)</span>
+        <span><i class="punto p-carb"></i>Carboidrati <b>${round1(t.carboidrati)} g</b> (${macro.carb}%)</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderBarraTotale(t) {
+  if (giornataVuota()) {
+    barraTotale.classList.add("hidden");
+    return;
+  }
+  let residuo = "";
+  if (state.obiettivo > 0) {
+    const scarto = arrotonda(state.obiettivo - t.kcal);
+    residuo = scarto >= 0
+      ? `<span class="bt-residuo">restano ${scarto} kcal</span>`
+      : `<span class="bt-residuo sforato">+${Math.abs(scarto)} kcal</span>`;
+  }
+  barraTotale.innerHTML = `
+    <span class="bt-kcal">${arrotonda(t.kcal)} kcal</span>
+    <span class="bt-macro">${round1(t.proteine)} P · ${round1(t.grassi)} G · ${round1(t.carboidrati)} C</span>
+    ${residuo}
+  `;
+  barraTotale.classList.remove("hidden");
+}
+
+function renderGiornata() {
+  const t = totaliGiornata();
+
+  if (giornataVuota()) {
+    giornataContenuto.innerHTML = '<p class="vuoto">Nessun alimento inserito: comincia dal riquadro qui sopra.</p>';
+    totaliGiorno.innerHTML = "";
+  } else {
+    giornataContenuto.innerHTML = PASTI
+      .filter(p => state.giornata[p].length > 0)
+      .map(p => pastoHtml(p, t.kcal))
+      .join("");
+    totaliGiorno.innerHTML = totaliHtml(t);
+  }
+  renderBarraTotale(t);
+}
+
+// Ricalcola i numeri già a video SENZA ricostruire l'elenco: mentre si corregge
+// il peso di una riga il campo deve restare dov'è, con il cursore dentro (un
+// render completo lo distruggerebbe a ogni cifra digitata).
+function aggiornaCalcoliUI() {
+  const t = totaliGiornata();
+
+  giornataContenuto.querySelectorAll(".pasto").forEach(blocco => {
+    const pasto = blocco.dataset.pasto;
+    const voci = state.giornata[pasto] || [];
+    const tp = totaliVoci(voci);
+    const quota = t.kcal > 0 ? Math.round((tp.kcal / t.kcal) * 100) : 0;
+    blocco.querySelector(".pasto-kcal").innerHTML =
+      `${arrotonda(tp.kcal)} kcal <span class="pasto-quota">(${quota}%)</span>`;
+    blocco.querySelector(".pasto-macro").textContent =
+      `${round1(tp.proteine)} g proteine · ${round1(tp.grassi)} g grassi · ${round1(tp.carboidrati)} g carboidrati`;
+  });
+
+  giornataContenuto.querySelectorAll(".riga-alimento").forEach(riga => {
+    const voce = vocePer(riga.dataset.pasto, Number(riga.dataset.indice));
+    if (!voce) return;
+    const v = calcolaVoce(voce.per100, voce.grammi);
+    const nota = voce.nota ? ` · ${voce.nota}` : "";
+    riga.querySelector(".riga-dettaglio").textContent =
+      `${v.proteine} P · ${v.grassi} G · ${v.carboidrati} C${nota}`;
+    riga.querySelector(".riga-kcal").textContent = `${v.kcal} kcal`;
+  });
+
+  totaliGiorno.innerHTML = totaliHtml(t);
+  renderBarraTotale(t);
+}
+
+function vocePer(pasto, indice) {
+  return (state.giornata[pasto] && state.giornata[pasto][indice]) || null;
+}
+
+function rimuoviVoce(pasto, indice) {
+  if (!state.giornata[pasto]) return;
+  state.giornata[pasto].splice(indice, 1);
+  salvaStato();
+  renderGiornata();
+}
+
+function svuotaPasto(pasto) {
+  if (!state.giornata[pasto] || !state.giornata[pasto].length) return;
+  if (!confirm(`Svuotare "${pasto}"?`)) return;
+  state.giornata[pasto] = [];
+  salvaStato();
+  renderGiornata();
+}
+
+function svuotaGiornata() {
+  if (giornataVuota()) return;
+  if (!confirm("Svuotare tutta la giornata? L'operazione non è annullabile.")) return;
+  state.giornata = creaGiornataVuota();
+  salvaStato();
+  renderGiornata();
+}
+
+// ---------- Copia negli appunti ----------
+
+function testoPasto(pasto) {
+  const voci = state.giornata[pasto];
+  if (!voci.length) return "";
+  const t = totaliVoci(voci);
+  const righe = voci.map(voce => {
+    const nota = voce.nota ? ` (${voce.nota})` : "";
+    return `- ${voce.nome}: ${voce.grammi} g${nota}`;
+  });
+  return `${pasto.toUpperCase()} — ${arrotonda(t.kcal)} kcal\n${righe.join("\n")}`;
+}
+
+function testoGiornata() {
+  const blocchi = PASTI.map(testoPasto).filter(Boolean);
+  if (!blocchi.length) return "";
+  const t = totaliGiornata();
+  const macro = ripartizioneMacro(t);
+  const obiettivo = state.obiettivo > 0 ? ` (obiettivo ${arrotonda(state.obiettivo)} kcal)` : "";
+  return blocchi.join("\n\n") +
+    `\n\nTOTALE GIORNATA: ${arrotonda(t.kcal)} kcal${obiettivo}` +
+    `\nProteine ${round1(t.proteine)} g (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)`;
+}
+
+async function copiaTesto(testo, messaggio) {
+  if (!testo) {
+    mostraToast("Non c'è ancora nulla da copiare");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(testo);
+    mostraToast(messaggio);
+  } catch (e) {
+    // Fallback per browser/contesti in cui l'API Clipboard non è disponibile.
+    const area = document.createElement("textarea");
+    area.value = testo;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    let riuscito = false;
+    try { riuscito = document.execCommand("copy"); } catch (err) { riuscito = false; }
+    area.remove();
+    mostraToast(riuscito ? messaggio : "Copia non riuscita: seleziona il testo a mano");
+  }
+}
+
+// ---------- Stampa ----------
+
+function preparaStampa() {
+  if (giornataVuota()) {
+    mostraToast("La giornata è vuota");
+    return false;
+  }
+  const t = totaliGiornata();
+  const macro = ripartizioneMacro(t);
+
+  const pasti = PASTI.filter(p => state.giornata[p].length > 0).map(pasto => {
+    const voci = state.giornata[pasto];
+    const tp = totaliVoci(voci);
+    const righe = voci.map(voce => {
+      const v = calcolaVoce(voce.per100, voce.grammi);
+      return `<tr>
+        <td>${escapeHtml(voce.nome)}${voce.nota ? ` <em>(${escapeHtml(voce.nota)})</em>` : ""}</td>
+        <td class="num">${v.grammi} g</td>
+        <td class="num">${v.kcal}</td>
+        <td class="num">${v.proteine}</td>
+        <td class="num">${v.grassi}</td>
+        <td class="num">${v.carboidrati}</td>
+      </tr>`;
+    }).join("");
+    return `
+      <div class="stampa-pasto">
+        <h3><span>${pasto}</span><span>${arrotonda(tp.kcal)} kcal</span></h3>
+        <table class="stampa-tabella">
+          <thead><tr><th>Alimento</th><th class="num">Quantità</th><th class="num">kcal</th><th class="num">Prot.</th><th class="num">Grassi</th><th class="num">Carb.</th></tr></thead>
+          <tbody>${righe}</tbody>
+        </table>
+      </div>`;
+  }).join("");
+
+  const obiettivo = state.obiettivo > 0 ? ` · Obiettivo: ${arrotonda(state.obiettivo)} kcal` : "";
+  areaStampa.innerHTML = `
+    <h1 class="stampa-titolo">Giornata alimentare</h1>
+    <p class="stampa-meta">Calcolo rapido del ${new Date().toLocaleDateString("it-IT")}${obiettivo}</p>
+    ${pasti}
+    <div class="stampa-totali">
+      Totale giornata: ${arrotonda(t.kcal)} kcal
+      <div class="dettaglio">Proteine ${round1(t.proteine)} g (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)</div>
+    </div>
+  `;
+  return true;
+}
+
+// ---------- Fabbisogno calorico ----------
+
+function leggiProfiloDaiCampi() {
+  state.profilo.eta = etaInput.value;
+  state.profilo.peso = pesoInput.value;
+  state.profilo.altezza = altezzaInput.value;
+  state.profilo.attivita = attivitaSelect.value;
+  state.profilo.correzione = correzioneInput.value;
+}
+
+function calcolaFabbisogno(p) {
+  const eta = Number(p.eta);
+  const peso = Number(p.peso);
+  const altezza = Number(p.altezza);
+  const mancanti = [];
+  if (!p.sesso) mancanti.push("sesso");
+  if (!eta) mancanti.push("età");
+  if (!peso) mancanti.push("peso");
+  if (!altezza) mancanti.push("altezza");
+  if (mancanti.length) return { mancanti };
+
+  // Mifflin-St Jeor: BMR = 10·peso + 6,25·altezza − 5·età + c
+  const costante = p.sesso === "M" ? 5 : -161;
+  const bmr = Math.round(10 * peso + 6.25 * altezza - 5 * eta + costante);
+  const fattore = FATTORI_ATTIVITA[p.attivita] || 1.55;
+  const tdee = Math.round(bmr * fattore);
+  const correzione = Math.round(Number(p.correzione) || 0);
+  const obiettivo = Math.max(0, tdee + correzione);
+  return { bmr, fattore, tdee, correzione, obiettivo };
+}
+
+function renderFabbisogno() {
+  const r = calcolaFabbisogno(state.profilo);
+  if (r.mancanti) {
+    fabbisognoEsito.innerHTML = `<span class="passaggio">Per la stima servono ancora: ${r.mancanti.join(", ")}.</span>`;
+    return;
+  }
+  const fattoreTxt = String(r.fattore).replace(".", ",");
+  const correzioneTxt = r.correzione
+    ? ` ${r.correzione > 0 ? "+" : "−"} ${Math.abs(r.correzione)} kcal di correzione`
+    : "";
+  fabbisognoEsito.innerHTML = `
+    <div class="passaggio">Metabolismo basale ${r.bmr.toLocaleString("it-IT")} kcal × ${fattoreTxt} (attività)${correzioneTxt}</div>
+    <div class="risultato">${r.obiettivo.toLocaleString("it-IT")} kcal al giorno</div>
+    <button type="button" id="usa-fabbisogno-btn">Usa come obiettivo</button>
+  `;
+  el("usa-fabbisogno-btn").addEventListener("click", () => {
+    state.obiettivo = r.obiettivo;
+    obiettivoInput.value = r.obiettivo;
+    salvaStato();
+    renderGiornata();
+    mostraToast("Obiettivo impostato");
+  });
+}
+
+// ---------- Avvio ----------
+
+function collegaEventi() {
+  // Obiettivo
+  obiettivoInput.addEventListener("input", () => {
+    const v = parseFloat(obiettivoInput.value);
+    state.obiettivo = v > 0 ? v : null;
+    salvaStato();
+    renderGiornata();
+  });
+
+  fabbisognoToggle.addEventListener("click", () => {
+    const aperto = !fabbisognoBox.classList.contains("hidden");
+    fabbisognoBox.classList.toggle("hidden", aperto);
+    fabbisognoToggle.textContent = aperto ? "🧮 Calcolalo" : "Chiudi";
+    if (!aperto) renderFabbisogno();
+  });
+
+  Array.from(sessoGruppo.children).forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.profilo.sesso = btn.dataset.sesso;
+      Array.from(sessoGruppo.children).forEach(b => b.classList.toggle("attivo", b === btn));
+      salvaStato();
+      renderFabbisogno();
+    });
+  });
+
+  [etaInput, pesoInput, altezzaInput, attivitaSelect, correzioneInput].forEach(campo => {
+    campo.addEventListener("input", () => {
+      leggiProfiloDaiCampi();
+      salvaStato();
+      renderFabbisogno();
+    });
+  });
+
+  // Ricerca alimento
+  foodInput.addEventListener("input", () => {
+    aggiornaSuggerimenti();
+    selezionaAlimento(risolviChiave(foodInput.value));
+  });
+
+  foodInput.addEventListener("keydown", (e) => {
+    const items = suggestions.querySelectorAll(".suggestion-item");
+    if (e.key === "ArrowDown" && items.length) {
+      e.preventDefault();
+      indiceSuggerimento = Math.min(indiceSuggerimento + 1, items.length - 1);
+      evidenziaSuggerimento();
+    } else if (e.key === "ArrowUp" && items.length) {
+      e.preventDefault();
+      indiceSuggerimento = Math.max(indiceSuggerimento - 1, 0);
+      evidenziaSuggerimento();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (indiceSuggerimento >= 0) scegliSuggerimento(indiceSuggerimento);
+      else if (items.length === 1) scegliSuggerimento(0);
+      else if (alimentoSelezionato) {
+        nascondiSuggerimenti();
+        quantitaInput.focus();
+      }
+    } else if (e.key === "Escape") {
+      nascondiSuggerimenti();
+    }
+  });
+
+  suggestions.addEventListener("click", (e) => {
+    const item = e.target.closest(".suggestion-item");
+    if (item) scegliSuggerimento(Number(item.dataset.index));
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".autocomplete-wrapper")) nascondiSuggerimenti();
+  });
+
+  // Alimenti personalizzati
+  nuovoAlimentoBtn.addEventListener("click", apriFormNuovoAlimento);
+  salvaAlimentoBtn.addEventListener("click", salvaNuovoAlimento);
+  annullaAlimentoBtn.addEventListener("click", chiudiFormNuovoAlimento);
+  alimentoEliminaBtn.addEventListener("click", eliminaAlimentoPersonalizzato);
+
+  // Quantità e modalità di calcolo
+  Array.from(modoGruppo.children).forEach(btn => {
+    btn.addEventListener("click", () => impostaModo(btn.dataset.modo));
+  });
+  quantitaInput.addEventListener("input", aggiornaAnteprima);
+  quantitaInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !aggiungiBtn.disabled) aggiungiAlPasto();
+  });
+  aggiungiBtn.addEventListener("click", aggiungiAlPasto);
+
+  // Giornata (delega: le righe vengono ricreate a ogni render)
+
+  // Mentre si digita: aggiorniamo solo i numeri. Il campo vuoto viene ignorato,
+  // altrimenti cancellare "150" per riscrivere "200" farebbe sparire la riga.
+  giornataContenuto.addEventListener("input", (e) => {
+    const campo = e.target.closest(".riga-grammi");
+    if (!campo) return;
+    const voce = vocePer(campo.dataset.pasto, Number(campo.dataset.indice));
+    const valore = Math.max(0, Math.round(Number(campo.value) || 0));
+    if (!voce || !valore) return;
+    voce.grammi = valore;
+    salvaStato();
+    aggiornaCalcoliUI();
+  });
+
+  // A conferma (uscita dal campo o Invio): 0 o campo vuoto tolgono la voce.
+  giornataContenuto.addEventListener("change", (e) => {
+    const campo = e.target.closest(".riga-grammi");
+    if (!campo) return;
+    const pasto = campo.dataset.pasto;
+    const indice = Number(campo.dataset.indice);
+    const voce = vocePer(pasto, indice);
+    if (!voce) return;
+    const valore = Math.max(0, Math.round(Number(campo.value) || 0));
+    if (!valore) {
+      rimuoviVoce(pasto, indice);
+      return;
+    }
+    voce.grammi = valore;
+    salvaStato();
+    renderGiornata();
+  });
+
+  giornataContenuto.addEventListener("click", (e) => {
+    const elimina = e.target.closest(".riga-elimina");
+    if (elimina) {
+      rimuoviVoce(elimina.dataset.pasto, Number(elimina.dataset.indice));
+      return;
+    }
+    const copia = e.target.closest("[data-copia-pasto]");
+    if (copia) {
+      copiaTesto(testoPasto(copia.dataset.copiaPasto), "Pasto copiato");
+      return;
+    }
+    const svuota = e.target.closest("[data-svuota-pasto]");
+    if (svuota) svuotaPasto(svuota.dataset.svuotaPasto);
+  });
+
+  // Azioni sulla giornata
+  copiaBtn.addEventListener("click", () => copiaTesto(testoGiornata(), "Giornata copiata negli appunti"));
+  stampaBtn.addEventListener("click", () => { if (preparaStampa()) window.print(); });
+  svuotaBtn.addEventListener("click", svuotaGiornata);
+}
+
+function ripristinaCampiProfilo() {
+  const p = state.profilo;
+  etaInput.value = p.eta || "";
+  pesoInput.value = p.peso || "";
+  altezzaInput.value = p.altezza || "";
+  attivitaSelect.value = p.attivita || "Moderato";
+  correzioneInput.value = p.correzione || "";
+  Array.from(sessoGruppo.children).forEach(b => b.classList.toggle("attivo", b.dataset.sesso === p.sesso));
+  obiettivoInput.value = state.obiettivo || "";
+}
+
+async function inizializza() {
+  inizializzaTema();
+  caricaAlimentiCustom();
+  caricaStato();
+  ripristinaCampiProfilo();
+  impostaModo("grammi");
+  collegaEventi();
+  renderGiornata();
+  renderFabbisogno();
+  await caricaAlimenti();
+}
+
+inizializza();

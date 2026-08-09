@@ -602,6 +602,56 @@ button.danger-scuro:hover {
   font-weight: 600;
 }
 
+/* Accesso alla modalità "Calcolo rapido" (pagina rapido.html): strumento
+   autonomo, senza login e senza dati dei pazienti. */
+.login-alternativa {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 14px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.login-alternativa::before,
+.login-alternativa::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.login-rapido-btn {
+  display: block;
+  text-align: center;
+  padding: 12px 16px;
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.login-rapido-btn:hover {
+  background: var(--accent-tint-strong);
+}
+
+.login-rapido-nota {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.sezioni-link-esterno {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  border-radius: 0;
+  color: var(--accent);
+}
+
 .conferma-riga {
   margin-top: 18px;
   padding-top: 18px;
