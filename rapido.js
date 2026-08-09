@@ -61,6 +61,7 @@ let state = creaStatoVuoto();
 let alimentiCustom = [];        // alimenti creati qui, solo in locale
 let foodMap = new Map();        // chiave (nome originale) -> valori per 100 g
 let foodNames = [];             // chiavi ordinate per nome visualizzato
+let indiceRicerca = [];         // stesse voci, con i testi già normalizzati
 let displayToKey = new Map();   // nome visualizzato normalizzato -> chiave
 let alimentoSelezionato = null; // { chiave, nome, per100 }
 let modoCalcolo = "grammi";     // grammi | kcal | proteine
@@ -170,7 +171,9 @@ function formattaNome(nome) {
   if (!nome) return nome;
   const i = nome.indexOf(",");
   const main = i >= 0 ? nome.slice(0, i) : nome;
-  const qual = i >= 0 ? nome.slice(i + 1).trim() : "";
+  // La virgola iniziale va tolta: nel database CREA qualche voce ne ha due di
+  // fila ("POLLO,, INTERO") e senza questo si leggerebbe "Pollo (, intero)".
+  const qual = i >= 0 ? nome.slice(i + 1).replace(/^[\s,]+/, "").trim() : "";
   const mainFmt = sentenceCase(main);
   return qual ? `${mainFmt} (${qual.toLowerCase()})` : mainFmt;
 }
@@ -271,6 +274,14 @@ function ricostruisciElenco() {
   foodNames = Array.from(foodMap.keys()).sort((a, b) => formattaNome(a).localeCompare(formattaNome(b), "it"));
   displayToKey = new Map();
   foodNames.forEach(k => displayToKey.set(normalizzaTesto(formattaNome(k)), k));
+  // Indice pre-normalizzato: la ricerca scorre 900+ voci a ogni tasto premuto,
+  // rifare ogni volta formattaNome + normalizzaTesto renderebbe la digitazione
+  // a scatti. L'ordine è quello alfabetico di foodNames e viene conservato.
+  indiceRicerca = foodNames.map(k => ({
+    chiave: k,
+    testoChiave: normalizzaTesto(k),
+    testoMostrato: normalizzaTesto(formattaNome(k))
+  }));
 }
 
 async function caricaAlimenti() {
@@ -317,16 +328,42 @@ function nascondiSuggerimenti() {
   indiceSuggerimento = -1;
 }
 
+// Vero se `q` compare in `testo` all'inizio di una parola: serve a far salire
+// "Petto di pollo" o "Pollo (ala)" quando si cerca "pollo", tenendo sotto le
+// voci in cui il testo cercato capita in mezzo a una parola ("Cipolle").
+function iniziaParola(testo, q) {
+  let i = testo.indexOf(q);
+  while (i !== -1) {
+    if (i === 0 || /[\s,.;:/(\['"«-]/.test(testo.charAt(i - 1))) return true;
+    i = testo.indexOf(q, i + 1);
+  }
+  return false;
+}
+
+// Quanto è "buona" la corrispondenza: 0 il nome comincia col testo cercato,
+// 1 comincia con esso una delle parole successive, 2 lo contiene e basta.
+// null = nessuna corrispondenza.
+function rangoCorrispondenza(voce, q) {
+  if (voce.testoMostrato.startsWith(q) || voce.testoChiave.startsWith(q)) return 0;
+  if (iniziaParola(voce.testoMostrato, q) || iniziaParola(voce.testoChiave, q)) return 1;
+  if (voce.testoMostrato.includes(q) || voce.testoChiave.includes(q)) return 2;
+  return null;
+}
+
 function aggiornaSuggerimenti() {
   const q = normalizzaTesto(foodInput.value.trim());
   if (!q) {
     nascondiSuggerimenti();
     return;
   }
-  const trovati = foodNames.filter(k =>
-    normalizzaTesto(k).includes(q) || normalizzaTesto(formattaNome(k)).includes(q)
-  ).slice(0, 50);
-  mostraSuggerimenti(trovati);
+  const trovati = [];
+  indiceRicerca.forEach(voce => {
+    const rango = rangoCorrispondenza(voce, q);
+    if (rango !== null) trovati.push({ rango, chiave: voce.chiave });
+  });
+  // sort() è stabile: a parità di rango resta l'ordine alfabetico di partenza.
+  trovati.sort((a, b) => a.rango - b.rango);
+  mostraSuggerimenti(trovati.slice(0, 50).map(t => t.chiave));
 }
 
 function evidenziaSuggerimento() {
