@@ -185,9 +185,14 @@ function mostraToast(messaggio) {
 // ---------- Tema ----------
 
 function applicaTema(tema) {
-  document.documentElement.classList.toggle("tema-notte", tema === "notte");
-  temaChiaroBtn.classList.toggle("attivo", tema !== "notte");
-  temaNotteBtn.classList.toggle("attivo", tema === "notte");
+  const notte = tema === "notte";
+  document.documentElement.classList.toggle("tema-notte", notte);
+  temaChiaroBtn.classList.toggle("attivo", !notte);
+  temaNotteBtn.classList.toggle("attivo", notte);
+  // aria-pressed: a chi usa uno screen reader dice quale delle due modalità è
+  // attiva, informazione che altrimenti passa solo dal colore del bottone.
+  temaChiaroBtn.setAttribute("aria-pressed", String(!notte));
+  temaNotteBtn.setAttribute("aria-pressed", String(notte));
 }
 
 function inizializzaTema() {

@@ -113,24 +113,70 @@ body {
 }
 .hero-torna:hover { background: rgba(255, 255, 255, 0.28); }
 
+/* Selettore del tema: una sola pillola con due scomparti, invece di due
+   bottoni separati quasi identici. Quello attivo è bianco pieno, così si
+   capisce a colpo d'occhio quale modalità è in uso. */
 .tema-toggle {
   position: absolute;
   top: calc(12px + env(safe-area-inset-top, 0px));
   right: 14px;
   display: flex;
-  gap: 4px;
-}
-.tema-btn {
-  background: rgba(255, 255, 255, 0.16);
-  border: none;
-  color: #fff;
-  width: 34px;
-  height: 34px;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
-  font-size: 1rem;
-  cursor: pointer;
 }
-.tema-btn.attivo { background: rgba(255, 255, 255, 0.42); }
+
+.tema-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.tema-btn svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
+.tema-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+/* Verde fisso e non var(--accent): il bottone attivo è bianco e sta sempre
+   sull'intestazione verde, in tema notte l'accento chiaro ci si leggerebbe male. */
+.tema-btn.attivo {
+  background: #fff;
+  color: #2f6d4f;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.tema-btn.attivo:hover { background: #fff; color: #2f6d4f; }
+
+.tema-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Su iPad/telefono i due scomparti diventano bersagli da 44px (Apple HIG).
+   La pillola cresce in altezza, quindi il titolo va spostato più in basso per
+   non sfiorarla sugli schermi stretti. */
+@media (pointer: coarse) {
+  .tema-btn { width: 44px; height: 38px; }
+  .tema-btn svg { width: 19px; height: 19px; }
+  .hero { padding-top: calc(70px + env(safe-area-inset-top, 0px)); }
+}
 
 @media (max-width: 480px) {
   .hero h1 { font-size: 1.5rem; }
