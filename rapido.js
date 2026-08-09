@@ -132,6 +132,7 @@ const totaliGiorno = el("totali-giorno");
 const barraTotale = el("barra-totale");
 const copiaBtn = el("copia-btn");
 const stampaBtn = el("stampa-btn");
+const annullaBtn = el("annulla-btn");
 const svuotaBtn = el("svuota-btn");
 const areaStampa = el("area-stampa");
 const toast = el("toast");
@@ -571,6 +572,47 @@ function eliminaAlimentoPersonalizzato() {
   }
 }
 
+// ---------- Annulla ----------
+// Ogni modifica alla giornata mette da parte una copia di com'era PRIMA, con
+// una descrizione in italiano da mostrare all'utente. Si annulla a ritroso.
+// La pila vive solo in memoria: chiudendo o ricaricando la pagina si perde,
+// mentre la giornata (già salvata) resta.
+
+const MAX_ANNULLA = 20;
+let pilaAnnulla = [];
+// Modifica di un peso in corso: la copia viene presa quando il campo riceve il
+// fuoco e finisce nella pila solo se il valore cambia davvero, altrimenti ogni
+// cifra digitata sarebbe un passo di annullamento a sé.
+let modificaPesoInCorso = null;
+
+function clonaGiornata() {
+  return JSON.parse(JSON.stringify(state.giornata));
+}
+
+function registraAnnulla(descrizione) {
+  pilaAnnulla.push({ giornata: clonaGiornata(), descrizione });
+  if (pilaAnnulla.length > MAX_ANNULLA) pilaAnnulla.shift();
+  aggiornaBottoneAnnulla();
+}
+
+function aggiornaBottoneAnnulla() {
+  const ultima = pilaAnnulla[pilaAnnulla.length - 1];
+  annullaBtn.disabled = !ultima;
+  const testo = ultima ? `Annulla: ${ultima.descrizione}` : "Niente da annullare";
+  annullaBtn.title = testo;
+  annullaBtn.setAttribute("aria-label", testo);
+}
+
+function annullaUltima() {
+  const ultima = pilaAnnulla.pop();
+  if (!ultima) return;
+  state.giornata = ultima.giornata;
+  salvaStato();
+  renderGiornata();
+  aggiornaBottoneAnnulla();
+  mostraToast("Annullato: " + ultima.descrizione);
+}
+
 // ---------- Giornata ----------
 
 function totaliVoci(voci) {
@@ -595,6 +637,7 @@ function giornataVuota() {
 function aggiungiAlPasto() {
   if (!calcoloCorrente) return;
   const pasto = pastoSelect.value;
+  registraAnnulla(`aggiunta di ${calcoloCorrente.nome} a ${pasto}`);
   state.giornata[pasto].push({
     nome: calcoloCorrente.nome,
     grammi: calcoloCorrente.grammi,
@@ -801,7 +844,9 @@ function vocePer(pasto, indice) {
 }
 
 function rimuoviVoce(pasto, indice) {
-  if (!state.giornata[pasto]) return;
+  const voce = vocePer(pasto, indice);
+  if (!voce) return;
+  registraAnnulla(`rimozione di ${voce.nome} da ${pasto}`);
   state.giornata[pasto].splice(indice, 1);
   salvaStato();
   renderGiornata();
@@ -810,6 +855,7 @@ function rimuoviVoce(pasto, indice) {
 function svuotaPasto(pasto) {
   if (!state.giornata[pasto] || !state.giornata[pasto].length) return;
   if (!confirm(`Svuotare "${pasto}"?`)) return;
+  registraAnnulla(`svuotamento di ${pasto}`);
   state.giornata[pasto] = [];
   salvaStato();
   renderGiornata();
@@ -817,7 +863,8 @@ function svuotaPasto(pasto) {
 
 function svuotaGiornata() {
   if (giornataVuota()) return;
-  if (!confirm("Svuotare tutta la giornata? L'operazione non è annullabile.")) return;
+  if (!confirm("Svuotare tutta la giornata? Puoi comunque tornare indietro con «Annulla».")) return;
+  registraAnnulla("svuotamento della giornata");
   state.giornata = creaGiornataVuota();
   salvaStato();
   renderGiornata();
@@ -1132,6 +1179,20 @@ function collegaEventi() {
 
   // Giornata (delega: le righe vengono ricreate a ogni render)
 
+  // Copia della giornata prima che si cominci a correggere un peso: servirà
+  // per l'annulla, ma solo se il valore cambia davvero (vedi handler "change").
+  giornataContenuto.addEventListener("focusin", (e) => {
+    const campo = e.target.closest(".riga-grammi");
+    if (!campo) return;
+    const voce = vocePer(campo.dataset.pasto, Number(campo.dataset.indice));
+    if (!voce) return;
+    modificaPesoInCorso = {
+      giornata: clonaGiornata(),
+      valore: campo.value,
+      descrizione: `peso di ${voce.nome} (${voce.grammi} g)`
+    };
+  });
+
   // Mentre si digita: aggiorniamo solo i numeri. Il campo vuoto viene ignorato,
   // altrimenti cancellare "150" per riscrivere "200" farebbe sparire la riga.
   giornataContenuto.addEventListener("input", (e) => {
@@ -1160,13 +1221,23 @@ function collegaEventi() {
     // stringa vuota) sono quasi sempre errori di battitura: si rimette il
     // valore di prima. Per togliere una voce c'è la ✕ su ogni riga.
     if (valore === 0 && testo !== "") {
+      // La rimozione registra da sé il proprio passo di annullamento.
+      modificaPesoInCorso = null;
       rimuoviVoce(pasto, indice);
       return;
     }
     if (!(valore > 0)) {
+      modificaPesoInCorso = null;
       renderGiornata();
       return;
     }
+    // Un solo passo di annullamento per correzione, non uno per cifra digitata.
+    if (modificaPesoInCorso && modificaPesoInCorso.valore !== testo) {
+      pilaAnnulla.push({ giornata: modificaPesoInCorso.giornata, descrizione: modificaPesoInCorso.descrizione });
+      if (pilaAnnulla.length > MAX_ANNULLA) pilaAnnulla.shift();
+      aggiornaBottoneAnnulla();
+    }
+    modificaPesoInCorso = null;
     voce.grammi = valore;
     salvaStato();
     renderGiornata();
@@ -1198,6 +1269,20 @@ function collegaEventi() {
   });
   window.addEventListener("beforeprint", costruisciAreaStampa);
   svuotaBtn.addEventListener("click", svuotaGiornata);
+  annullaBtn.addEventListener("click", annullaUltima);
+
+  // Ctrl+Z / Cmd+Z. Se il fuoco è in un campo dove si sta scrivendo, la
+  // scorciatoia resta quella del browser (annulla la digitazione). Se il campo
+  // è vuoto l'annulla nativo non ha nulla da fare e la usiamo noi: è il caso
+  // normale, perché dopo ogni inserimento il fuoco torna sulla ricerca vuota.
+  document.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
+    const attivo = document.activeElement;
+    const staScrivendo = attivo && ["INPUT", "TEXTAREA"].includes(attivo.tagName) && attivo.value !== "";
+    if (staScrivendo || !pilaAnnulla.length) return;
+    e.preventDefault();
+    annullaUltima();
+  });
 }
 
 function ripristinaCampiProfilo() {
@@ -1221,6 +1306,7 @@ async function inizializza() {
   impostaModo("grammi");
   collegaEventi();
   renderGiornata();
+  aggiornaBottoneAnnulla();
   renderFabbisogno();
   await caricaAlimenti();
 }

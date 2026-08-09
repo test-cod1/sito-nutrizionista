@@ -470,6 +470,18 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
 .giornata-azioni { display: flex; gap: 6px; flex-wrap: wrap; }
 .giornata-azioni button { padding: 8px 12px; font-size: 0.85rem; }
 
+/* Su schermo stretto i quattro comandi si dispongono due per riga invece di
+   spezzarsi 3+1: così «Annulla» resta accanto a «Svuota», che è la coppia che
+   conta. Su touch mantengono i 44px di area di tocco (Apple HIG). */
+@media (max-width: 480px) {
+  .giornata-azioni { width: 100%; }
+  .giornata-azioni button { flex: 1 1 calc(50% - 3px); }
+}
+
+@media (pointer: coarse) {
+  .giornata-azioni button { min-height: 44px; }
+}
+
 .vuoto {
   color: var(--text-muted);
   font-style: italic;
