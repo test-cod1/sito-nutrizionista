@@ -58,6 +58,7 @@ function creaStatoVuoto() {
 }
 
 let state = creaStatoVuoto();
+let alimentiBase = [];          // voci di foods.json, mai modificate
 let alimentiCustom = [];        // alimenti creati qui, solo in locale
 let foodMap = new Map();        // chiave (nome originale) -> valori per 100 g
 let foodNames = [];             // chiavi ordinate per nome visualizzato
@@ -270,7 +271,14 @@ function normalizzaPer100(a) {
   };
 }
 
+// Ricostruisce SEMPRE la mappa da zero, base + personalizzati. Fondamentale
+// per gli alimenti personalizzati che hanno lo stesso nome di uno del database
+// CREA: eliminandone uno deve riaffiorare la voce di base, non sparire tutto.
 function ricostruisciElenco() {
+  foodMap = new Map();
+  alimentiBase.forEach(a => foodMap.set(a.nome, normalizzaPer100(a)));
+  alimentiCustom.forEach(a => foodMap.set(a.nome, normalizzaPer100(a)));
+
   foodNames = Array.from(foodMap.keys()).sort((a, b) => formattaNome(a).localeCompare(formattaNome(b), "it"));
   displayToKey = new Map();
   foodNames.forEach(k => displayToKey.set(normalizzaTesto(formattaNome(k)), k));
@@ -285,19 +293,15 @@ function ricostruisciElenco() {
 }
 
 async function caricaAlimenti() {
-  let base = [];
   try {
     const risposta = await fetch("foods.json");
-    base = await risposta.json();
+    alimentiBase = await risposta.json();
   } catch (e) {
+    alimentiBase = [];
     erroreCaricamentoAlimenti = true;
     foodError.textContent = "Non è stato possibile caricare l'elenco degli alimenti. Controlla la connessione e ricarica la pagina.";
     foodError.classList.remove("hidden");
   }
-  foodMap = new Map();
-  base.forEach(a => foodMap.set(a.nome, normalizzaPer100(a)));
-  // Gli alimenti personalizzati hanno la precedenza sull'omonimo di base.
-  alimentiCustom.forEach(a => foodMap.set(a.nome, normalizzaPer100(a)));
   ricostruisciElenco();
 }
 
@@ -480,6 +484,19 @@ function aggiornaAnteprima() {
   }
 
   const v = calcolaVoce(alimentoSelezionato.per100, grammi);
+
+  // Sotto il grammo il peso arrotonderebbe a 0: si finirebbe per inserire nel
+  // piano una riga da "0 g / 0 kcal", che non vuol dire nulla.
+  if (v.grammi < 1) {
+    preview.classList.add("hidden");
+    aggiungiBtn.disabled = true;
+    calcoloCorrente = null;
+    modoNota.textContent = modoCalcolo === "grammi"
+      ? "Quantità troppo piccola: serve almeno 1 g."
+      : "Quantità troppo piccola: corrisponde a meno di 1 g di alimento.";
+    return;
+  }
+
   calcoloCorrente = { nome: alimentoSelezionato.nome, grammi: v.grammi, per100: alimentoSelezionato.per100 };
 
   previewKcal.textContent = v.kcal;
@@ -523,8 +540,6 @@ function salvaNuovoAlimento() {
   alimentiCustom = alimentiCustom.filter(a => a.nome !== nome);
   alimentiCustom.push(alimento);
   salvaAlimentiCustom();
-
-  foodMap.set(nome, normalizzaPer100(alimento));
   ricostruisciElenco();
   chiudiFormNuovoAlimento();
 
@@ -541,12 +556,19 @@ function eliminaAlimentoPersonalizzato() {
 
   alimentiCustom = alimentiCustom.filter(a => a.nome !== chiave);
   salvaAlimentiCustom();
-  foodMap.delete(chiave);
   ricostruisciElenco();
 
-  foodInput.value = "";
-  selezionaAlimento(null);
-  mostraToast("Alimento eliminato");
+  // Se il nome esisteva anche nel database CREA, la voce di base torna in gioco:
+  // la si rimette in campo invece di svuotare tutto, così si vede cos'è cambiato.
+  if (foodMap.has(chiave)) {
+    foodInput.value = formattaNome(chiave);
+    selezionaAlimento(chiave);
+    mostraToast("Eliminato: tornano i valori dell'alimento di base");
+  } else {
+    foodInput.value = "";
+    selezionaAlimento(null);
+    mostraToast("Alimento eliminato");
+  }
 }
 
 // ---------- Giornata ----------
@@ -857,9 +879,17 @@ async function copiaTesto(testo, messaggio) {
 
 // ---------- Stampa ----------
 
-function preparaStampa() {
+// Ricostruisce il foglio da stampare. Va richiamata anche da "beforeprint":
+// in stampa il resto della pagina è nascosto, quindi se si usa Ctrl+P (o
+// Condividi → Stampa su iPad) senza passare dal pulsante, senza questo si
+// stamperebbe il contenuto vecchio o un foglio bianco.
+function costruisciAreaStampa() {
   if (giornataVuota()) {
-    mostraToast("La giornata è vuota");
+    areaStampa.innerHTML = `
+      <h1 class="stampa-titolo">Giornata alimentare</h1>
+      <p class="stampa-meta">Calcolo rapido del ${new Date().toLocaleDateString("it-IT")}</p>
+      <p>Nessun alimento inserito.</p>
+    `;
     return false;
   }
   const t = totaliGiornata();
@@ -986,13 +1016,16 @@ function renderFabbisogno() {
     <button type="button" id="usa-fabbisogno-btn">Usa questi obiettivi</button>
   `;
   el("usa-fabbisogno-btn").addEventListener("click", () => {
-    state.obiettivo = r.obiettivo;
-    state.obiettivoProteine = r.proteine;
-    obiettivoInput.value = r.obiettivo;
-    obiettivoProtInput.value = r.proteine;
+    // Un obiettivo a 0 (correzione più grande del fabbisogno) vale "nessun
+    // obiettivo": scriverlo nel campo mostrerebbe uno "0" che poi non produce
+    // né barra né residuo, e sparirebbe comunque alla ricarica.
+    state.obiettivo = r.obiettivo > 0 ? r.obiettivo : null;
+    state.obiettivoProteine = r.proteine > 0 ? r.proteine : null;
+    obiettivoInput.value = state.obiettivo || "";
+    obiettivoProtInput.value = state.obiettivoProteine || "";
     salvaStato();
     renderGiornata();
-    mostraToast("Obiettivi impostati");
+    mostraToast(state.obiettivo ? "Obiettivi impostati" : "Fabbisogno azzerato dalla correzione: nessun obiettivo impostato");
   });
 }
 
@@ -1120,9 +1153,18 @@ function collegaEventi() {
     const indice = Number(campo.dataset.indice);
     const voce = vocePer(pasto, indice);
     if (!voce) return;
-    const valore = Math.max(0, Math.round(Number(campo.value) || 0));
-    if (!valore) {
+    const testo = campo.value.trim();
+    const valore = Math.round(Number(testo));
+    // Solo uno 0 scritto apposta toglie la voce. Campo lasciato vuoto, numero
+    // negativo o testo incomprensibile (che nei campi numerici arriva qui come
+    // stringa vuota) sono quasi sempre errori di battitura: si rimette il
+    // valore di prima. Per togliere una voce c'è la ✕ su ogni riga.
+    if (valore === 0 && testo !== "") {
       rimuoviVoce(pasto, indice);
+      return;
+    }
+    if (!(valore > 0)) {
+      renderGiornata();
       return;
     }
     voce.grammi = valore;
@@ -1147,7 +1189,14 @@ function collegaEventi() {
 
   // Azioni sulla giornata
   copiaBtn.addEventListener("click", () => copiaTesto(testoGiornata(), "Giornata copiata negli appunti"));
-  stampaBtn.addEventListener("click", () => { if (preparaStampa()) window.print(); });
+  stampaBtn.addEventListener("click", () => {
+    if (!costruisciAreaStampa()) {
+      mostraToast("La giornata è vuota");
+      return;
+    }
+    window.print();
+  });
+  window.addEventListener("beforeprint", costruisciAreaStampa);
   svuotaBtn.addEventListener("click", svuotaGiornata);
 }
 
