@@ -48,6 +48,20 @@
     <button type="button" id="installa-btn" class="hero-installa hidden">⤓ Installa come app</button>
   </header>
 
+  <!-- Copia di un pasto in una o più altre giornate -->
+  <div id="copia-pasto-overlay" class="installa-overlay hidden no-print">
+    <div class="installa-modal">
+      <h3 id="copia-pasto-titolo">Copia il pasto</h3>
+      <p class="hint">Gli alimenti vengono <strong>aggiunti</strong> a quelli già presenti nello stesso pasto delle giornate scelte.</p>
+      <div id="copia-pasto-elenco" class="copia-pasto-elenco"></div>
+      <p id="copia-pasto-errore" class="error hidden">Scegli almeno una giornata.</p>
+      <div class="riga-bottoni">
+        <button type="button" id="copia-pasto-conferma-btn">Copia</button>
+        <button type="button" id="copia-pasto-annulla-btn" class="danger">Annulla</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Istruzioni per installare a mano: su iPhone/iPad non esiste un invito
        automatico all'installazione, si passa dal menù Condividi. -->
   <div id="installa-overlay" class="installa-overlay hidden no-print">
@@ -208,8 +222,18 @@
     <div class="giornata-header no-print">
       <h2>La giornata</h2>
       <div class="giornata-azioni">
-        <button type="button" id="copia-btn" class="secondary">📋 Copia</button>
-        <button type="button" id="stampa-btn" class="secondary">🖨️ Stampa</button>
+        <!-- Con più giornate aperte, la freccetta accanto a Copia e Stampa
+             lascia scegliere fra la sola giornata aperta e tutte quante. -->
+        <div class="azione-doppia">
+          <button type="button" id="copia-btn" class="secondary">📋 Copia</button>
+          <button type="button" id="copia-menu-btn" class="secondary azione-caret hidden" aria-haspopup="menu" aria-expanded="false" aria-label="Scegli cosa copiare">▾</button>
+          <div id="copia-menu" class="menu-azione hidden" role="menu"></div>
+        </div>
+        <div class="azione-doppia">
+          <button type="button" id="stampa-btn" class="secondary">🖨️ Stampa</button>
+          <button type="button" id="stampa-menu-btn" class="secondary azione-caret hidden" aria-haspopup="menu" aria-expanded="false" aria-label="Scegli cosa stampare">▾</button>
+          <div id="stampa-menu" class="menu-azione hidden" role="menu"></div>
+        </div>
         <button type="button" id="annulla-btn" class="secondary" disabled title="Niente da annullare" aria-label="Niente da annullare">↩ Annulla</button>
         <button type="button" id="svuota-btn" class="danger">Svuota</button>
       </div>

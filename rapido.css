@@ -630,9 +630,83 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
 /* Su schermo stretto i quattro comandi si dispongono due per riga invece di
    spezzarsi 3+1: così «Annulla» resta accanto a «Svuota», che è la coppia che
    conta. Su touch mantengono i 44px di area di tocco (Apple HIG). */
+/* Pulsante con freccetta: l'azione principale resta un clic solo, la scelta
+   «tutte le giornate» sta dietro la freccetta. */
+.azione-doppia { position: relative; display: flex; gap: 2px; }
+.azione-doppia > button:first-child { flex: 1; }
+.azione-caret { flex: none; padding: 8px 9px; font-size: 0.7rem; }
+
+.menu-azione {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 50;
+  min-width: 210px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 22px var(--shadow-strong);
+}
+
+.menu-azione button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: 0;
+}
+.menu-azione button:hover:not(:disabled) { background: var(--accent-tint); color: var(--text); }
+.menu-azione button + button { border-top: 1px solid var(--border); }
+
 @media (max-width: 480px) {
   .giornata-azioni { width: 100%; }
-  .giornata-azioni button { flex: 1 1 calc(50% - 3px); }
+  .giornata-azioni > button,
+  .giornata-azioni > .azione-doppia { flex: 1 1 calc(50% - 3px); }
+  /* Il menù resta largo quanto il suo pulsante: a 210px fissi uscirebbe dallo
+     schermo. Il testo va a capo su due righe invece di essere tagliato. */
+  .menu-azione {
+    min-width: 0;
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+  .menu-azione button { white-space: normal; line-height: 1.3; }
+}
+
+/* Scelta delle giornate in cui copiare un pasto */
+.copia-pasto-elenco {
+  margin: 10px 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.copia-pasto-riga {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 11px 12px;
+  margin: 0;
+  font-weight: 400;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.copia-pasto-riga + .copia-pasto-riga { border-top: 1px solid var(--border); }
+.copia-pasto-riga:hover { background: var(--accent-tint); }
+.copia-pasto-riga input { width: auto; flex: none; margin: 0; }
+.copia-pasto-nome { font-weight: 600; }
+.copia-pasto-stato { margin-left: auto; font-size: 0.78rem; color: var(--text-muted); text-align: right; }
+
+@media (pointer: coarse) {
+  .copia-pasto-riga { padding: 14px 12px; }
 }
 
 @media (pointer: coarse) {
@@ -909,4 +983,22 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
     font-weight: bold;
   }
   .stampa-totali .dettaglio { font-weight: normal; font-size: 9.5pt; color: #444; }
+
+  /* Stampa di più giornate: una per pagina, con il nome in testa. */
+  .stampa-giornata + .stampa-giornata { break-before: page; page-break-before: always; }
+  .stampa-giornata-titolo {
+    font-size: 14pt;
+    margin: 0 0 3mm;
+    padding-bottom: 1mm;
+    border-bottom: 2px solid #333;
+  }
+  .stampa-riepilogo {
+    margin-top: 6mm;
+    padding: 3mm;
+    border: 1.5px solid #333;
+    font-size: 11pt;
+    font-weight: bold;
+    break-inside: avoid;
+  }
+  .stampa-riepilogo .dettaglio { font-weight: normal; font-size: 9.5pt; color: #444; }
 }

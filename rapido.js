@@ -163,8 +163,19 @@ const giornataContenuto = el("giornata-contenuto");
 const totaliGiorno = el("totali-giorno");
 const barraTotale = el("barra-totale");
 const copiaBtn = el("copia-btn");
+const copiaMenuBtn = el("copia-menu-btn");
+const copiaMenu = el("copia-menu");
 const stampaBtn = el("stampa-btn");
+const stampaMenuBtn = el("stampa-menu-btn");
+const stampaMenu = el("stampa-menu");
 const annullaBtn = el("annulla-btn");
+
+const copiaPastoOverlay = el("copia-pasto-overlay");
+const copiaPastoTitolo = el("copia-pasto-titolo");
+const copiaPastoElenco = el("copia-pasto-elenco");
+const copiaPastoErrore = el("copia-pasto-errore");
+const copiaPastoConfermaBtn = el("copia-pasto-conferma-btn");
+const copiaPastoAnnullaBtn = el("copia-pasto-annulla-btn");
 const svuotaBtn = el("svuota-btn");
 const areaStampa = el("area-stampa");
 const toast = el("toast");
@@ -773,7 +784,8 @@ function pastoHtml(pasto, kcalGiorno) {
         <span class="pasto-nome">${pasto}</span>
         <span class="pasto-kcal">${arrotonda(t.kcal)} kcal <span class="pasto-quota">(${quota}%)</span></span>
         <div class="pasto-azioni no-print">
-          <button type="button" data-copia-pasto="${escapeHtml(pasto)}" title="Copia questo pasto" aria-label="Copia ${pasto}">📋</button>
+          <button type="button" data-copia-pasto="${escapeHtml(pasto)}" title="Copia questo pasto come testo" aria-label="Copia ${pasto} come testo">📋</button>
+          ${state.giornate.length > 1 ? `<button type="button" data-porta-pasto="${escapeHtml(pasto)}" title="Copia questo pasto in altre giornate" aria-label="Copia ${pasto} in altre giornate">→</button>` : ""}
           <button type="button" data-svuota-pasto="${escapeHtml(pasto)}" title="Svuota questo pasto" aria-label="Svuota ${pasto}">🗑</button>
         </div>
       </div>
@@ -923,6 +935,7 @@ function renderSchede() {
 
 function renderGiornata() {
   renderSchede();
+  aggiornaMenuAzioni();
   const t = totaliGiornata();
 
   if (giornataVuota()) {
@@ -1045,6 +1058,69 @@ function chiudiGiornata(indice) {
   renderGiornata();
 }
 
+// ---------- Copia di un pasto in altre giornate ----------
+// Il pasto viene AGGIUNTO a quello di destinazione, non lo sostituisce: se la
+// destinazione è vuota (il caso normale) l'effetto è una copia pulita, e se
+// contiene già qualcosa non si distrugge lavoro fatto.
+
+let pastoDaCopiare = null;
+
+function apriCopiaPasto(pasto) {
+  const voci = pastiCorrenti()[pasto];
+  if (!voci || !voci.length || state.giornate.length < 2) return;
+  pastoDaCopiare = pasto;
+
+  const t = totaliVoci(voci);
+  copiaPastoTitolo.textContent = `Copia «${pasto}» (${voci.length} ${voci.length === 1 ? "alimento" : "alimenti"}, ${arrotonda(t.kcal)} kcal) in…`;
+
+  copiaPastoElenco.innerHTML = state.giornate.map((g, i) => {
+    if (i === state.attiva) return "";
+    const esistenti = g.pasti[pasto] || [];
+    const stato = esistenti.length
+      ? `${esistenti.length} ${esistenti.length === 1 ? "alimento" : "alimenti"} già presenti (${arrotonda(totaliVoci(esistenti).kcal)} kcal)`
+      : "pasto vuoto";
+    return `
+      <label class="copia-pasto-riga">
+        <input type="checkbox" value="${i}">
+        <span class="copia-pasto-nome">${escapeHtml(g.nome)}</span>
+        <span class="copia-pasto-stato">${stato}</span>
+      </label>`;
+  }).join("");
+
+  copiaPastoErrore.classList.add("hidden");
+  copiaPastoOverlay.classList.remove("hidden");
+}
+
+function chiudiCopiaPasto() {
+  pastoDaCopiare = null;
+  copiaPastoOverlay.classList.add("hidden");
+}
+
+function confermaCopiaPasto() {
+  if (!pastoDaCopiare) return;
+  const scelte = Array.from(copiaPastoElenco.querySelectorAll("input:checked")).map(c => Number(c.value));
+  if (!scelte.length) {
+    copiaPastoErrore.classList.remove("hidden");
+    return;
+  }
+  const voci = pastiCorrenti()[pastoDaCopiare] || [];
+  const nomi = scelte.map(i => state.giornate[i].nome);
+  registraAnnulla(`copia di ${pastoDaCopiare} in ${nomi.join(", ")}`);
+
+  scelte.forEach(i => {
+    // Copia profonda: le due giornate non devono condividere gli stessi
+    // oggetti, altrimenti correggere un peso di qua lo cambierebbe di là.
+    const copie = JSON.parse(JSON.stringify(voci));
+    state.giornate[i].pasti[pastoDaCopiare].push(...copie);
+  });
+
+  const pasto = pastoDaCopiare;
+  chiudiCopiaPasto();
+  salvaStato();
+  renderGiornata();
+  mostraToast(`${pasto} copiato in ${nomi.length} ${nomi.length === 1 ? "giornata" : "giornate"}`);
+}
+
 function rinominaGiornata(indice, nome) {
   const giornata = state.giornate[indice];
   const pulito = String(nome || "").trim().slice(0, 40);
@@ -1057,9 +1133,9 @@ function rinominaGiornata(indice, nome) {
 
 // ---------- Copia negli appunti ----------
 
-function testoPasto(pasto) {
-  const voci = pastiCorrenti()[pasto];
-  if (!voci.length) return "";
+function testoPasto(pasto, pasti) {
+  const voci = (pasti || pastiCorrenti())[pasto];
+  if (!voci || !voci.length) return "";
   const t = totaliVoci(voci);
   const righe = voci.map(voce => {
     const nota = voce.nota ? ` (${voce.nota})` : "";
@@ -1068,23 +1144,64 @@ function testoPasto(pasto) {
   return `${pasto.toUpperCase()} — ${arrotonda(t.kcal)} kcal\n${righe.join("\n")}`;
 }
 
-function testoGiornata() {
-  const blocchi = PASTI.map(testoPasto).filter(Boolean);
-  if (!blocchi.length) return "";
-  const t = totaliGiornata();
+// Riga dei macronutrienti, con l'obiettivo proteine scritto come "93,3/109 g".
+// Le percentuali tra parentesi restano quelle della ripartizione energetica.
+function rigaMacroTesto(t) {
   const macro = ripartizioneMacro(t);
-  const obiettivo = state.obiettivo > 0 ? ` (obiettivo ${arrotonda(state.obiettivo)} kcal)` : "";
-  // Con l'obiettivo proteine attivo si scrive "93,3/109 g": la percentuale tra
-  // parentesi resta quella della ripartizione energetica, come per gli altri
-  // due macronutrienti.
   const proteineTxt = state.obiettivoProteine > 0
     ? `${round1(t.proteine)}/${round1(state.obiettivoProteine)} g`
     : `${round1(t.proteine)} g`;
-  // Con più schede aperte il testo incollato dice a quale giornata si riferisce.
-  const intestazione = state.giornate.length > 1 ? `${giornataCorrente().nome.toUpperCase()}\n\n` : "";
+  return `Proteine ${proteineTxt} (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)`;
+}
+
+function testoDiGiornata(giornata, conNome) {
+  const blocchi = PASTI.map(p => testoPasto(p, giornata.pasti)).filter(Boolean);
+  if (!blocchi.length) return "";
+  const t = totaliDi(giornata.pasti);
+  const obiettivo = state.obiettivo > 0 ? ` (obiettivo ${arrotonda(state.obiettivo)} kcal)` : "";
+  const intestazione = conNome ? `${giornata.nome.toUpperCase()}\n\n` : "";
   return intestazione + blocchi.join("\n\n") +
     `\n\nTOTALE GIORNATA: ${arrotonda(t.kcal)} kcal${obiettivo}` +
-    `\nProteine ${proteineTxt} (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)`;
+    `\n${rigaMacroTesto(t)}`;
+}
+
+function testoGiornata() {
+  // Con più schede aperte il testo incollato dice a quale giornata si riferisce.
+  return testoDiGiornata(giornataCorrente(), state.giornate.length > 1);
+}
+
+// Media dei valori sulle giornate che contengono qualcosa: le schede vuote
+// abbasserebbero la media senza dire nulla di utile.
+function mediaGiornate(giornate) {
+  const piene = giornate.filter(g => !pastiVuoti(g.pasti));
+  if (!piene.length) return null;
+  const somma = piene.reduce((acc, g) => {
+    const t = totaliDi(g.pasti);
+    acc.kcal += t.kcal; acc.proteine += t.proteine; acc.grassi += t.grassi; acc.carboidrati += t.carboidrati;
+    return acc;
+  }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
+  return {
+    numero: piene.length,
+    media: {
+      kcal: somma.kcal / piene.length,
+      proteine: somma.proteine / piene.length,
+      grassi: somma.grassi / piene.length,
+      carboidrati: somma.carboidrati / piene.length
+    }
+  };
+}
+
+function testoTutteLeGiornate() {
+  const blocchi = state.giornate.map(g => testoDiGiornata(g, true)).filter(Boolean);
+  if (!blocchi.length) return "";
+  const riepilogo = mediaGiornate(state.giornate);
+  let coda = "";
+  if (riepilogo && riepilogo.numero > 1) {
+    coda = `\n\n${"─".repeat(28)}\nRIEPILOGO — ${riepilogo.numero} giornate` +
+      `\nMedia giornaliera: ${arrotonda(riepilogo.media.kcal)} kcal` +
+      `\n${rigaMacroTesto(riepilogo.media)}`;
+  }
+  return blocchi.join(`\n\n${"─".repeat(28)}\n\n`) + coda;
 }
 
 async function copiaTesto(testo, messaggio) {
@@ -1111,26 +1228,73 @@ async function copiaTesto(testo, messaggio) {
   }
 }
 
+// ---------- Menù «questa giornata / tutte» ----------
+
+function chiudiMenuAzioni() {
+  [copiaMenu, stampaMenu].forEach(m => m.classList.add("hidden"));
+  [copiaMenuBtn, stampaMenuBtn].forEach(b => b.setAttribute("aria-expanded", "false"));
+}
+
+function apriMenuAzione(menu, bottone, tipo) {
+  const giaAperto = !menu.classList.contains("hidden");
+  chiudiMenuAzioni();
+  if (giaAperto) return;
+
+  const piene = state.giornate.filter(g => !pastiVuoti(g.pasti)).length;
+  const verbo = tipo === "copia" ? "Copia" : "Stampa";
+  menu.innerHTML = `
+    <button type="button" role="menuitem" data-ambito="giornata">${verbo} «${escapeHtml(giornataCorrente().nome)}»</button>
+    <button type="button" role="menuitem" data-ambito="tutte">${verbo} tutte le giornate (${piene})</button>
+  `;
+  menu.classList.remove("hidden");
+  bottone.setAttribute("aria-expanded", "true");
+}
+
+function aggiornaMenuAzioni() {
+  // Con una giornata sola non c'è niente da scegliere: la freccetta sparisce.
+  const multipla = state.giornate.length > 1;
+  copiaMenuBtn.classList.toggle("hidden", !multipla);
+  stampaMenuBtn.classList.toggle("hidden", !multipla);
+  if (!multipla) chiudiMenuAzioni();
+}
+
+function copiaGiornataAperta() {
+  copiaTesto(testoGiornata(), "Giornata copiata negli appunti");
+}
+
+function stampa(ambito) {
+  ambitoStampa = ambito;
+  if (!costruisciAreaStampa()) {
+    mostraToast(ambito === "tutte" ? "Non c'è ancora nulla da stampare" : "La giornata è vuota");
+    return;
+  }
+  window.print();
+}
+
 // ---------- Stampa ----------
 
 // Ricostruisce il foglio da stampare. Va richiamata anche da "beforeprint":
 // in stampa il resto della pagina è nascosto, quindi se si usa Ctrl+P (o
 // Condividi → Stampa su iPad) senza passare dal pulsante, senza questo si
 // stamperebbe il contenuto vecchio o un foglio bianco.
-function costruisciAreaStampa() {
-  if (giornataVuota()) {
-    areaStampa.innerHTML = `
-      <h1 class="stampa-titolo">Giornata alimentare${state.giornate.length > 1 ? " — " + escapeHtml(giornataCorrente().nome) : ""}</h1>
-      <p class="stampa-meta">Calcolo rapido del ${new Date().toLocaleDateString("it-IT")}</p>
-      <p>Nessun alimento inserito.</p>
-    `;
-    return false;
-  }
-  const t = totaliGiornata();
+function intestazioneStampa(titolo) {
+  const obiettivi = [
+    state.obiettivo > 0 ? `${arrotonda(state.obiettivo)} kcal` : "",
+    state.obiettivoProteine > 0 ? `${round1(state.obiettivoProteine)} g di proteine` : ""
+  ].filter(Boolean).join(" e ");
+  const obiettivo = obiettivi ? ` · Obiettivo: ${obiettivi}` : "";
+  return `
+    <h1 class="stampa-titolo">${titolo}</h1>
+    <p class="stampa-meta">Calcolo rapido del ${new Date().toLocaleDateString("it-IT")}${obiettivo}</p>`;
+}
+
+// Blocco stampabile di una giornata: i pasti con i loro alimenti e il totale.
+function bloccoStampaGiornata(giornata, conNome) {
+  const t = totaliDi(giornata.pasti);
   const macro = ripartizioneMacro(t);
 
-  const pasti = PASTI.filter(p => pastiCorrenti()[p].length > 0).map(pasto => {
-    const voci = pastiCorrenti()[pasto];
+  const pasti = PASTI.filter(p => giornata.pasti[p].length > 0).map(pasto => {
+    const voci = giornata.pasti[pasto];
     const tp = totaliVoci(voci);
     const righe = voci.map(voce => {
       const v = calcolaVoce(voce.per100, voce.grammi);
@@ -1153,20 +1317,51 @@ function costruisciAreaStampa() {
       </div>`;
   }).join("");
 
-  const obiettivi = [
-    state.obiettivo > 0 ? `${arrotonda(state.obiettivo)} kcal` : "",
-    state.obiettivoProteine > 0 ? `${round1(state.obiettivoProteine)} g di proteine` : ""
-  ].filter(Boolean).join(" e ");
-  const obiettivo = obiettivi ? ` · Obiettivo: ${obiettivi}` : "";
-  areaStampa.innerHTML = `
-    <h1 class="stampa-titolo">Giornata alimentare${state.giornate.length > 1 ? " — " + escapeHtml(giornataCorrente().nome) : ""}</h1>
-    <p class="stampa-meta">Calcolo rapido del ${new Date().toLocaleDateString("it-IT")}${obiettivo}</p>
-    ${pasti}
-    <div class="stampa-totali">
-      Totale giornata: ${arrotonda(t.kcal)} kcal
-      <div class="dettaglio">Proteine ${round1(t.proteine)} g (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)</div>
-    </div>
-  `;
+  return `
+    <div class="stampa-giornata">
+      ${conNome ? `<h2 class="stampa-giornata-titolo">${escapeHtml(giornata.nome)}</h2>` : ""}
+      ${pasti}
+      <div class="stampa-totali">
+        Totale giornata: ${arrotonda(t.kcal)} kcal
+        <div class="dettaglio">Proteine ${round1(t.proteine)} g (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)</div>
+      </div>
+    </div>`;
+}
+
+// Ambito dell'ultima stampa richiesta: serve anche a "beforeprint", così
+// ristampando con Ctrl+P si riottiene quello che si era scelto.
+let ambitoStampa = "giornata";
+
+function costruisciAreaStampa() {
+  const tutte = ambitoStampa === "tutte";
+  const giornate = tutte ? state.giornate.filter(g => !pastiVuoti(g.pasti)) : [giornataCorrente()];
+
+  if (!giornate.length || (!tutte && giornataVuota())) {
+    areaStampa.innerHTML = intestazioneStampa("Giornata alimentare") + "<p>Nessun alimento inserito.</p>";
+    return false;
+  }
+
+  const conNome = tutte || state.giornate.length > 1;
+  const titolo = tutte
+    ? `Piano alimentare — ${giornate.length} giornate`
+    : `Giornata alimentare${conNome ? " — " + escapeHtml(giornataCorrente().nome) : ""}`;
+
+  let riepilogo = "";
+  if (tutte) {
+    const r = mediaGiornate(giornate);
+    if (r && r.numero > 1) {
+      const macro = ripartizioneMacro(r.media);
+      riepilogo = `
+        <div class="stampa-riepilogo">
+          Media giornaliera su ${r.numero} giornate: ${arrotonda(r.media.kcal)} kcal
+          <div class="dettaglio">Proteine ${round1(r.media.proteine)} g (${macro.prot}%) · Grassi ${round1(r.media.grassi)} g (${macro.fat}%) · Carboidrati ${round1(r.media.carboidrati)} g (${macro.carb}%)</div>
+        </div>`;
+    }
+  }
+
+  areaStampa.innerHTML = intestazioneStampa(titolo) +
+    giornate.map(g => bloccoStampaGiornata(g, tutte)).join("") +
+    riepilogo;
   return true;
 }
 
@@ -1574,20 +1769,59 @@ function collegaEventi() {
       copiaTesto(testoPasto(copia.dataset.copiaPasto), "Pasto copiato");
       return;
     }
+    const porta = e.target.closest("[data-porta-pasto]");
+    if (porta) {
+      apriCopiaPasto(porta.dataset.portaPasto);
+      return;
+    }
     const svuota = e.target.closest("[data-svuota-pasto]");
     if (svuota) svuotaPasto(svuota.dataset.svuotaPasto);
   });
 
-  // Azioni sulla giornata
-  copiaBtn.addEventListener("click", () => copiaTesto(testoGiornata(), "Giornata copiata negli appunti"));
-  stampaBtn.addEventListener("click", () => {
-    if (!costruisciAreaStampa()) {
-      mostraToast("La giornata è vuota");
-      return;
-    }
-    window.print();
-  });
+  // Azioni sulla giornata: il clic diretto agisce sulla giornata aperta, la
+  // freccetta lascia scegliere "tutte" (compare solo con più schede).
+  copiaBtn.addEventListener("click", () => copiaGiornataAperta());
+  stampaBtn.addEventListener("click", () => stampa("giornata"));
   window.addEventListener("beforeprint", costruisciAreaStampa);
+
+  copiaMenuBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    apriMenuAzione(copiaMenu, copiaMenuBtn, "copia");
+  });
+  stampaMenuBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    apriMenuAzione(stampaMenu, stampaMenuBtn, "stampa");
+  });
+
+  [copiaMenu, stampaMenu].forEach(menu => {
+    menu.addEventListener("click", (e) => {
+      const voce = e.target.closest("[data-ambito]");
+      if (!voce) return;
+      const tutte = voce.dataset.ambito === "tutte";
+      chiudiMenuAzioni();
+      if (menu === copiaMenu) {
+        if (tutte) copiaTesto(testoTutteLeGiornate(), "Tutte le giornate copiate negli appunti");
+        else copiaGiornataAperta();
+      } else {
+        stampa(tutte ? "tutte" : "giornata");
+      }
+    });
+  });
+
+  document.addEventListener("click", chiudiMenuAzioni);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") chiudiMenuAzioni();
+  });
+
+  // Copia di un pasto in altre giornate
+  copiaPastoConfermaBtn.addEventListener("click", confermaCopiaPasto);
+  copiaPastoAnnullaBtn.addEventListener("click", chiudiCopiaPasto);
+  copiaPastoOverlay.addEventListener("click", (e) => {
+    if (e.target === copiaPastoOverlay) chiudiCopiaPasto();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") chiudiCopiaPasto();
+  });
   svuotaBtn.addEventListener("click", svuotaGiornata);
   annullaBtn.addEventListener("click", annullaUltima);
 
