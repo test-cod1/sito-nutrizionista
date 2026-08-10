@@ -26,7 +26,7 @@
 // Quindi: per le modifiche importanti che devono arrivare SUBITO a tutti,
 // incrementa CACHE_VERSION nello stesso commit.
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const SHELL_CACHE = `nutriplan-shell-${CACHE_VERSION}`;
 // v2: nome nuovo per far ELIMINARE (all'activate) la vecchia cache-dati v1 che
 // conteneva TUTTE le tabelle /rest/. Da ora questa cache contiene solo /diete.
@@ -55,8 +55,17 @@ const APP_SHELL_OPZIONALE = [
   "manifest.json",
   "privacy.html",
   "rapido.html",
+  // Indirizzo "pulito" della stessa pagina: e' lo start_url dell'app installata
+  // (Cloudflare Pages serve /rapido e redirige /rapido.html). Va precaricato
+  // con questa chiave, altrimenti aprendo l'icona senza rete la cache non
+  // trova nulla e si finisce sulla pagina di errore del browser.
+  "rapido",
   "rapido.css",
   "rapido.js",
+  "manifest-rapido.json",
+  "icons/rapido-192.png",
+  "icons/rapido-512.png",
+  "icons/rapido-apple-180.png",
   "giochi.html",
   "giochi.css",
   "giochi.js",
@@ -121,6 +130,13 @@ async function networkFirst(req, nomeCache) {
     const inCache = await cache.match(req);
     if (inCache) return inCache;
     if (req.mode === "navigate") {
+      // Chi stava navigando nella modalita' rapida deve ritrovarsi li', non
+      // nella schermata di accesso del gestionale: sono due strumenti distinti
+      // e l'app installata parte proprio da questo indirizzo.
+      if (new URL(req.url).pathname.startsWith("/rapido")) {
+        const rapido = (await cache.match("rapido")) || (await cache.match("rapido.html"));
+        if (rapido) return rapido;
+      }
       const home = (await cache.match("index.html")) || (await cache.match("./"));
       if (home) return home;
     }

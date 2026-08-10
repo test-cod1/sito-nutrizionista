@@ -178,9 +178,51 @@ body {
   .hero { padding-top: calc(70px + env(safe-area-inset-top, 0px)); }
 }
 
+.hero-installa {
+  margin-top: 14px;
+  padding: 9px 18px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 0.9rem;
+  border-radius: 999px;
+}
+.hero-installa:hover:not(:disabled) { background: rgba(255, 255, 255, 0.28); }
+
+@media (pointer: coarse) {
+  .hero-installa { min-height: 44px; }
+}
+
 @media (max-width: 480px) {
   .hero h1 { font-size: 1.5rem; }
 }
+
+/* Istruzioni di installazione */
+.installa-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 35, 27, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 70;
+}
+
+.installa-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 10px 30px var(--shadow-strong);
+}
+
+.installa-modal h3 { margin-top: 0; }
+.installa-testo { margin: 0 0 10px; font-size: 0.92rem; }
+.installa-testo strong { color: var(--accent); }
+.installa-modal button { margin-top: 14px; width: 100%; }
 
 /* ---------- Struttura ---------- */
 

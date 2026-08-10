@@ -137,6 +137,11 @@ const svuotaBtn = el("svuota-btn");
 const areaStampa = el("area-stampa");
 const toast = el("toast");
 
+const installaBtn = el("installa-btn");
+const installaOverlay = el("installa-overlay");
+const installaIstruzioni = el("installa-istruzioni");
+const installaChiudiBtn = el("installa-chiudi-btn");
+
 // ---------- Utilità ----------
 
 function round1(n) { return Math.round(n * 10) / 10; }
@@ -1081,6 +1086,95 @@ function fmtPeso(n) {
   return round1(n).toLocaleString("it-IT");
 }
 
+// ---------- Installazione come app ----------
+// La pagina ha un manifest suo (manifest-rapido.json), quindi si installa come
+// applicazione separata dal gestionale, con icona propria. Chrome/Edge/Android
+// avvisano quando è installabile e permettono di aprire l'invito dal codice;
+// su iPhone/iPad quell'invito non esiste e l'unica strada è Condividi →
+// «Aggiungi a Home», quindi il pulsante mostra le istruzioni.
+
+let promptInstallazione = null;
+
+function appGiaInstallata() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function eApple() {
+  const ua = navigator.userAgent;
+  // Gli iPad recenti si presentano come Mac: si riconoscono dal touch.
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+
+function testoIstruzioniInstallazione() {
+  if (eApple()) {
+    return "Su iPhone e iPad si aggiunge dal browser: tocca <strong>Condividi</strong> " +
+      "(il quadrato con la freccia in su) e scegli <strong>Aggiungi a Home</strong>. " +
+      "Se non vedi la voce, scorri l'elenco verso il basso.";
+  }
+  return "Nel browser apri il <strong>menù</strong> (i tre puntini in alto a destra) e scegli " +
+    "<strong>Installa applicazione</strong> o <strong>Aggiungi a schermata Home</strong>. " +
+    "Su computer puoi anche usare l'icona di installazione che compare nella barra degli indirizzi.";
+}
+
+function apriIstruzioniInstallazione() {
+  installaIstruzioni.innerHTML = testoIstruzioniInstallazione();
+  installaOverlay.classList.remove("hidden");
+}
+
+function chiudiIstruzioniInstallazione() {
+  installaOverlay.classList.add("hidden");
+}
+
+async function avviaInstallazione() {
+  if (!promptInstallazione) {
+    apriIstruzioniInstallazione();
+    return;
+  }
+  promptInstallazione.prompt();
+  const scelta = await promptInstallazione.userChoice;
+  // L'invito è usa e getta: se viene rifiutato il browser ne manderà un altro
+  // più avanti, e fino ad allora resta la strada manuale.
+  promptInstallazione = null;
+  if (scelta && scelta.outcome === "accepted") installaBtn.classList.add("hidden");
+}
+
+function inizializzaInstallazione() {
+  if (appGiaInstallata()) return; // già in uso come app: il pulsante non serve
+  installaBtn.classList.remove("hidden");
+  installaBtn.addEventListener("click", avviaInstallazione);
+  installaChiudiBtn.addEventListener("click", chiudiIstruzioniInstallazione);
+  installaOverlay.addEventListener("click", (e) => {
+    if (e.target === installaOverlay) chiudiIstruzioniInstallazione();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") chiudiIstruzioniInstallazione();
+  });
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    promptInstallazione = e;
+  });
+  window.addEventListener("appinstalled", () => {
+    promptInstallazione = null;
+    installaBtn.classList.add("hidden");
+    mostraToast("Installata: la trovi tra le tue app");
+  });
+}
+
+// ---------- Funzionamento offline ----------
+// Registriamo qui il service worker del sito: senza, aprendo direttamente
+// /rapido (segnalibro o icona sulla Home) la pagina non sarebbe disponibile
+// offline finché non si è passati almeno una volta dal gestionale.
+
+function registraServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(errore => {
+      console.warn("Registrazione service worker non riuscita:", errore);
+    });
+  });
+}
+
 // ---------- Avvio ----------
 
 function collegaEventi() {
@@ -1305,6 +1399,8 @@ async function inizializza() {
   ripristinaCampiProfilo();
   impostaModo("grammi");
   collegaEventi();
+  inizializzaInstallazione();
+  registraServiceWorker();
   renderGiornata();
   aggiornaBottoneAnnulla();
   renderFabbisogno();

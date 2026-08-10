@@ -6,8 +6,15 @@
   <title>Calcolo rapido — NutriPlan</title>
 
   <meta name="theme-color" content="#2f6d4f">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <!-- Manifest e icone proprie: la modalità rapida si installa come app a sé,
+       con un'icona diversa da quella del gestionale (che usa manifest.json). -->
+  <link rel="manifest" href="manifest-rapido.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/rapido-192.png">
+  <link rel="apple-touch-icon" href="icons/rapido-apple-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Calcolo rapido">
 
   <!-- Unico file condiviso col gestionale: applica il tema salvato prima del
        rendering (evita il flash chiaro). Non contiene logica applicativa. -->
@@ -38,7 +45,19 @@
     </div>
     <h1>⚡ Calcolo rapido</h1>
     <p class="hero-sub">Componi la giornata alimentare: i conti li facciamo noi</p>
+    <button type="button" id="installa-btn" class="hero-installa hidden">⤓ Installa come app</button>
   </header>
+
+  <!-- Istruzioni per installare a mano: su iPhone/iPad non esiste un invito
+       automatico all'installazione, si passa dal menù Condividi. -->
+  <div id="installa-overlay" class="installa-overlay hidden no-print">
+    <div class="installa-modal">
+      <h3>Installa «Calcolo rapido»</h3>
+      <p class="installa-testo" id="installa-istruzioni"></p>
+      <p class="hint">Una volta installata si apre a schermo intero, con icona propria, e funziona anche senza connessione.</p>
+      <button type="button" id="installa-chiudi-btn">Ho capito</button>
+    </div>
+  </div>
 
   <!-- ---------- Obiettivo calorico ---------- -->
   <section class="card no-print">

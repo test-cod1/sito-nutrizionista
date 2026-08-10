@@ -1,0 +1,38 @@
+{
+  "name": "Calcolo rapido — NutriPlan",
+  "short_name": "Calcolo rapido",
+  "description": "Compone la giornata alimentare e ne calcola calorie e macronutrienti, senza accesso e senza connessione",
+  "id": "/rapido",
+  "start_url": "/rapido",
+  "scope": "/rapido",
+  "display": "standalone",
+  "background_color": "#eef6f1",
+  "theme_color": "#2f6d4f",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "icons/rapido-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/rapido-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/rapido-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/rapido-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
