@@ -42,19 +42,49 @@ const G_PER_KG_SUGGERITO = {
 
 // ---------- Stato ----------
 
-function creaGiornataVuota() {
+const MAX_GIORNATE = 7;
+
+function creaPastiVuoti() {
   const g = {};
   PASTI.forEach(p => { g[p] = []; });
   return g;
+}
+
+function creaGiornata(nome) {
+  return { nome, pasti: creaPastiVuoti() };
+}
+
+// Nome libero per la giornata nuova: "Giorno N" con il primo numero non ancora
+// in uso, così chiudendo la 2ª e riaprendone una non escono due "Giorno 3".
+function nomeGiornataLibero() {
+  const usati = new Set(state.giornate.map(g => g.nome));
+  for (let i = 1; i <= MAX_GIORNATE + 1; i++) {
+    const nome = `Giorno ${i}`;
+    if (!usati.has(nome)) return nome;
+  }
+  return "Giornata";
 }
 
 function creaStatoVuoto() {
   return {
     obiettivo: null,          // kcal obiettivo del giorno (null = nessuno)
     obiettivoProteine: null,  // grammi di proteine obiettivo (null = nessuno)
-    giornata: creaGiornataVuota(),
+    // Gli obiettivi sono del paziente, quindi valgono per tutte le giornate;
+    // le giornate sono varianti dello stesso piano, fino a MAX_GIORNATE.
+    giornate: [creaGiornata("Giorno 1")],
+    attiva: 0,
     profilo: { sesso: "", eta: "", peso: "", altezza: "", attivita: "Moderato", correzione: "", gPerKg: "" }
   };
+}
+
+// Pasti della giornata su cui si sta lavorando: quasi tutto il resto del file
+// passa da qui invece di toccare direttamente lo stato.
+function pastiCorrenti() {
+  return state.giornate[state.attiva].pasti;
+}
+
+function giornataCorrente() {
+  return state.giornate[state.attiva];
 }
 
 let state = creaStatoVuoto();
@@ -127,6 +157,8 @@ const notaInput = el("nota-input");
 const pastoSelect = el("pasto-select");
 const aggiungiBtn = el("aggiungi-btn");
 
+const giornateSchede = el("giornate-schede");
+const giornataNuovaBtn = el("giornata-nuova-btn");
 const giornataContenuto = el("giornata-contenuto");
 const totaliGiorno = el("totali-giorno");
 const barraTotale = el("barra-totale");
@@ -237,18 +269,36 @@ function caricaStato() {
   if (salvato.profilo && typeof salvato.profilo === "object") {
     Object.assign(nuovo.profilo, salvato.profilo);
   }
-  // Rileggiamo voce per voce: una struttura salvata da una versione diversa
-  // (o manomessa) non deve poter rompere il rendering.
+
+  if (Array.isArray(salvato.giornate) && salvato.giornate.length) {
+    nuovo.giornate = salvato.giornate.slice(0, MAX_GIORNATE).map((g, i) => ({
+      nome: String((g && g.nome) || `Giorno ${i + 1}`).slice(0, 40),
+      pasti: leggiPasti(g && g.pasti)
+    }));
+    const attiva = Number(salvato.attiva);
+    nuovo.attiva = attiva >= 0 && attiva < nuovo.giornate.length ? attiva : 0;
+  } else if (salvato.giornata) {
+    // Stato scritto prima delle schede multiple: diventa la prima giornata.
+    nuovo.giornate = [{ nome: "Giorno 1", pasti: leggiPasti(salvato.giornata) }];
+    nuovo.attiva = 0;
+  }
+  state = nuovo;
+}
+
+// Rilegge i pasti voce per voce: una struttura salvata da una versione diversa
+// (o manomessa) non deve poter rompere il rendering.
+function leggiPasti(salvati) {
+  const pasti = creaPastiVuoti();
   PASTI.forEach(pasto => {
-    const voci = salvato.giornata && Array.isArray(salvato.giornata[pasto]) ? salvato.giornata[pasto] : [];
-    nuovo.giornata[pasto] = voci.filter(v => v && v.per100).map(v => ({
+    const voci = salvati && Array.isArray(salvati[pasto]) ? salvati[pasto] : [];
+    pasti[pasto] = voci.filter(v => v && v.per100).map(v => ({
       nome: String(v.nome || "Alimento"),
       grammi: Math.max(0, Number(v.grammi) || 0),
       nota: String(v.nota || ""),
       per100: normalizzaPer100(v.per100)
     }));
   });
-  state = nuovo;
+  return pasti;
 }
 
 function salvaAlimentiCustom() {
@@ -590,14 +640,23 @@ let pilaAnnulla = [];
 // cifra digitata sarebbe un passo di annullamento a sé.
 let modificaPesoInCorso = null;
 
-function clonaGiornata() {
-  return JSON.parse(JSON.stringify(state.giornata));
+// La copia comprende tutte le giornate e quale era aperta: annullando si torna
+// anche sulla scheda dov'era avvenuta la modifica, altrimenti si vedrebbe un
+// cambiamento "invisibile" su una scheda diversa da quella a video.
+function clonaGiornate() {
+  return { giornate: JSON.parse(JSON.stringify(state.giornate)), attiva: state.attiva };
 }
 
 function registraAnnulla(descrizione) {
-  pilaAnnulla.push({ giornata: clonaGiornata(), descrizione });
+  pilaAnnulla.push({ ...clonaGiornate(), descrizione });
   if (pilaAnnulla.length > MAX_ANNULLA) pilaAnnulla.shift();
   aggiornaBottoneAnnulla();
+}
+
+// Descrizione con il nome della scheda, ma solo quando le schede sono più di
+// una: con una sola giornata sarebbe rumore inutile.
+function conNomeGiornata(testo) {
+  return state.giornate.length > 1 ? `${testo} · ${giornataCorrente().nome}` : testo;
 }
 
 function aggiornaBottoneAnnulla() {
@@ -611,7 +670,8 @@ function aggiornaBottoneAnnulla() {
 function annullaUltima() {
   const ultima = pilaAnnulla.pop();
   if (!ultima) return;
-  state.giornata = ultima.giornata;
+  state.giornate = ultima.giornate;
+  state.attiva = Math.min(ultima.attiva, state.giornate.length - 1);
   salvaStato();
   renderGiornata();
   aggiornaBottoneAnnulla();
@@ -631,19 +691,27 @@ function totaliVoci(voci) {
   }, { kcal: 0, proteine: 0, grassi: 0, carboidrati: 0 });
 }
 
+function totaliDi(pasti) {
+  return totaliVoci(PASTI.flatMap(p => pasti[p]));
+}
+
 function totaliGiornata() {
-  return totaliVoci(PASTI.flatMap(p => state.giornata[p]));
+  return totaliDi(pastiCorrenti());
+}
+
+function pastiVuoti(pasti) {
+  return PASTI.every(p => pasti[p].length === 0);
 }
 
 function giornataVuota() {
-  return PASTI.every(p => state.giornata[p].length === 0);
+  return pastiVuoti(pastiCorrenti());
 }
 
 function aggiungiAlPasto() {
   if (!calcoloCorrente) return;
   const pasto = pastoSelect.value;
-  registraAnnulla(`aggiunta di ${calcoloCorrente.nome} a ${pasto}`);
-  state.giornata[pasto].push({
+  registraAnnulla(conNomeGiornata(`aggiunta di ${calcoloCorrente.nome} a ${pasto}`));
+  pastiCorrenti()[pasto].push({
     nome: calcoloCorrente.nome,
     grammi: calcoloCorrente.grammi,
     nota: notaInput.value.trim(),
@@ -696,7 +764,7 @@ function rigaAlimentoHtml(voce, pasto, indice) {
 }
 
 function pastoHtml(pasto, kcalGiorno) {
-  const voci = state.giornata[pasto];
+  const voci = pastiCorrenti()[pasto];
   const t = totaliVoci(voci);
   const quota = kcalGiorno > 0 ? Math.round((t.kcal / kcalGiorno) * 100) : 0;
   return `
@@ -788,7 +856,11 @@ function renderBarraTotale(t) {
       ? `<span class="bt-residuo bt-residuo-prot">${scarto} g prot.</span>`
       : `<span class="bt-residuo bt-residuo-prot obiettivo-raggiunto">prot. ✓</span>`;
   }
+  const nomeGiornata = state.giornate.length > 1
+    ? `<span class="bt-giornata">${escapeHtml(giornataCorrente().nome)}</span>`
+    : "";
   barraTotale.innerHTML = `
+    ${nomeGiornata}
     <span class="bt-kcal">${arrotonda(t.kcal)} kcal</span>
     <span class="bt-macro">${round1(t.proteine)} P · ${round1(t.grassi)} G · ${round1(t.carboidrati)} C</span>
     ${residuo}
@@ -797,7 +869,60 @@ function renderBarraTotale(t) {
   barraTotale.classList.remove("hidden");
 }
 
+// Indice della scheda in fase di rinomina (null = nessuna).
+let schedaInRinomina = null;
+
+function chiudiRinominaScheda() {
+  schedaInRinomina = null;
+}
+
+function renderSchede() {
+  const multipla = state.giornate.length > 1;
+  giornateSchede.innerHTML = state.giornate.map((g, i) => {
+    const attiva = i === state.attiva;
+    const kcal = arrotonda(totaliDi(g.pasti).kcal);
+    if (attiva && schedaInRinomina === i) {
+      return `
+        <div class="giornata-scheda attiva in-rinomina">
+          <input type="text" class="scheda-nome-input" id="scheda-nome-input" value="${escapeHtml(g.nome)}"
+                 maxlength="40" aria-label="Nome della giornata">
+        </div>`;
+    }
+    const titolo = attiva
+      ? `${g.nome} — tocca di nuovo per rinominare`
+      : `Apri ${g.nome} (${kcal} kcal)`;
+    return `
+      <div class="giornata-scheda${attiva ? " attiva" : ""}">
+        <button type="button" class="scheda-apri" data-indice="${i}" role="tab"
+                aria-selected="${attiva}" title="${escapeHtml(titolo)}">
+          <span class="scheda-nome">${escapeHtml(g.nome)}</span>
+          <span class="scheda-kcal">${kcal}</span>
+        </button>
+        ${multipla ? `<button type="button" class="scheda-chiudi" data-chiudi="${i}" title="Chiudi ${escapeHtml(g.nome)}" aria-label="Chiudi ${escapeHtml(g.nome)}">✕</button>` : ""}
+      </div>`;
+  }).join("");
+
+  const pieno = state.giornate.length >= MAX_GIORNATE;
+  giornataNuovaBtn.disabled = pieno;
+  giornataNuovaBtn.title = pieno
+    ? `Massimo ${MAX_GIORNATE} giornate: chiudine una per aggiungerne un'altra`
+    : "Aggiungi una giornata";
+
+  if (schedaInRinomina !== null) {
+    const campo = el("scheda-nome-input");
+    if (campo) { campo.focus(); campo.select(); }
+  }
+
+  // Con 7 schede su telefono la striscia scorre: quella aperta va portata in
+  // vista, altrimenti si cambia giornata "alla cieca".
+  const attivaEl = giornateSchede.querySelector(".giornata-scheda.attiva");
+  if (attivaEl && giornateSchede.scrollWidth > giornateSchede.clientWidth) {
+    attivaEl.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
+
 function renderGiornata() {
+  renderSchede();
   const t = totaliGiornata();
 
   if (giornataVuota()) {
@@ -805,7 +930,7 @@ function renderGiornata() {
     totaliGiorno.innerHTML = "";
   } else {
     giornataContenuto.innerHTML = PASTI
-      .filter(p => state.giornata[p].length > 0)
+      .filter(p => pastiCorrenti()[p].length > 0)
       .map(p => pastoHtml(p, t.kcal))
       .join("");
     totaliGiorno.innerHTML = totaliHtml(t);
@@ -821,7 +946,7 @@ function aggiornaCalcoliUI() {
 
   giornataContenuto.querySelectorAll(".pasto").forEach(blocco => {
     const pasto = blocco.dataset.pasto;
-    const voci = state.giornata[pasto] || [];
+    const voci = pastiCorrenti()[pasto] || [];
     const tp = totaliVoci(voci);
     const quota = t.kcal > 0 ? Math.round((tp.kcal / t.kcal) * 100) : 0;
     blocco.querySelector(".pasto-kcal").innerHTML =
@@ -840,37 +965,92 @@ function aggiornaCalcoliUI() {
     riga.querySelector(".riga-kcal").textContent = `${v.kcal} kcal`;
   });
 
+  // Il totale sulla scheda aperta segue la correzione in corso, senza
+  // ricostruire la barra delle schede (il campo perderebbe il fuoco).
+  const schedaAttiva = giornateSchede.querySelector(".giornata-scheda.attiva .scheda-kcal");
+  if (schedaAttiva) schedaAttiva.textContent = arrotonda(t.kcal);
+
   totaliGiorno.innerHTML = totaliHtml(t);
   renderBarraTotale(t);
 }
 
 function vocePer(pasto, indice) {
-  return (state.giornata[pasto] && state.giornata[pasto][indice]) || null;
+  return (pastiCorrenti()[pasto] && pastiCorrenti()[pasto][indice]) || null;
 }
 
 function rimuoviVoce(pasto, indice) {
   const voce = vocePer(pasto, indice);
   if (!voce) return;
-  registraAnnulla(`rimozione di ${voce.nome} da ${pasto}`);
-  state.giornata[pasto].splice(indice, 1);
+  registraAnnulla(conNomeGiornata(`rimozione di ${voce.nome} da ${pasto}`));
+  pastiCorrenti()[pasto].splice(indice, 1);
   salvaStato();
   renderGiornata();
 }
 
 function svuotaPasto(pasto) {
-  if (!state.giornata[pasto] || !state.giornata[pasto].length) return;
+  const voci = pastiCorrenti()[pasto];
+  if (!voci || !voci.length) return;
   if (!confirm(`Svuotare "${pasto}"?`)) return;
-  registraAnnulla(`svuotamento di ${pasto}`);
-  state.giornata[pasto] = [];
+  registraAnnulla(conNomeGiornata(`svuotamento di ${pasto}`));
+  pastiCorrenti()[pasto] = [];
   salvaStato();
   renderGiornata();
 }
 
 function svuotaGiornata() {
   if (giornataVuota()) return;
-  if (!confirm("Svuotare tutta la giornata? Puoi comunque tornare indietro con «Annulla».")) return;
-  registraAnnulla("svuotamento della giornata");
-  state.giornata = creaGiornataVuota();
+  if (!confirm(`Svuotare "${giornataCorrente().nome}"? Puoi comunque tornare indietro con «Annulla».`)) return;
+  registraAnnulla(`svuotamento di ${giornataCorrente().nome}`);
+  giornataCorrente().pasti = creaPastiVuoti();
+  salvaStato();
+  renderGiornata();
+}
+
+// ---------- Schede delle giornate ----------
+
+function cambiaGiornata(indice) {
+  if (indice < 0 || indice >= state.giornate.length || indice === state.attiva) return;
+  state.attiva = indice;
+  chiudiRinominaScheda();
+  salvaStato();
+  renderGiornata();
+}
+
+function nuovaGiornata() {
+  if (state.giornate.length >= MAX_GIORNATE) return;
+  const nome = nomeGiornataLibero();
+  registraAnnulla(`creazione di ${nome}`);
+  state.giornate.push(creaGiornata(nome));
+  state.attiva = state.giornate.length - 1;
+  salvaStato();
+  renderGiornata();
+  mostraToast(`${nome}: pronta`);
+}
+
+function chiudiGiornata(indice) {
+  const giornata = state.giornate[indice];
+  if (!giornata || state.giornate.length <= 1) return;
+  if (!pastiVuoti(giornata.pasti) &&
+      !confirm(`Chiudere "${giornata.nome}"? Contiene degli alimenti. Puoi comunque tornare indietro con «Annulla».`)) {
+    return;
+  }
+  registraAnnulla(`chiusura di ${giornata.nome}`);
+  state.giornate.splice(indice, 1);
+  // Restando sulla stessa posizione si finisce sulla scheda che ha preso il
+  // posto di quella chiusa; se era l'ultima si arretra di una.
+  if (state.attiva > indice || state.attiva >= state.giornate.length) {
+    state.attiva = Math.max(0, state.attiva - 1);
+  }
+  salvaStato();
+  renderGiornata();
+}
+
+function rinominaGiornata(indice, nome) {
+  const giornata = state.giornate[indice];
+  const pulito = String(nome || "").trim().slice(0, 40);
+  if (!giornata || !pulito || pulito === giornata.nome) return;
+  registraAnnulla(`rinomina di ${giornata.nome}`);
+  giornata.nome = pulito;
   salvaStato();
   renderGiornata();
 }
@@ -878,7 +1058,7 @@ function svuotaGiornata() {
 // ---------- Copia negli appunti ----------
 
 function testoPasto(pasto) {
-  const voci = state.giornata[pasto];
+  const voci = pastiCorrenti()[pasto];
   if (!voci.length) return "";
   const t = totaliVoci(voci);
   const righe = voci.map(voce => {
@@ -900,7 +1080,9 @@ function testoGiornata() {
   const proteineTxt = state.obiettivoProteine > 0
     ? `${round1(t.proteine)}/${round1(state.obiettivoProteine)} g`
     : `${round1(t.proteine)} g`;
-  return blocchi.join("\n\n") +
+  // Con più schede aperte il testo incollato dice a quale giornata si riferisce.
+  const intestazione = state.giornate.length > 1 ? `${giornataCorrente().nome.toUpperCase()}\n\n` : "";
+  return intestazione + blocchi.join("\n\n") +
     `\n\nTOTALE GIORNATA: ${arrotonda(t.kcal)} kcal${obiettivo}` +
     `\nProteine ${proteineTxt} (${macro.prot}%) · Grassi ${round1(t.grassi)} g (${macro.fat}%) · Carboidrati ${round1(t.carboidrati)} g (${macro.carb}%)`;
 }
@@ -938,7 +1120,7 @@ async function copiaTesto(testo, messaggio) {
 function costruisciAreaStampa() {
   if (giornataVuota()) {
     areaStampa.innerHTML = `
-      <h1 class="stampa-titolo">Giornata alimentare</h1>
+      <h1 class="stampa-titolo">Giornata alimentare${state.giornate.length > 1 ? " — " + escapeHtml(giornataCorrente().nome) : ""}</h1>
       <p class="stampa-meta">Calcolo rapido del ${new Date().toLocaleDateString("it-IT")}</p>
       <p>Nessun alimento inserito.</p>
     `;
@@ -947,8 +1129,8 @@ function costruisciAreaStampa() {
   const t = totaliGiornata();
   const macro = ripartizioneMacro(t);
 
-  const pasti = PASTI.filter(p => state.giornata[p].length > 0).map(pasto => {
-    const voci = state.giornata[pasto];
+  const pasti = PASTI.filter(p => pastiCorrenti()[p].length > 0).map(pasto => {
+    const voci = pastiCorrenti()[pasto];
     const tp = totaliVoci(voci);
     const righe = voci.map(voce => {
       const v = calcolaVoce(voce.per100, voce.grammi);
@@ -977,7 +1159,7 @@ function costruisciAreaStampa() {
   ].filter(Boolean).join(" e ");
   const obiettivo = obiettivi ? ` · Obiettivo: ${obiettivi}` : "";
   areaStampa.innerHTML = `
-    <h1 class="stampa-titolo">Giornata alimentare</h1>
+    <h1 class="stampa-titolo">Giornata alimentare${state.giornate.length > 1 ? " — " + escapeHtml(giornataCorrente().nome) : ""}</h1>
     <p class="stampa-meta">Calcolo rapido del ${new Date().toLocaleDateString("it-IT")}${obiettivo}</p>
     ${pasti}
     <div class="stampa-totali">
@@ -1271,6 +1453,50 @@ function collegaEventi() {
   });
   aggiungiBtn.addEventListener("click", aggiungiAlPasto);
 
+  // Schede delle giornate
+  giornataNuovaBtn.addEventListener("click", nuovaGiornata);
+
+  giornateSchede.addEventListener("click", (e) => {
+    const chiudi = e.target.closest(".scheda-chiudi");
+    if (chiudi) {
+      chiudiGiornata(Number(chiudi.dataset.chiudi));
+      return;
+    }
+    const apri = e.target.closest(".scheda-apri");
+    if (!apri) return;
+    const indice = Number(apri.dataset.indice);
+    // Clic sulla scheda già aperta: si passa alla rinomina, come per il nome
+    // di un file. Sulle altre si cambia soltanto giornata.
+    if (indice === state.attiva) {
+      schedaInRinomina = indice;
+      renderSchede();
+    } else {
+      cambiaGiornata(indice);
+    }
+  });
+
+  giornateSchede.addEventListener("keydown", (e) => {
+    const campo = e.target.closest(".scheda-nome-input");
+    if (!campo) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      campo.blur();
+    } else if (e.key === "Escape") {
+      chiudiRinominaScheda();
+      renderSchede();
+    }
+  });
+
+  giornateSchede.addEventListener("focusout", (e) => {
+    const campo = e.target.closest(".scheda-nome-input");
+    if (!campo || schedaInRinomina === null) return;
+    const indice = schedaInRinomina;
+    const nome = campo.value;
+    chiudiRinominaScheda();
+    rinominaGiornata(indice, nome);
+    renderSchede();
+  });
+
   // Giornata (delega: le righe vengono ricreate a ogni render)
 
   // Copia della giornata prima che si cominci a correggere un peso: servirà
@@ -1281,9 +1507,9 @@ function collegaEventi() {
     const voce = vocePer(campo.dataset.pasto, Number(campo.dataset.indice));
     if (!voce) return;
     modificaPesoInCorso = {
-      giornata: clonaGiornata(),
+      stato: clonaGiornate(),
       valore: campo.value,
-      descrizione: `peso di ${voce.nome} (${voce.grammi} g)`
+      descrizione: conNomeGiornata(`peso di ${voce.nome} (${voce.grammi} g)`)
     };
   });
 
@@ -1327,7 +1553,7 @@ function collegaEventi() {
     }
     // Un solo passo di annullamento per correzione, non uno per cifra digitata.
     if (modificaPesoInCorso && modificaPesoInCorso.valore !== testo) {
-      pilaAnnulla.push({ giornata: modificaPesoInCorso.giornata, descrizione: modificaPesoInCorso.descrizione });
+      pilaAnnulla.push({ ...modificaPesoInCorso.stato, descrizione: modificaPesoInCorso.descrizione });
       if (pilaAnnulla.length > MAX_ANNULLA) pilaAnnulla.shift();
       aggiornaBottoneAnnulla();
     }

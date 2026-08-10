@@ -500,6 +500,121 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
 
 /* ---------- Giornata ---------- */
 
+/* ---------- Schede delle giornate ---------- */
+
+.giornate-barra {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin: -18px -18px 14px;
+  padding: 8px 10px 0;
+  background: var(--surface-alt-2);
+  border-bottom: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+}
+
+.giornate-schede {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 1px;
+}
+
+.giornata-scheda {
+  display: flex;
+  align-items: center;
+  flex: none;
+  max-width: 200px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  /* la scheda aperta "sale" a filo del contenuto, come nei browser */
+  margin-bottom: -1px;
+}
+
+.giornata-scheda.attiva {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 -1px 3px var(--shadow);
+}
+
+.giornata-scheda:not(.attiva):hover { background: var(--accent-tint); }
+
+.scheda-apri {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 10px 10px 0 0;
+}
+
+.giornata-scheda.attiva .scheda-apri { color: var(--text); }
+.scheda-apri:hover:not(:disabled) { background: transparent; }
+
+.scheda-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scheda-kcal {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.giornata-scheda.attiva .scheda-kcal { color: var(--accent); opacity: 1; font-weight: 600; }
+
+.scheda-chiudi {
+  flex: none;
+  padding: 4px 8px 4px 2px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  border-radius: 6px;
+}
+.scheda-chiudi:hover { background: var(--danger-tint); color: var(--danger); }
+
+.scheda-nome-input {
+  width: 140px;
+  padding: 6px 8px;
+  margin: 3px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.giornata-nuova-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+  background: transparent;
+  color: var(--accent);
+  border: 1px dashed var(--accent-border);
+}
+.giornata-nuova-btn:hover:not(:disabled) { background: var(--accent-tint); color: var(--accent-hover); }
+.giornata-nuova-btn:disabled { background: transparent; color: var(--disabled); border-style: dashed; }
+
+@media (pointer: coarse) {
+  .scheda-apri { padding: 12px 10px; min-height: 44px; }
+  .scheda-chiudi { padding: 10px 10px 10px 4px; min-height: 44px; }
+  .giornata-nuova-btn { width: 44px; height: 44px; }
+}
+
 .giornata-header {
   display: flex;
   align-items: center;
@@ -702,6 +817,18 @@ button.danger:hover:not(:disabled) { background: var(--danger-hover); }
   border-radius: 999px;
   box-shadow: 0 6px 20px var(--shadow-strong);
   z-index: 40;
+}
+.barra-totale .bt-giornata {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .barra-totale .bt-kcal { font-weight: 700; font-size: 1.05rem; color: var(--accent); white-space: nowrap; }
 .barra-totale .bt-macro { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

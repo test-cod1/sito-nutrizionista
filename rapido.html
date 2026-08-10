@@ -198,6 +198,13 @@
 
   <!-- ---------- Giornata in costruzione ---------- -->
   <section class="card" id="card-giornata">
+    <!-- Schede delle giornate, in stile browser: fino a 7, si passa dall'una
+         all'altra con un tocco. Un clic sulla scheda già aperta la rinomina. -->
+    <div class="giornate-barra no-print">
+      <div class="giornate-schede" id="giornate-schede" role="tablist" aria-label="Giornate"></div>
+      <button type="button" id="giornata-nuova-btn" class="giornata-nuova-btn" title="Aggiungi una giornata" aria-label="Aggiungi una giornata">+</button>
+    </div>
+
     <div class="giornata-header no-print">
       <h2>La giornata</h2>
       <div class="giornata-azioni">
